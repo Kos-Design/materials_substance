@@ -8,7 +8,8 @@ Lets say the selected texture folder contains a set of P.B.R. texture maps named
 You only need to activate the relevant line in the addon panel (and edit the texture map name if needed) to batch import the image textures into their associated shaders on all selected objects at once.
 
 # Installation:
-
+TLDR Vidéo Tutorial :
+https://youtu.be/lumrnhikSOg
 
 Download the git archive zip from https://github.com/Kos-Design/materials_substance/raw/master/Blender_Substance_Texture_Importer.zip
 and install it in Blender via Edit > Preferences > Add-ons > Install an Addon
