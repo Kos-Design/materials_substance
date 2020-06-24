@@ -9,7 +9,7 @@ You only need to activate the relevant line in the addon panel (and edit the tex
 
 # Installation:
 
-Download the git archive zip from https://github.com/Kos-Design/materials_substance/archive/master.zip
+Download the git archive zip from https://github.com/Kos-Design/materials_substance/raw/master/Blender_Substance_Texture_Importer.zip
 and install it in Blender via Edit > Preferences > Add-ons > Install an Addon
 It will appear in the Add-Ons list, enable it by ticking the checkbox in front of “Material: Blender Substance Texture Importer”
 That’s it the plugin is ready to use.
