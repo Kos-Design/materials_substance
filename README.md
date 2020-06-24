@@ -9,6 +9,9 @@ You only need to activate the relevant line in the addon panel (and edit the tex
 
 # Installation:
 
+TLDR Vidéo Tutorial :
+https://youtu.be/7aT0fVtHT_U
+
 Download the git archive zip from https://github.com/Kos-Design/materials_substance/raw/master/Blender_Substance_Texture_Importer.zip
 and install it in Blender via Edit > Preferences > Add-ons > Install an Addon
 (Note : if you download the files manually from git, place them ( __init__.py, Operators.py, Panels.py and PropertyGroups.py ) in a folder called "materials_substance" inside your Blender Add-Ons directory)
