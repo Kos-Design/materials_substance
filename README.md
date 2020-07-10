@@ -19,7 +19,10 @@ That’s it the plugin is ready to use.
 
 
 # How-to:
-(Documentation in progress) 
+Basic Features & How-to Video tutorial :
+https://youtu.be/45rky8J_0us
+
+(Documentation still in progress) 
 A Panel labeled Substance Texture Importer is displayed under the Shader Settings in the Material Tab. 
 
 First choose the Directory containing the Texture Maps to be imported.
