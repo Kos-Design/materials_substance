@@ -21,6 +21,7 @@ Installation:
 ---------------
 
 -`TLDR Add-on Installation Vidéo Tutorial <https://youtu.be/lumrnhikSOg>`__
+https://youtu.be/lumrnhikSOg
 
 Download the git archive zip from https://github.com/Kos-Design/materials_substance/raw/master/Blender_Substance_Texture_Importer.zip
 and install it in Blender via Edit > Preferences > Add-ons > Install an Addon
@@ -33,14 +34,7 @@ How-to:
 -------
 
 -`Basic Features & How-to Video tutorial <https://youtu.be/45rky8J_0us>`__
-.. raw:: html
-   : : https://www.youtube.com/embed/45rky8J_0us
-
-.. raw:: html
-<embed><iframe width="560" height="315" src="https://www.youtube.com/embed/45rky8J_0us" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-...
-</embed>
-
+https://www.youtube.com/embed/45rky8J_0us
 
 //(Documentation still in progress) 
 A Panel labeled Substance Texture Importer is displayed under the Shader Settings in the Material Tab. 
