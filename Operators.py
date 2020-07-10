@@ -135,13 +135,15 @@ class KOS_OT_createnodes(popol, Operator):
         og_selection = list(context.view_layer.objects.selected)
         activeobj = context.view_layer.objects.active
         lecleanselect = selector(self, context)
+        for obj in og_selection:
+            obj.select_set(False)
         for leselected in lecleanselect:
             leselected.select_set(True)
             context.view_layer.objects.active = leselected
             mat_params = [leselected, matsdone, "dothem"]
             done = foreachmat(self, context, mat_params)
-
             matsdone = done
+            leselected.select_set(False)
 
         for obj in og_selection:
             obj.select_set(True)
@@ -435,7 +437,7 @@ def dothenodes(self, context, do_params):
     skipnormals = kosvars.skipnormals
     selectedshader = kosvars.shaderlist
     cutstomshd = selectedshader in kosni
-    applytoall = kosvars.applyall
+
 
     if kosvars.eraseall:
         lematos.node_tree.nodes.clear()
@@ -481,6 +483,10 @@ def dothenodes(self, context, do_params):
 
     else:
         lesurfaceshader = lafirstconnection
+
+    if lesurfaceshader.type == 'BSDF_PRINCIPLED':
+        lesurfaceshader.inputs['Specular'].default_value = 0
+        # best to set specular to 0 if the PBR workflow doesn't require it (otherwise a spec map will overwrite it anyway)
 
     baseloc0_x = matos_output.location[0]
     baseloc0_y = matos_output.location[1]
@@ -672,6 +678,9 @@ def plugthenodes(self, context, pg_params):
             nodestofill = (nod for nod in lematerial.node_tree.nodes if nod.label == lamap)
             for nods in nodestofill:
                 nods.image = bpy.data.images[imagename]
+                if lamap.lower() in ["normal", "nor", "norm", "normale", "normals"]:
+                    nods.image.colorspace_settings.name = 'Non-Color'
+
             toreport = "Texture file '" + imagename + "' assigned in "+ lematerial.name
             self.report({'INFO'}, toreport)
         else:
@@ -696,19 +705,21 @@ class KOS_OT_assignnodes(popol, Operator):
         scene = context.scene
         if len(scene.koshi) == 0:
             bpy.ops.kos.createdummy()
-        laselection = list(context.view_layer.objects.selected)
+        og_selection = list(context.view_layer.objects.selected)
         activeobj = context.view_layer.objects.active
         lecleanselect = selector(self, context)
         matsdone = []
+        for obj in og_selection:
+            obj.select_set(False)
         for leselected in lecleanselect:
             leselected.select_set(True)
             context.view_layer.objects.active = leselected
-
             mat_params = [leselected, matsdone, "plug"]
             done = foreachmat(self, context, mat_params)
             matsdone = done
+            leselected.select_set(False)
 
-        for obj in laselection:
+        for obj in og_selection:
             obj.select_set(True)
         context.view_layer.objects.active = activeobj
         if not self.fromimportbutton:
@@ -950,14 +961,21 @@ class KOS_OT_addpreset(KosAddPresetBase, Operator):
     # Common variable used for all preset values
     preset_defines = ['scene = bpy.context.scene',
                       'kosvars = scene.kosvars',
-                      'bpy.ops.kos.saveall()',
                       ]
     # Properties to store in the preset
-    preset_values = ['kosvars.shaderlist', 'kosvars.kosall',
+    preset_values = [
+                     'kosvars.expert',
+                     'kosvars.kosall',
                      'kosvars.kosdir', 'kosvars.separator',
-                     'kosvars.customshader',
+                     'kosvars.panelrows',
                      'kosvars.applyall', 'kosvars.eraseall',
-                     'kosvars.extras', 'kosvars.shader',
+                     'kosvars.extras',
+                     'kosvars.onlyactiveobj', 'kosvars.skipnormals',
+                     'kosvars.onlyamat',
+                     'kosvars.fixname',
+                     'kosvars.prefix',
+                     'kosvars.patterns'
+
                      ]
     # Directory to store the presets
     preset_subdir = 'kospresets'
@@ -1061,7 +1079,12 @@ class KOS_OT_saveall(popol, Operator):
             maplabels = eval(f"scene.kosp{i}").maplabels
             lechan = eval(f"scene.kosp{i}").inputsockets
             enabled = str(eval(f"scene.kosp{i}").labelbools)
-            lineitems = [str(eval(f"scene.kosp{i}").name), maplabels, lechan, enabled]
+            exts = eval(f"scene.kosp{i}").mapext
+            lesfilenames = eval(f"scene.kosp{i}").lefilename
+            probables = eval(f"scene.kosp{i}").probable
+            manuals = str(eval(f"scene.kosp{i}").manual)
+
+            lineitems = [str(eval(f"scene.kosp{i}").name), maplabels, lechan, enabled, exts, lesfilenames, probables, manuals ]
             lineraw = "@\_/@".join(str(lx) for lx in lineitems)
             arey.append(lineraw)
 
@@ -1087,8 +1110,16 @@ class KOS_OT_loadall(popol, Operator):
         for i in range(10):
             paneline = eval(f"scene.kosp{i}")
             paneline.maplabels = allin[i][1]
-            paneline.inputsockets = allin[i][2]
+            try :
+                paneline.inputsockets = allin[i][2]
+            except TypeError :
+                paneline.inputsockets = '0'
             paneline.labelbools = bool(int(eval(allin[i][3])))
+            paneline.mapext = allin[i][4]
+            paneline.lefilename = allin[i][5]
+            paneline.probable = allin[i][6]
+            paneline.manual = bool(int(eval(allin[i][7])))
+
         return {'FINISHED'}
 
 
