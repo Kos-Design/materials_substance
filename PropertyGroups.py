@@ -63,6 +63,7 @@ def appendecustomshaders(self, context):
         CustomNodeGroups.findnodegroups(self, context)
     else:
         context.scene.kosni.clear()
+    cleaninputsockets(self,context)
     return
 
 
@@ -177,6 +178,34 @@ def assumenamefromkosvars(self, context):
 
     return
 
+def currentshaderinputs(self, context):
+    lematerial = MatnameCleaner.clean(self,context)[0]
+    if lematerial != None:
+        for lesnodes in lematerial.node_tree.nodes:
+            validoutput = lesnodes.type == "OUTPUT_MATERIAL" and lesnodes.is_active_output and lesnodes.inputs['Surface'].is_linked
+            if validoutput:
+                currentshader = lesnodes.inputs['Surface'].links[0].from_node
+                inputz = lematerial.node_tree.nodes[currentshader.name].inputs
+                if len(inputz) != 0:
+                    keyz = inputz.keys()
+                    return keyz
+                # else
+                #     return default
+
+    return []
+
+def arrangeinputlist(self, context, rawdata):
+    dispitem = [('Disp Vector', 'Disp Vector', ''), ('Displacement', 'Displacement', '')]
+    default = ('0', '', '')
+    items = []
+    for item in rawdata:
+        items.append((item, item, ''))
+    items.extend(dispitem)
+    items.reverse()
+    items.append(default)
+    items.reverse()
+
+    return items
 
 def poutputsokets_cb(self, context):
     # callback for the enumlist of the dynamic enums
@@ -186,36 +215,23 @@ def poutputsokets_cb(self, context):
     kosvars = scene.kosvars
     selectedshader = scene.kosvars.shaderlist
     items = []
-    dispitem = [('Disp Vector', 'Disp Vector', ''), ('Displacement', 'Displacement', '')]
-    default = ('0', '', '')
+    rawdata = []
+
+
+
     for i in range(len(koshi)):
         if selectedshader in koshi[i].shadertype:
             rawdata = koshi[i].inputsockets.split("@-¯\(°_o)/¯-@")
-
-            for item in rawdata:
-                items.append((item, item, ''))
-            items.extend(dispitem)
-            items.reverse()
 
     for i in range(len(kosni)):
         if selectedshader in kosni[i].nodetype:
             rawdata = kosni[i].inputsockets.split("@-¯\(°_o)/¯-@")
 
-            for item in rawdata:
-                items.append((item, item, ''))
-            items.extend(dispitem)
-            items.reverse()
-
     if not kosvars.shader:  # and valid mat
-        itemscurrent = currentshaderinputs(self, context)
-        if itemscurrent != []:
-            items = itemscurrent
-            items.extend(dispitem)
-            items.reverse()
+        rawdata = currentshaderinputs(self, context)
 
-    items.append(default)
-    items.reverse()
-
+    items = arrangeinputlist(self, context, rawdata)
+    # if len(items)
     return items
 
 
@@ -223,8 +239,10 @@ def poutputsokets_up(self, context):
     # update for the enumlist
     scene = context.scene
     state = self.inputsockets
+    if state.isalnum == '' :
+        self.inputsockets = '0'
     disped = ['Displacement', 'Disp Vector']
-    scene.kosvars.my_boolZ = False
+
     zid = self.ID
     if state != '0':
         same = (i for i in range(10) if state == eval(f"bpy.context.scene.kosp{i}").inputsockets and i != zid)
@@ -241,6 +259,10 @@ def poutputsokets_up(self, context):
                 if j != zid:
                     kosp = eval(f"scene.kosp{j}")
                     kosp.inputsockets = '0'
+    # koshis = koshi[i].inputsockets.split("@-¯\(°_o)/¯-@")
+    #
+    # kosnis = kosni[i].inputsockets.split("@-¯\(°_o)/¯-@")
+    # currentinputs = currentshaderinputs(self,context)
 
     return
 
@@ -264,33 +286,6 @@ class MatnameCleaner():
             lematname = lematname[:-4]
         matline = (material, lematname)
         return matline
-
-
-def isvalidmat(self, context):
-    leobject = context.object
-    lematerial = leobject.active_material
-    if lematerial != None:
-        for lesnodes in lematerial.node_tree.nodes:
-            validoutput = lesnodes.type == "OUTPUT_MATERIAL" and lesnodes.is_active_output and lesnodes.inputs[
-                'Surface'].is_linked
-            if validoutput:
-                currentshader = lesnodes.inputs['Surface'].links[0].from_node
-                inputz = lematerial.node_tree.nodes[currentshader.name].inputs
-                if len(inputz) != 0:
-                    return inputz
-
-    return False
-
-
-def currentshaderinputs(self, context):
-    enumitems = []
-    inputz = isvalidmat(self, context)
-    if bool(inputz):
-        for item in inputz:
-            line = (item.name, item.name, '')
-            enumitems.append(line)
-
-    return enumitems
 
 
 def labelbools_up(self, context):
@@ -336,6 +331,8 @@ def applytoall_up(self, context):
         target = "active object"
     if self.applyall:
         target = "all visible objects"
+        self.onlyactiveobj = False
+
 
     bpy.types.KOS_OT_subimport.bl_description = "Setup nodes and load textures maps on " + target
     bpy.types.KOS_OT_createnodes.bl_description = "Setup Nodes on " + target
@@ -552,6 +549,7 @@ def shaderlist_up(self, context):
     scene = context.scene
     if len(scene.koshi) == 0:
         bpy.ops.kos.createdummy()
+    cleaninputsockets(self,context)
     return
 
 
@@ -713,9 +711,24 @@ def isindir_updater(self, context):
             self.isindir = os.path.isfile(kosp.probable)
 
     return isit
+def cleaninputsockets(self,context):
+    for i in range(10):
+        kosp = eval(f"context.scene.kosp{i}")
+        inputs = kosp.inputsockets
+        if not inputs.isalnum() :
+            kosp.inputsockets = '0'
+    return
+def shaderup(self, context):
+    scene = bpy.context.scene
+    cleaninputsockets(self,context)
 
 
+        # poutputsokets_up(kosp, context)
 
+def onlyactiveobj_up(self, context):
+    if self.onlyactiveobj:
+        self.applyall = False
+    return
 class KosVars(PropertyGroup):  # kosvars
 
     customshader: BoolProperty(
@@ -740,6 +753,7 @@ class KosVars(PropertyGroup):  # kosvars
         name="Enable or Disable",
         description="Apply Operations to active object only ",
         default=False,
+        update=onlyactiveobj_up
     )
     separator: StringProperty(
         name="",
@@ -831,6 +845,7 @@ class KosVars(PropertyGroup):  # kosvars
                        \n\
                        \n (Enabled by default if 'Apply to all' is activated)",
         default=False,
+        update=shaderup
     )
 
     shaderlist: EnumProperty(
