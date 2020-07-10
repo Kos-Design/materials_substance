@@ -36,7 +36,7 @@ How-to:
 
 `Basic Features & How-to Video tutorial <https://youtu.be/45rky8J_0us>`__
 
-https://www.youtube.com/embed/45rky8J_0us
+https://youtu.be/45rky8J_0us
 
 //(Documentation still in progress) 
 A Panel labeled Substance Texture Importer is displayed under the Shader Settings in the Material Tab. 
