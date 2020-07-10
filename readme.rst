@@ -21,6 +21,7 @@ Installation:
 ---------------
 
 -`TLDR Add-on Installation Vidéo Tutorial <https://youtu.be/lumrnhikSOg>`__
+
 https://youtu.be/lumrnhikSOg
 
 Download the git archive zip from https://github.com/Kos-Design/materials_substance/raw/master/Blender_Substance_Texture_Importer.zip
@@ -34,6 +35,7 @@ How-to:
 -------
 
 -`Basic Features & How-to Video tutorial <https://youtu.be/45rky8J_0us>`__
+
 https://www.youtube.com/embed/45rky8J_0us
 
 //(Documentation still in progress) 
