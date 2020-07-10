@@ -20,7 +20,7 @@ You only need to activate the relevant line in the addon panel (and edit the tex
 Installation:
 ---------------
 
-`TLDR Add-on Installation Vidéo Tutorial <https://youtu.be/lumrnhikSOg>`__
+`TLDR Add-on Installation Video Tutorial <https://youtu.be/lumrnhikSOg>`__
 
 https://youtu.be/lumrnhikSOg
 
