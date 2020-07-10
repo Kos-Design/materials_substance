@@ -20,7 +20,7 @@ You only need to activate the relevant line in the addon panel (and edit the tex
 Installation:
 ---------------
 
--`TLDR Add-on Installation Vidéo Tutorial <https://youtu.be/lumrnhikSOg>`__
+`TLDR Add-on Installation Vidéo Tutorial <https://youtu.be/lumrnhikSOg>`__
 
 https://youtu.be/lumrnhikSOg
 
@@ -34,7 +34,7 @@ That’s it the plugin is ready to use.
 How-to:
 -------
 
--`Basic Features & How-to Video tutorial <https://youtu.be/45rky8J_0us>`__
+`Basic Features & How-to Video tutorial <https://youtu.be/45rky8J_0us>`__
 
 https://www.youtube.com/embed/45rky8J_0us
 
@@ -47,5 +47,5 @@ First choose the Directory containing the Texture Maps to be imported.
 License
 -------
 
-This add-on is released under the GNU/GPL v3.0 license
+This add-on is released under the `GNU/GPL v3.0 license <https://github.com/Kos-Design/materials_substance/blob/master/LICENSE>`__
 
