@@ -6,7 +6,7 @@ Blender Substance Texture Importer
    :align: center
 
 -----------
-Description
+Description:
 -----------
 
 Blender addon designed to import Substance Painter Textures and other similar P.B.R maps into Blender 3D easily. The script imports the texture maps from the choosen folder and assigns them to the selected objects according to their material name.
