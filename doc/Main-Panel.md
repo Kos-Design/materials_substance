@@ -32,6 +32,7 @@
 
 
 
-**Manual selection**
-![Blender-Substance-Texture-Importer_advanced-manual-selector_picture](http://kos-design.com/images/wikipics/advanced-manual-selector.png  "patterns-list")
-little icon ![Blender-Substance-Texture-Importer_manual-selector_picture](http://kos-design.com/images/wikipics/manual-selector.png  "manual-selector")
+**Manual selection**\
+![Blender-Substance-Texture-Importer_advanced-manual-selector_picture](http://kos-design.com/images/wikipics/advanced-manual-selector.png  "patterns-list")\
+little icon\
+![Blender-Substance-Texture-Importer_manual-selector_picture](http://kos-design.com/images/wikipics/manual-selector.png  "manual-selector")
