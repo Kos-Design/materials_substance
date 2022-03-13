@@ -38,7 +38,9 @@ How-to:
 
 https://youtu.be/45rky8J_0us
 
-//(Documentation still in progress) 
+`Documentation <doc/Home.md>`__
+(still in progress) 
+
 A Panel labeled Substance Texture Importer is displayed under the Shader Settings in the Material Tab. 
 
 First choose the Directory containing the Texture Maps to be imported.
