@@ -25,7 +25,6 @@ def ShowMessageBox(message="", title="Message", icon='INFO'):
 
     bpy.context.window_manager.popup_menu(draw, title=title, icon=icon)
 
-
 def selector(self, context):
     viewl = context.view_layer
     kosvars = context.scene.kosvars
@@ -47,7 +46,6 @@ def selector(self, context):
             obj.select_set(False)
 
     return lecleanselect
-
 
 class popol():
     bl_options = {'INTERNAL', 'UNDO'}
@@ -120,8 +118,6 @@ class NodeHandler():
             https://www.python.org/dev/peps/pep-0484/
 
         """
-        #for key, value in kwargs.items():
-        #    print ("%s == %s" %(key, value))
         context = mat_params['context']
         already_done = mat_params['already_done']
         leselected = mat_params['selection']
@@ -508,7 +504,8 @@ class NodeHandler():
         ylocs.sort()
         center = (ylocs[0] + ylocs[-1]) / 2
         return center
-    
+
+
 class KOS_OT_createnodes(popol,Operator):
     bl_idname = "kos.createnodes"
     bl_label = "Only Setup Nodes"
@@ -584,10 +581,11 @@ class KOS_OT_assumename(popol,Operator):
 
 
 class GuessName():
-    def testit(self, context, gs_params):
+    def testit(self, **gs_params):
+        context = gs_params['context']
         scene = context.scene
-        kosp = gs_params[0]
-        keepat = gs_params[1]
+        kosp = gs_params['props']
+        keepat = gs_params['keep_pattern']
         kosvars = scene.kosvars
         prefix = kosvars.prefix
         isindir = (os.path.basename(kosp.lefilename) in os.path.dirname(kosp.lefilename))
@@ -646,9 +644,10 @@ class KOS_OT_guessfilext(popol,Operator):
         scene = context.scene
         kosp = eval(f"scene.kosp{linen}")
         manual = kosp.manual
-        gs_params = [kosp, keepat]
+        gsn = GuessName()
+        gs_params = {'context': context, 'props':kosp, 'keep_pattern':keepat}
         currentext = kosp.mapext
-        isindir = GuessName.testit(self, context, gs_params)
+        isindir = gsn.testit(**gs_params)
 
         if not isindir and not manual:
 
@@ -660,7 +659,7 @@ class KOS_OT_guessfilext(popol,Operator):
             for ext in filetypes:
                 kosp.mapext = ext
 
-                isindir = GuessName.testit(self, context, gs_params)
+                isindir = gsn.testit(**gs_params)
 
                 if isindir:
                     break
@@ -697,8 +696,9 @@ class KOS_OT_checkmaps(popol,Operator):
         sel = context.object
         mat = sel.active_material
         mat.use_nodes = True
-        gs_params = [kosp, keepat]
-
+        gsn = GuessName()
+        #gs_params = [kosp, keepat]
+        gs_params = {'context':context, 'props':kosp, 'keep_pattern':keepat}
         if self.lorigin == "plug" and not manual:
             kosp.probable = "reseted"
 
@@ -706,11 +706,11 @@ class KOS_OT_checkmaps(popol,Operator):
 
         if not manual:
 
-            gotafile = GuessName.testit(self, context, gs_params)
+            gotafile = gsn.testit(**gs_params)
 
             if not gotafile:
                 bpy.ops.kos.guessfilext(linen=linen)
-            isafile = GuessName.testit(self, context, gs_params)
+            isafile = gsn.testit(**gs_params)
 
             if not isafile and self.called :
                 toreport = kosp.probable + " not found "
