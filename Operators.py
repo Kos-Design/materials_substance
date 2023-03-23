@@ -61,64 +61,455 @@ class popol():
         return False
 
 
-def checklist(self, context):
-    kosvars = context.scene.kosvars
-    panelrows = kosvars.panelrows
-    lesmaps = []
-    enabled = []
-    leschans = []
-    # TODO see why it doesnt' work without bpy. on context
-    on = list(i for i in range(panelrows) if eval(f"bpy.context.scene.kosp{i}.labelbools"))
-    for i in on:
-        kosp = eval(f"context.scene.kosp{i}")
-        if not kosp.manual:
-            lesmaps.append(kosp.maplabels)
+class NodeHandler():
+    """
+    def __init__(self, project=None):
+        #self._set()
+        self.project = project
+        self.tasks_types = None
+    """
+    def checklist(self, context):
+        """dictionary generator {maps, channels, index}
+
+        `helper` dict generated from properties stored in context.scene.kosvars. Used by the method foreachmat .
+        For each panel_rows (rows in the ui panel) returns the string value of the map and the channel associated 
+        as well as bool representing the state of that line in the UI panel:
+
+        Args:
+            self (self): The first parameter.
+            context (context): The second parameter.
+
+        Returns:
+            [dict]: dictionary of of Maps and Channels names and the index of their line in the UI panel:
+            {"maps":maps, "chans":chans, "indexer":indexer}
+
+        .. More:
+            https://www.python.org/dev/peps/pep-0484/
+
+        """
+        kosvars = context.scene.kosvars
+        panel_rows = kosvars.panelrows
+        maps = []
+        chans = []
+        indexer = [i for i in range(panel_rows) if eval(f"bpy.context.scene.kosp{i}.labelbools")]
+        for i in indexer :
+            kosp = eval(f"bpy.context.scene.kosp{i}")
+            chans.append(kosp.inputsockets)
+            if kosp.manual:
+                maps.append(os.path.basename(kosp.lefilename))    
+            else:
+                maps.append(kosp.maplabels)
+        line = {"maps":maps, "chans":chans, "indexer":indexer}
+        return line
+
+    def foreachmat(self, **mat_params):
+        """helper function used to manipulate nodes
+
+        `helper`  Used by the function KOS_OT_createnodes and KOS_OT_assignnodes.
+        Set the nodes for each material in the material slots according to the maps and channels defined in the Ui panel:
+
+        Args:
+            self (self): The first parameter.
+            context (context): The second parameter.
+            mat_params (array): [selected object, matsdone (?), string tag "dothem" or "plug"]
+
+        Returns:
+            already_done : mat_params[1] (to update the list)
+
+        .. More:
+            https://www.python.org/dev/peps/pep-0484/
+
+        """
+        #for key, value in kwargs.items():
+        #    print ("%s == %s" %(key, value))
+        context = mat_params['context']
+        already_done = mat_params['already_done']
+        leselected = mat_params['selection']
+        lafunction = mat_params['caller']
+        maslots = leselected.material_slots
+        kosvars = context.scene.kosvars
+        idx = leselected.active_material_index
+        params = self.checklist(context)
+        if kosvars.onlyamat:
+            maslots = [leselected.material_slots[idx]]
+
+        for i in range(len(maslots)):
+            leselected.active_material_index = i
+            lematos = leselected.active_material
+
+            if lematos != None:
+
+                if lematos.name not in already_done:
+                    lematos.use_nodes = True
+                    
+
+                    enabled = params['indexer']
+                    if lafunction == "plug":
+                        for indexed in enabled:
+                            pg_params = {'context':context, 'mat':lematos, 'idx':indexed}
+                            self.plugthenodes(**pg_params)
+
+                    if lafunction == "dothem":
+                        do_params = {'context':context, 'maps':params['maps'], 'chans':params['chans'], 'mat':lematos}
+                        self.dothenodes(**do_params)
+
+                    already_done.append(lematos.name)
+
+        leselected.active_material_index = idx
+        return already_done
+    
+    def dothenodes(self, **do_params):
+        context = do_params['context']
+        maps = do_params['maps']
+        chans = do_params['chans']
+        lematos = do_params['mat']
+        leoldshader = None
+        scene = context.scene
+        kosvars = scene.kosvars
+        koshi = scene.koshi
+        kosni = scene.kosni
+        skipnormals = kosvars.skipnormals
+        selectedshader = kosvars.shaderlist
+        cutstomshd = selectedshader in kosni
+
+
+        if kosvars.eraseall:
+            lematos.node_tree.nodes.clear()
+
+        nods = lematos.node_tree.nodes
+        treez = lematos.node_tree
+        linkz = treez.links
+
+        lesoutputs = list(lesnodes for lesnodes in nods if lesnodes.type == "OUTPUT_MATERIAL")
+        for lesnodes in lesoutputs:
+            if lesnodes.is_active_output:
+                matos_output = lesnodes
+        if not len(lesoutputs) > 0:
+            matos_output = nods.new("ShaderNodeOutputMaterial")
+
+        offsetter1_x = -404
+        offsetter1_y = 0
+        baseloc0_x = matos_output.location[0]
+        baseloc0_y = matos_output.location[1]
+
+        surfinput = matos_output.inputs['Surface']
+        if surfinput.is_linked:
+            lafirstconnection = surfinput.links[0].from_node
+            invalidtypes = ["ADD_SHADER", "MIX_SHADER", "HOLDOUT"]
+            invalidshader = lafirstconnection.type in invalidtypes
+
         else:
-            lesmaps.append(os.path.basename(kosp.lefilename))
+            lafirstconnection = None
+            invalidshader = True
+        leoldshader = lafirstconnection
+        replaceshader = invalidshader or (kosvars.shader)
 
-        leschans.append(kosp.inputsockets)
-        enabled.append(kosp.labelbools)
-    result = [lesmaps, leschans, on]
-    return result
+        if replaceshader:
 
+            if cutstomshd:
+                lenewshader = nods.new('ShaderNodeGroup')
+                lenewshader.node_tree = bpy.data.node_groups[selectedshader]
 
-def foreachmat(self, context, mat_params):
-    matnamesdone = mat_params[1]
-    leselected = mat_params[0]
-    lafunction = mat_params[2]
-    maslots = leselected.material_slots
-    kosvars = context.scene.kosvars
-    idx = leselected.active_material_index
-    if kosvars.onlyamat:
-        maslots = [leselected.material_slots[idx]]
+            else:
+                lenewshader = nods.new(selectedshader)
+            linkz.new(lenewshader.outputs[0], matos_output.inputs[0])
+            lesurfaceshader = lenewshader
 
-    for i in range(len(maslots)):
-        leselected.active_material_index = i
-        lematos = leselected.active_material
+        else:
+            lesurfaceshader = lafirstconnection
 
-        if lematos != None:
+        if lesurfaceshader.type == 'BSDF_PRINCIPLED':
+            lesurfaceshader.inputs['Specular'].default_value = 0
+            # best to set specular to 0 if the PBR workflow doesn't require it (otherwise a spec map will overwrite it anyway)
 
-            if lematos.name not in matnamesdone:
-                lematos.use_nodes = True
-                params = checklist(self, context)
+        baseloc0_x = matos_output.location[0]
+        baseloc0_y = matos_output.location[1]
+        lesurfaceshader.location = (baseloc0_x + offsetter1_x * 2, baseloc0_y)
+        base_x = lesurfaceshader.location[0]
+        base_y = lesurfaceshader.location[1]
 
-                enabled = params[2]
-                if lafunction == "plug":
-                    for indexed in enabled:
-                        pg_params = [lematos, indexed]
-                        plugthenodes(self, context, pg_params)
+        mapin = None
+        lescoord = None
+        mapnumbr = 0
+        mov_params = {'context':context, 'mat':lematos, 'shader':lesurfaceshader, 'nodes':nods, 'old_shader':leoldshader}
 
-                if lafunction == "dothem":
-                    do_params = [params[0], params[1], lematos]
-                    dothenodes(self, context, do_params)
+        self.move_existing(**mov_params)
 
-                matnamesdone.append(lematos.name)
+        if len(maps) > 0:
 
-    leselected.active_material_index = idx
-    return matnamesdone
+            if not mapin:
+                mapin = nods.new('ShaderNodeMapping')
+                mapin.label = lematos.name + "Mapping"
 
+            if not lescoord:
+                lescoord = nods.new('ShaderNodeTexCoord')
+                lescoord.label = lematos.name + "Coordinates"
 
-class KOS_OT_createnodes(popol, Operator):
+            if not lescoord.outputs[0].is_linked:
+                # lematos.node_tree.nodes['Texture Coordinate'].outputs['UV']
+                linkz.new(lescoord.outputs['UV'], mapin.inputs['Vector'])
+
+            line = (i for i in range(len(list(maps))) if f"bpy.context.scene.kosp{i}.labelbools")
+
+            for i in line:
+                lamap = maps[i]
+                lechan = chans[i]
+
+                kosp = eval(f"scene.kosp{i}")
+                manual = kosp.manual
+                isdisplacement = ("Displacement" in lechan)
+                islinked = (lechan != "0")
+                isdispvector = 'Disp Vector' in lechan
+                if manual:
+                    lamap = os.path.basename(kosp.lefilename)[:-4]
+                isnormal = ("normal" in lamap or "Normal" in lamap)
+                isheight = ("height" in lamap or "Height" in lamap)
+                washn = "height" in maps or "Height" in maps or "normal" in maps or "Normal" in maps
+                addextras = kosvars.extras and not (isnormal or isheight)
+                colbool = ("Color" in lechan)
+                emibool = ("Emission" in lechan)
+                noramps = ["Subsurface Radius", "Normal", "Tangent"]
+                innoramps = (lechan in noramps)
+                okcurve = ((colbool or emibool) and not isdisplacement)
+                okramp = (not (colbool or emibool) and (not lamap in noramps)) or (isdisplacement and isheight)
+                offsetter_x = -312
+                offsetter_y = -312
+
+                lanewnode = nods.new(type="ShaderNodeTexImage")
+                lanewnode.name = lamap
+                lanewnode.label = lamap
+
+                linkz.new(mapin.outputs[0], lanewnode.inputs['Vector'])
+
+                if addextras:
+                    if okcurve:
+                        lacurveramp = nods.new('ShaderNodeRGBCurve')
+                        extranode = lacurveramp
+                        extranode.label = extranode.name + lamap
+                        linkz.new(lanewnode.outputs[0], lacurveramp.inputs[1])
+
+                    if okramp:
+                        laramp = nods.new('ShaderNodeValToRGB')
+                        extranode = laramp
+                        linkz.new(lanewnode.outputs[0], laramp.inputs[0])
+
+                        # linkz.new(lacurveramp.outputs[0] , matos_output.inputs[2])
+                    if okramp or okcurve:
+                        extranode.label = extranode.name + lamap
+
+                if isnormal and not skipnormals:
+                    normalmapnode = nods.new('ShaderNodeNormalMap')
+                    linkz.new(lanewnode.outputs[0], normalmapnode.inputs[1])
+
+                if isheight and not skipnormals:
+
+                    bumpnode = nods.new('ShaderNodeBump')
+                    linkz.new(lanewnode.outputs[0], bumpnode.inputs[2])
+                    bumpnode.inputs[0].default_value = .5
+                    if addextras:
+                        linkz.new(extranode.outputs[0], bumpnode.inputs[2])
+
+                if islinked and not isdisplacement and not isdispvector:
+
+                    if isnormal and not skipnormals:
+                        if isdisplacement:
+                            linkz.new(normalmapnode.outputs[0], matos_output.inputs[2])
+
+                        else:
+                            linkz.new(normalmapnode.outputs[0], lesurfaceshader.inputs[lechan])
+
+                    if isheight and not skipnormals:
+                        if isdisplacement:
+                            linkz.new(bumpnode.outputs[0], matos_output.inputs[2])
+
+                        else:
+                            linkz.new(bumpnode.outputs[0], lesurfaceshader.inputs[lechan])
+
+                    if not (isheight or isnormal) or skipnormals:
+                        if addextras:
+
+                            linkz.new(extranode.outputs[0], lesurfaceshader.inputs[lechan])
+                        else:
+                            linkz.new(lanewnode.outputs[0], lesurfaceshader.inputs[lechan])
+
+                if isdisplacement:
+                    dispmapnode = nods.new('ShaderNodeDisplacement')
+                    dispmapnode.location = (baseloc0_x - 256, baseloc0_y)
+                    linkz.new(dispmapnode.outputs[0], matos_output.inputs['Displacement'])
+                    if addextras:
+                        linkz.new(extranode.outputs[0], dispmapnode.inputs['Height'])
+                    if isheight and not skipnormals:
+                        pass
+                    if isnormal and not skipnormals:
+                        linkz.new(normalmapnode.outputs[0], dispmapnode.inputs['Normal'])
+                    if (not isnormal or skipnormals) and not addextras:
+                        linkz.new(lanewnode.outputs[0], dispmapnode.inputs['Height'])
+                if isdispvector:  # TODO implement link sanity
+                    dispvectnode = nods.new('ShaderNodeVectorDisplacement')
+                    dispvectnode.location = (baseloc0_x - 256, baseloc0_y)
+                    linkz.new(dispvectnode.outputs[0], matos_output.inputs['Displacement'])
+                    if addextras:
+                        linkz.new(extranode.outputs[0], dispvectnode.inputs['Vector'])
+                    if isnormal and not skipnormals:
+                        linkz.new(normalmapnode.outputs[0], dispvectnode.inputs['Vector'])
+                        # not sure it makes any sense
+                    if (not isnormal or skipnormals) and not addextras:
+                        linkz.new(lanewnode.outputs[0], dispvectnode.inputs['Vector'])
+
+                lanewnode.location = ((base_x + offsetter_x * (int(addextras) + int(isnormal or isheight) + 1)),
+                                    (base_y + offsetter_y * mapnumbr))
+
+                if addextras:  # again to be sure
+                    extranode.location = (
+                        (base_x + offsetter_x * (int(isnormal or isheight) + 1)), (base_y + offsetter_y * mapnumbr))
+                if isheight and not skipnormals:
+                    bumpnode.location = (base_x + offsetter_x, base_y + offsetter_y * mapnumbr)
+                if isnormal and not skipnormals:
+                    normalmapnode.location = (base_x + offsetter_x, base_y + offsetter_y * mapnumbr)
+                mapnumbr += 1
+            sl_params = {'context':context,'shader':lesurfaceshader, 'nodes':nods}
+            lesurfaceshader.location[1] = self.surfaceshaderlinks(**sl_params) + 128  # just a bit higher
+            lesurfaceshader.location[0] += 128
+            matos_output.location[1] = lesurfaceshader.location[1]
+            mapin.location = (base_x + offsetter_x * (int(addextras) + int(washn) + 2) + offsetter_x, base_y)
+            lescoord.location = (mapin.location[0] + offsetter_x, mapin.location[1])
+            mp_params = {'context':context, 'maps':mapin, 'nodes':nods}
+            mapin.location[1] = self.map_links(**mp_params)
+            lescoord.location[1] = mapin.location[1]
+            # for nodez in nods:
+            #     nodez.location[1] = nodez.location[1] - 156
+
+        return
+
+    def plugthenodes(self, **pg_params):
+        context = pg_params['context']
+        lematerial = pg_params['mat']
+        index = pg_params['idx']
+
+        kosvars = context.scene.kosvars
+        kosp = eval(f"context.scene.kosp{index}")
+        manual = kosp.manual
+        gofile = True
+        if not manual:
+            # bpy.ops.kos.assumename(kospnumber = index)
+            gofile = (bpy.ops.kos.checkmaps(linen=index, lorigin="plug", called=True) == {'FINISHED'})
+        lefilepath = kosp.lefilename
+
+        imagename = os.path.basename(lefilepath)
+        lamap = kosp.maplabels
+        if manual:
+            lamap = imagename[:-4]
+
+        if lematerial.node_tree.nodes.find(lamap) > 0:
+
+            if os.path.isfile(lefilepath) == True and gofile:
+                bpy.ops.image.open(
+                    filepath=os.path.basename(lefilepath),
+                    directory=os.path.dirname(lefilepath),
+                    files=[{"name": os.path.basename(lefilepath), "name": os.path.basename(lefilepath)}],
+                    show_multiview=False
+                )
+                nodestofill = (nod for nod in lematerial.node_tree.nodes if nod.label == lamap)
+                for nods in nodestofill:
+                    nods.image = bpy.data.images[imagename]
+                    if lamap.lower() in ["normal", "nor", "norm", "normale", "normals"]:
+                        nods.image.colorspace_settings.name = 'Non-Color'
+
+                toreport = "Texture file '" + imagename + "' assigned in "+ lematerial.name
+                self.report({'INFO'}, toreport)
+            else:
+                toreport = "Texture '" + imagename + "' not found"
+                self.report({'INFO'}, toreport)
+
+        else:
+            toreport = "node label " + lamap + " not found"
+            self.report({'INFO'}, toreport)
+
+        return
+
+    def map_links(self, **mp_params):
+        context = mp_params['context']
+        mapin = mp_params['maps']
+        nods = mp_params['nodes']
+        ylocs = []
+        connected = list(linked for linked in mapin.outputs[0].links if linked.is_valid)
+        if len(connected) > 0:
+            for linked in connected:
+                ylocs.append(linked.to_node.location[1])
+        else:
+            for nod in nods:
+                ylocs.append(nod.location[1])
+        ylocs.sort()
+        center = (ylocs[0] + ylocs[-1]) / 2
+        return center   
+
+    def move_existing(self, **mov_params):
+        context = mov_params['context']
+        scene = context.scene
+        lematos = mov_params['mat']
+        lesurfaceshader = mov_params['shader']
+        nods = mov_params['nodes']
+        kosvars = scene.kosvars
+        leoldshader = mov_params['old_shader']
+        replace = kosvars.shader
+        panelrows = kosvars.panelrows
+        imgs = list(nod for nod in nods if nod.type == 'TEX_IMAGE')
+
+        enabled = list(k for k in range(panelrows) if eval(f"bpy.context.scene.kosp{k}.labelbools"))
+        adding = len(enabled)
+        listofshadernodes = []  # TODO get a lish of all shadernodes
+        ylocsall = []
+        ylocsimg = []
+
+        for nod in nods:
+            replacedshader = replace and (nod != lesurfaceshader)
+            if (nod in imgs) or replacedshader:
+                ylocsimg.append(nod.location[1])
+            ylocsall.append(nod.location[1])
+
+        ylocsimg.sort()
+        ylocsall.sort()
+        distanceimgs = 0
+        clustersize_y = 0
+        newclustersize_y = 0
+        distancenodes = 0
+        if len(ylocsimg) > 1:
+            distanceimgs = (ylocsimg[-1] - ylocsimg[0])
+        if len(ylocsall) > 1:
+            clustersize_y = (ylocsall[-1] - ylocsall[0])
+
+        if bool(adding + int(replace)):
+            existing = (nod for nod in nods if nod.type != "OUTPUT_MATERIAL" and not nod == lesurfaceshader)
+            newclustersize_y = 888 * (adding / 2)
+            if not adding > 0 and replace:
+                newclustersize_y = 1024
+
+            # addit = int((distanceimgs / (len(imgs) + adding)) * adding)
+            # offsetter_y = 192 * (adding * 2 + len(imgs) * 2 )
+            offsetter_y = newclustersize_y
+
+            for nodez in existing:
+                nodez.location = (nodez.location[0] - 512, nodez.location[1] + offsetter_y)
+
+        return
+
+    def surfaceshaderlinks(self, **sl_params):
+        context = sl_params['context']
+        lesurfaceshader = sl_params['shader']
+        nods = sl_params['nodes']
+        ylocs = []
+        connected = list(linked for linked in lesurfaceshader.inputs if linked.is_linked)
+        if len(connected) > 0:
+            for linked in connected:
+                ylocs.append(linked.links[0].from_node.location[1])
+        else:
+            for nod in nods:
+                ylocs.append(nod.location[1])
+        ylocs.sort()
+        center = (ylocs[0] + ylocs[-1]) / 2
+        return center
+    
+class KOS_OT_createnodes(popol,Operator):
     bl_idname = "kos.createnodes"
     bl_label = "Only Setup Nodes"
     bl_description = "Setup empty Texture Nodes"
@@ -126,7 +517,7 @@ class KOS_OT_createnodes(popol, Operator):
     fromimportbutton: bpy.props.BoolProperty(default=False)
 
     def execute(self, context):
-
+        ndh = NodeHandler()
         scene = context.scene
         if len(scene.koshi) == 0:
             bpy.ops.kos.createdummy()
@@ -135,14 +526,15 @@ class KOS_OT_createnodes(popol, Operator):
         og_selection = list(context.view_layer.objects.selected)
         activeobj = context.view_layer.objects.active
         lecleanselect = selector(self, context)
+        #TODO why matsdone ?
         for obj in og_selection:
             obj.select_set(False)
         for leselected in lecleanselect:
             leselected.select_set(True)
             context.view_layer.objects.active = leselected
-            mat_params = [leselected, matsdone, "dothem"]
-            done = foreachmat(self, context, mat_params)
-            matsdone = done
+            mat_params = {'context':context, 'selection':leselected, 'already_done':matsdone, 'caller':"dothem"}
+            matsdone = ndh.foreachmat(**mat_params)
+            
             leselected.select_set(False)
 
         for obj in og_selection:
@@ -155,13 +547,13 @@ class KOS_OT_createnodes(popol, Operator):
         return {'FINISHED'}
 
 
-class KOS_OT_assumename(popol, Operator):
+class KOS_OT_assumename(popol,Operator):
     bl_idname = "kos.assumename"
     bl_label = ""
     bl_description = "Assume a probable filename "
 
     kospnumber: bpy.props.IntProperty(default=0)
-
+    #TODO: override popol type ?
     @classmethod
     def poll(cls, context):
         # return (context.object is not None)
@@ -239,7 +631,7 @@ class GuessName():
         return isindir
 
 
-class KOS_OT_guessfilext(popol, Operator):
+class KOS_OT_guessfilext(popol,Operator):
     bl_idname = "kos.guessfilext"
     bl_label = ""
     bl_description = "set kosp{linen}.mapext according to dir content"
@@ -280,7 +672,7 @@ class KOS_OT_guessfilext(popol, Operator):
         return {'FINISHED'}
 
 
-class KOS_OT_checkmaps(popol, Operator):
+class KOS_OT_checkmaps(popol,Operator):
     bl_idname = "kos.checkmaps"
     bl_label = ""
     bl_description = "Check if a file containing the Map Name keyword matches the Pattern"
@@ -343,358 +735,7 @@ class KOS_OT_checkmaps(popol, Operator):
         return {'CANCELLED'}
 
 
-def move_existing(self, context, mov_params):
-    scene = context.scene
-    lematos = mov_params[0]
-    lesurfaceshader = mov_params[1]
-    nods = mov_params[2]
-    kosvars = scene.kosvars
-    leoldshader = mov_params[3]
-    replace = kosvars.shader
-    panelrows = kosvars.panelrows
-    imgs = list(nod for nod in nods if nod.type == 'TEX_IMAGE')
-
-    enabled = list(k for k in range(panelrows) if eval(f"bpy.context.scene.kosp{k}.labelbools"))
-    adding = len(enabled)
-    listofshadernodes = []  # TODO get a lish of all shadernodes
-    ylocsall = []
-    ylocsimg = []
-
-    for nod in nods:
-        replacedshader = replace and (nod != lesurfaceshader)
-        if (nod in imgs) or replacedshader:
-            ylocsimg.append(nod.location[1])
-        ylocsall.append(nod.location[1])
-
-    ylocsimg.sort()
-    ylocsall.sort()
-    distanceimgs = 0
-    clustersize_y = 0
-    newclustersize_y = 0
-    distancenodes = 0
-    if len(ylocsimg) > 1:
-        distanceimgs = (ylocsimg[-1] - ylocsimg[0])
-    if len(ylocsall) > 1:
-        clustersize_y = (ylocsall[-1] - ylocsall[0])
-
-    if bool(adding + int(replace)):
-        existing = (nod for nod in nods if nod.type != "OUTPUT_MATERIAL" and not nod == lesurfaceshader)
-        newclustersize_y = 888 * (adding / 2)
-        if not adding > 0 and replace:
-            newclustersize_y = 1024
-
-        # addit = int((distanceimgs / (len(imgs) + adding)) * adding)
-        # offsetter_y = 192 * (adding * 2 + len(imgs) * 2 )
-        offsetter_y = newclustersize_y
-
-        for nodez in existing:
-            nodez.location = (nodez.location[0] - 512, nodez.location[1] + offsetter_y)
-
-    return
-
-
-def MapinLinks(self, context, mp_params):
-    mapin = mp_params[0]
-    nods = mp_params[1]
-    ylocs = []
-    connected = list(linked for linked in mapin.outputs[0].links if linked.is_valid)
-    if len(connected) > 0:
-        for linked in connected:
-            ylocs.append(linked.to_node.location[1])
-    else:
-        for nod in nods:
-            ylocs.append(nod.location[1])
-    ylocs.sort()
-    center = (ylocs[0] + ylocs[-1]) / 2
-    return center
-
-
-def surfaceshaderlinks(self, context, sl_params):
-    lesurfaceshader = sl_params[0]
-    nods = sl_params[1]
-    ylocs = []
-    connected = list(linked for linked in lesurfaceshader.inputs if linked.is_linked)
-    if len(connected) > 0:
-        for linked in connected:
-            ylocs.append(linked.links[0].from_node.location[1])
-    else:
-        for nod in nods:
-            ylocs.append(nod.location[1])
-    ylocs.sort()
-    center = (ylocs[0] + ylocs[-1]) / 2
-    return center
-
-
-def dothenodes(self, context, do_params):
-    lesmaps = do_params[0]
-    leschans = do_params[1]
-    lematos = do_params[2]
-    leoldshader = None
-    scene = context.scene
-    kosvars = scene.kosvars
-    koshi = scene.koshi
-    kosni = scene.kosni
-    skipnormals = kosvars.skipnormals
-    selectedshader = kosvars.shaderlist
-    cutstomshd = selectedshader in kosni
-
-
-    if kosvars.eraseall:
-        lematos.node_tree.nodes.clear()
-
-    nods = lematos.node_tree.nodes
-    treez = lematos.node_tree
-    linkz = treez.links
-
-    lesoutputs = list(lesnodes for lesnodes in nods if lesnodes.type == "OUTPUT_MATERIAL")
-    for lesnodes in lesoutputs:
-        if lesnodes.is_active_output:
-            matos_output = lesnodes
-    if not len(lesoutputs) > 0:
-        matos_output = nods.new("ShaderNodeOutputMaterial")
-
-    offsetter1_x = -404
-    offsetter1_y = 0
-    baseloc0_x = matos_output.location[0]
-    baseloc0_y = matos_output.location[1]
-
-    surfinput = matos_output.inputs['Surface']
-    if surfinput.is_linked:
-        lafirstconnection = surfinput.links[0].from_node
-        invalidtypes = ["ADD_SHADER", "MIX_SHADER", "HOLDOUT"]
-        invalidshader = lafirstconnection.type in invalidtypes
-
-    else:
-        lafirstconnection = None
-        invalidshader = True
-    leoldshader = lafirstconnection
-    replaceshader = invalidshader or (kosvars.shader)
-
-    if replaceshader:
-
-        if cutstomshd:
-            lenewshader = nods.new('ShaderNodeGroup')
-            lenewshader.node_tree = bpy.data.node_groups[selectedshader]
-
-        else:
-            lenewshader = nods.new(selectedshader)
-        linkz.new(lenewshader.outputs[0], matos_output.inputs[0])
-        lesurfaceshader = lenewshader
-
-    else:
-        lesurfaceshader = lafirstconnection
-
-    if lesurfaceshader.type == 'BSDF_PRINCIPLED':
-        lesurfaceshader.inputs['Specular'].default_value = 0
-        # best to set specular to 0 if the PBR workflow doesn't require it (otherwise a spec map will overwrite it anyway)
-
-    baseloc0_x = matos_output.location[0]
-    baseloc0_y = matos_output.location[1]
-    lesurfaceshader.location = (baseloc0_x + offsetter1_x * 2, baseloc0_y)
-    base_x = lesurfaceshader.location[0]
-    base_y = lesurfaceshader.location[1]
-
-    mapin = None
-    lescoord = None
-    mapnumbr = 0
-    mov_params = [lematos, lesurfaceshader, nods, leoldshader]
-
-    move_existing(self, context, mov_params)
-
-    if len(lesmaps) > 0:
-
-        if not mapin:
-            mapin = nods.new('ShaderNodeMapping')
-            mapin.label = lematos.name + "Mapping"
-
-        if not lescoord:
-            lescoord = nods.new('ShaderNodeTexCoord')
-            lescoord.label = lematos.name + "Coordinates"
-
-        if not lescoord.outputs[0].is_linked:
-            # lematos.node_tree.nodes['Texture Coordinate'].outputs['UV']
-            linkz.new(lescoord.outputs['UV'], mapin.inputs['Vector'])
-
-        line = (i for i in range(len(list(lesmaps))) if f"bpy.context.scene.kosp{i}.labelbools")
-
-        for i in line:
-            lamap = lesmaps[i]
-            lechan = leschans[i]
-
-            kosp = eval(f"scene.kosp{i}")
-            manual = kosp.manual
-            isdisplacement = ("Displacement" in lechan)
-            islinked = (lechan != "0")
-            isdispvector = 'Disp Vector' in lechan
-            if manual:
-                lamap = os.path.basename(kosp.lefilename)[:-4]
-            isnormal = ("normal" in lamap or "Normal" in lamap)
-            isheight = ("height" in lamap or "Height" in lamap)
-            washn = "height" in lesmaps or "Height" in lesmaps or "normal" in lesmaps or "Normal" in lesmaps
-            addextras = kosvars.extras and not (isnormal or isheight)
-            colbool = ("Color" in lechan)
-            emibool = ("Emission" in lechan)
-            noramps = ["Subsurface Radius", "Normal", "Tangent"]
-            innoramps = (lechan in noramps)
-            okcurve = ((colbool or emibool) and not isdisplacement)
-            okramp = (not (colbool or emibool) and (not lamap in noramps)) or (isdisplacement and isheight)
-            offsetter_x = -312
-            offsetter_y = -312
-
-            lanewnode = nods.new(type="ShaderNodeTexImage")
-            lanewnode.name = lamap
-            lanewnode.label = lamap
-
-            linkz.new(mapin.outputs[0], lanewnode.inputs['Vector'])
-
-            if addextras:
-                if okcurve:
-                    lacurveramp = nods.new('ShaderNodeRGBCurve')
-                    extranode = lacurveramp
-                    extranode.label = extranode.name + lamap
-                    linkz.new(lanewnode.outputs[0], lacurveramp.inputs[1])
-
-                if okramp:
-                    laramp = nods.new('ShaderNodeValToRGB')
-                    extranode = laramp
-                    linkz.new(lanewnode.outputs[0], laramp.inputs[0])
-
-                    # linkz.new(lacurveramp.outputs[0] , matos_output.inputs[2])
-                if okramp or okcurve:
-                    extranode.label = extranode.name + lamap
-
-            if isnormal and not skipnormals:
-                normalmapnode = nods.new('ShaderNodeNormalMap')
-                linkz.new(lanewnode.outputs[0], normalmapnode.inputs[1])
-
-            if isheight and not skipnormals:
-
-                bumpnode = nods.new('ShaderNodeBump')
-                linkz.new(lanewnode.outputs[0], bumpnode.inputs[2])
-                bumpnode.inputs[0].default_value = .5
-                if addextras:
-                    linkz.new(extranode.outputs[0], bumpnode.inputs[2])
-
-            if islinked and not isdisplacement and not isdispvector:
-
-                if isnormal and not skipnormals:
-                    if isdisplacement:
-                        linkz.new(normalmapnode.outputs[0], matos_output.inputs[2])
-
-                    else:
-                        linkz.new(normalmapnode.outputs[0], lesurfaceshader.inputs[lechan])
-
-                if isheight and not skipnormals:
-                    if isdisplacement:
-                        linkz.new(bumpnode.outputs[0], matos_output.inputs[2])
-
-                    else:
-                        linkz.new(bumpnode.outputs[0], lesurfaceshader.inputs[lechan])
-
-                if not (isheight or isnormal) or skipnormals:
-                    if addextras:
-
-                        linkz.new(extranode.outputs[0], lesurfaceshader.inputs[lechan])
-                    else:
-                        linkz.new(lanewnode.outputs[0], lesurfaceshader.inputs[lechan])
-
-            if isdisplacement:
-                dispmapnode = nods.new('ShaderNodeDisplacement')
-                dispmapnode.location = (baseloc0_x - 256, baseloc0_y)
-                linkz.new(dispmapnode.outputs[0], matos_output.inputs['Displacement'])
-                if addextras:
-                    linkz.new(extranode.outputs[0], dispmapnode.inputs['Height'])
-                if isheight and not skipnormals:
-                    pass
-                if isnormal and not skipnormals:
-                    linkz.new(normalmapnode.outputs[0], dispmapnode.inputs['Normal'])
-                if (not isnormal or skipnormals) and not addextras:
-                    linkz.new(lanewnode.outputs[0], dispmapnode.inputs['Height'])
-            if isdispvector:  # TODO implement link sanity
-                dispvectnode = nods.new('ShaderNodeVectorDisplacement')
-                dispvectnode.location = (baseloc0_x - 256, baseloc0_y)
-                linkz.new(dispvectnode.outputs[0], matos_output.inputs['Displacement'])
-                if addextras:
-                    linkz.new(extranode.outputs[0], dispvectnode.inputs['Vector'])
-                if isnormal and not skipnormals:
-                    linkz.new(normalmapnode.outputs[0], dispvectnode.inputs['Vector'])
-                    # not sure it makes any sense
-                if (not isnormal or skipnormals) and not addextras:
-                    linkz.new(lanewnode.outputs[0], dispvectnode.inputs['Vector'])
-
-            lanewnode.location = ((base_x + offsetter_x * (int(addextras) + int(isnormal or isheight) + 1)),
-                                  (base_y + offsetter_y * mapnumbr))
-
-            if addextras:  # again to be sure
-                extranode.location = (
-                    (base_x + offsetter_x * (int(isnormal or isheight) + 1)), (base_y + offsetter_y * mapnumbr))
-            if isheight and not skipnormals:
-                bumpnode.location = (base_x + offsetter_x, base_y + offsetter_y * mapnumbr)
-            if isnormal and not skipnormals:
-                normalmapnode.location = (base_x + offsetter_x, base_y + offsetter_y * mapnumbr)
-            mapnumbr += 1
-        sl_params = [lesurfaceshader, nods]
-        lesurfaceshader.location[1] = surfaceshaderlinks(self, context, sl_params) + 128  # just a bit higher
-        lesurfaceshader.location[0] += 128
-        matos_output.location[1] = lesurfaceshader.location[1]
-        mapin.location = (base_x + offsetter_x * (int(addextras) + int(washn) + 2) + offsetter_x, base_y)
-        lescoord.location = (mapin.location[0] + offsetter_x, mapin.location[1])
-        mp_params = [mapin, nods]
-        mapin.location[1] = MapinLinks(self, context, mp_params)
-        lescoord.location[1] = mapin.location[1]
-        # for nodez in nods:
-        #     nodez.location[1] = nodez.location[1] - 156
-
-    return
-
-
-def plugthenodes(self, context, pg_params):
-    lematerial = pg_params[0]
-    index = pg_params[1]
-
-    kosvars = context.scene.kosvars
-    kosp = eval(f"context.scene.kosp{index}")
-    manual = kosp.manual
-    gofile = True
-    if not manual:
-        # bpy.ops.kos.assumename(kospnumber = index)
-        gofile = (bpy.ops.kos.checkmaps(linen=index, lorigin="plug", called=True) == {'FINISHED'})
-    lefilepath = kosp.lefilename
-
-    imagename = os.path.basename(lefilepath)
-    lamap = kosp.maplabels
-    if manual:
-        lamap = imagename[:-4]
-
-    if lematerial.node_tree.nodes.find(lamap) > 0:
-
-        if os.path.isfile(lefilepath) == True and gofile:
-            bpy.ops.image.open(
-                filepath=os.path.basename(lefilepath),
-                directory=os.path.dirname(lefilepath),
-                files=[{"name": os.path.basename(lefilepath), "name": os.path.basename(lefilepath)}],
-                show_multiview=False
-            )
-            nodestofill = (nod for nod in lematerial.node_tree.nodes if nod.label == lamap)
-            for nods in nodestofill:
-                nods.image = bpy.data.images[imagename]
-                if lamap.lower() in ["normal", "nor", "norm", "normale", "normals"]:
-                    nods.image.colorspace_settings.name = 'Non-Color'
-
-            toreport = "Texture file '" + imagename + "' assigned in "+ lematerial.name
-            self.report({'INFO'}, toreport)
-        else:
-            toreport = "Texture '" + imagename + "' not found"
-            self.report({'INFO'}, toreport)
-
-    else:
-        toreport = "node label " + lamap + " not found"
-        self.report({'INFO'}, toreport)
-
-    return
-
-
-class KOS_OT_assignnodes(popol, Operator):
+class KOS_OT_assignnodes(popol,Operator):
     bl_idname = "kos.assignnodes"
     bl_label = "Only Assign Images"
     bl_description = "import maps for all selected objects"
@@ -702,6 +743,7 @@ class KOS_OT_assignnodes(popol, Operator):
     fromimportbutton: bpy.props.BoolProperty(default=False)
 
     def execute(self, context):
+        ndh = NodeHandler()
         scene = context.scene
         if len(scene.koshi) == 0:
             bpy.ops.kos.createdummy()
@@ -714,9 +756,8 @@ class KOS_OT_assignnodes(popol, Operator):
         for leselected in lecleanselect:
             leselected.select_set(True)
             context.view_layer.objects.active = leselected
-            mat_params = [leselected, matsdone, "plug"]
-            done = foreachmat(self, context, mat_params)
-            matsdone = done
+            mat_params = {'context':context, 'selection':leselected, 'already_done':matsdone, 'caller':"plug"}
+            matsdone = ndh.foreachmat(**mat_params)
             leselected.select_set(False)
 
         for obj in og_selection:
