@@ -15,11 +15,10 @@ from bpy.utils import (register_class,
                        unregister_class
                        )
 
-
-class Kosinit():
+class BsmInit():
     def exec(self, context):
 
-        kosni = context.scene.kosni
+        nodes_links = context.scene.node_links
 
         lashaderlist = [
 
@@ -35,9 +34,9 @@ class Kosinit():
             ('ShaderNodeBsdfVelvet', 'Velvet BSDF', ''),
             ('ShaderNodeBsdfPrincipled', 'Principled BSDF', ''),
         ]
-        if context.scene.kosvars.customshader:
-            for i in range(len(kosni)):
-                item = kosni[i].nodetype
+        if context.scene.bsmprops.customshader:
+            for i in range(len(nodes_links)):
+                item = nodes_links[i].nodetype
                 lashaderlist.append((item, item, ''), )
 
         lashaderlist.reverse()
@@ -45,24 +44,24 @@ class Kosinit():
         return lashaderlist
 
 
-def checknamefromkosvars(self, context):
+def checknamefrombsmprops(self, context):
     allpanelrows = 10
-    kosps = list(k for k in range(allpanelrows) if not eval(f"bpy.context.scene.kosp{k}.manual"))
-    for ks in kosps:
-        bpy.ops.kos.checkmaps(linen=ks, called=False, lorigin="kosvars")
+    panel_lines = list(k for k in range(allpanelrows) if not eval(f"bpy.context.scene.panel_line{k}.manual"))
+    for ks in panel_lines:
+        bpy.ops.bsm.checkmaps(linen=ks, called=False, lorigin="bsmprops")
     return
 
 
-def kosinit_cb(self, context):
-    lashaderlist = Kosinit.exec(self, context)
+def bsm_init_cb(self, context):
+    lashaderlist = BsmInit.exec(self, context)
     return lashaderlist
 
 
 def appendecustomshaders(self, context):
-    if context.scene.kosvars.customshader:
+    if context.scene.bsmprops.customshader:
         CustomNodeGroups.findnodegroups(self, context)
     else:
-        context.scene.kosni.clear()
+        context.scene.node_links.clear()
     cleaninputsockets(self,context)
     return
 
@@ -70,12 +69,12 @@ def appendecustomshaders(self, context):
 class CustomNodeGroups():
     def findnodegroups(self, context):
         ng = bpy.data.node_groups
-        kosni = context.scene.kosni
-        kosni.clear()
+        nodes_links = context.scene.node_links
+        nodes_links.clear()
         for nodez in range(len(list(ng))):
             conectable = len(ng[nodez].inputs) > 0 and len(ng[nodez].outputs) > 0
             if conectable:
-                newentry = context.scene.kosni.add()
+                newentry = context.scene.node_links.add()
                 newentry.name = ng[nodez].name
                 newentry.nodetype = ng[nodez].name
 
@@ -98,7 +97,7 @@ class CustomNodeGroups():
 
 
 class ShaderLinks(PropertyGroup):
-    # koshi
+    # shaders_links
     ID: IntProperty(
         name="ID",
         default=0
@@ -135,7 +134,7 @@ class ShaderLinks(PropertyGroup):
 
 
 class NodesLinks(PropertyGroup):
-    # kosni
+    # nodes_links
     ID: IntProperty(
         name="ID",
         default=0
@@ -170,11 +169,11 @@ class NodesLinks(PropertyGroup):
     )
 
 
-def assumenamefromkosvars(self, context):
+def assumenamefrombsmprops(self, context):
     allpanelrows = 10
-    kosps = list(k for k in range(allpanelrows) if not eval(f"bpy.context.scene.kosp{k}.manual"))
-    for ks in kosps:
-        bpy.ops.kos.assumename(kospnumber=ks)
+    panel_lines = list(k for k in range(allpanelrows) if not eval(f"bpy.context.scene.panel_line{k}.manual"))
+    for ks in panel_lines:
+        bpy.ops.bsm.assumename(line_num=ks)
 
     return
 
@@ -210,24 +209,22 @@ def arrangeinputlist(self, context, rawdata):
 def poutputsokets_cb(self, context):
     # callback for the enumlist of the dynamic enums
     scene = context.scene
-    koshi = scene.koshi
-    kosni = scene.kosni
-    kosvars = scene.kosvars
-    selectedshader = scene.kosvars.shaderlist
+    shaders_links = scene.shader_links
+    nodes_links = scene.node_links
+    bsmprops = scene.bsmprops
+    selectedshader = scene.bsmprops.shaderlist
     items = []
     rawdata = []
 
+    for i in range(len(shaders_links)):
+        if selectedshader in shaders_links[i].shadertype:
+            rawdata = shaders_links[i].inputsockets.split("@-¯\(°_o)/¯-@")
 
+    for i in range(len(nodes_links)):
+        if selectedshader in nodes_links[i].nodetype:
+            rawdata = nodes_links[i].inputsockets.split("@-¯\(°_o)/¯-@")
 
-    for i in range(len(koshi)):
-        if selectedshader in koshi[i].shadertype:
-            rawdata = koshi[i].inputsockets.split("@-¯\(°_o)/¯-@")
-
-    for i in range(len(kosni)):
-        if selectedshader in kosni[i].nodetype:
-            rawdata = kosni[i].inputsockets.split("@-¯\(°_o)/¯-@")
-
-    if not kosvars.shader:  # and valid mat
+    if not bsmprops.shader:  # and valid mat
         rawdata = currentshaderinputs(self, context)
 
     items = arrangeinputlist(self, context, rawdata)
@@ -245,44 +242,40 @@ def poutputsokets_up(self, context):
 
     zid = self.ID
     if state != '0':
-        same = (i for i in range(10) if state == eval(f"bpy.context.scene.kosp{i}").inputsockets and i != zid)
+        same = (i for i in range(10) if state == eval(f"bpy.context.scene.panel_line{i}").inputsockets and i != zid)
         # if same in another slot then clear
         for i in same:
-            kosp = eval(f"scene.kosp{i}")
-            kosp.inputsockets = '0'
+            panel_line = eval(f"scene.panel_line{i}")
+            panel_line.inputsockets = '0'
         if state in disped:
-            disped = list(j for j in range(10) if (str(eval(f"bpy.context.scene.kosp{j}").inputsockets) in disped))
+            disped = list(j for j in range(10) if (str(eval(f"bpy.context.scene.panel_line{j}").inputsockets) in disped))
 
             # if already a kind of Disp in list then clear
             for j in disped:
 
                 if j != zid:
-                    kosp = eval(f"scene.kosp{j}")
-                    kosp.inputsockets = '0'
-    # koshis = koshi[i].inputsockets.split("@-¯\(°_o)/¯-@")
-    #
-    # kosnis = kosni[i].inputsockets.split("@-¯\(°_o)/¯-@")
-    # currentinputs = currentshaderinputs(self,context)
-
+                    panel_line = eval(f"scene.panel_line{j}")
+                    panel_line.inputsockets = '0'
+ 
     return
 
 
 def maptester(self, context):
     if not self.manual:
-        bpy.ops.kos.assumename(kospnumber=self.ID)
-        bpy.ops.kos.guessfilext(linen=self.ID, keepat=True, called=True)
+        bpy.ops.bsm.assumename(line_num=self.ID)
+        bpy.ops.bsm.guessfilext(linen=self.ID, keepat=True, called=True)
     return
 
 
 class MatnameCleaner():
     def clean(self, context):
-        kosvars = context.scene.kosvars
+        bsmprops = context.scene.bsmprops
 
         leobject = context.view_layer.objects.active
 
         material = leobject.active_material
         lematname = material.name
-        if (".0" in lematname) and kosvars.fixname:
+        if (".0" in lematname) and bsmprops.fixname:
             lematname = lematname[:-4]
         matline = (material, lematname)
         return matline
@@ -290,14 +283,14 @@ class MatnameCleaner():
 
 def labelbools_up(self, context):
     scene = context.scene
-    kosvars = scene.kosvars
-    if len(scene.koshi) == 0:
-        bpy.ops.kos.createdummy()
+    bsmprops = scene.bsmprops
+    if len(scene.shader_links) == 0:
+        bpy.ops.bsm.createdummy()
 
-    kosvars.manison = manison_cb(kosvars, context)
+    bsmprops.manison = manison_cb(bsmprops, context)
     if not self.manual:
-        bpy.ops.kos.assumename(kospnumber=self.ID)
-        bpy.ops.kos.checkmaps(linen=self.ID, lorigin="labelbools_up", called=False)
+        bpy.ops.bsm.assumename(line_num=self.ID)
+        bpy.ops.bsm.checkmaps(linen=self.ID, lorigin="labelbools_up", called=False)
     return
 
 
@@ -334,13 +327,13 @@ def applytoall_up(self, context):
         self.onlyactiveobj = False
 
 
-    bpy.types.KOS_OT_subimport.bl_description = "Setup nodes and load textures maps on " + target
-    bpy.types.KOS_OT_createnodes.bl_description = "Setup Nodes on " + target
-    bpy.types.KOS_OT_assignnodes.bl_description = "Load textures maps on " + target
+    bpy.types.BSM_OT_subimport.bl_description = "Setup nodes and load textures maps on " + target
+    bpy.types.BSM_OT_createnodes.bl_description = "Setup Nodes on " + target
+    bpy.types.BSM_OT_assignnodes.bl_description = "Load textures maps on " + target
     liste = [
-        bpy.types.KOS_OT_subimport,
-        bpy.types.KOS_OT_createnodes,
-        bpy.types.KOS_OT_assignnodes
+        bpy.types.BSM_OT_subimport,
+        bpy.types.BSM_OT_createnodes,
+        bpy.types.BSM_OT_assignnodes
     ]
     for cls in liste:
         laclasse = cls
@@ -353,7 +346,7 @@ def applytoall_up(self, context):
 def otherpositions(self, context, lefile):
     lematname = MatnameCleaner.clean(self, context)[1]
 
-    separator = context.scene.kosvars.separator
+    separator = context.scene.bsmprops.separator
     extractargs = os.path.basename(lefile)[:-4].split(separator)
     position = None
     otherpositions = list(range(2))
@@ -366,8 +359,8 @@ def otherpositions(self, context, lefile):
 
 def interpretpattern(self, context, inter_params):
     elements = inter_params[3]
-    kosvars = context.scene.kosvars
-    pat = kosvars.patterns
+    bsmprops = context.scene.bsmprops
+    pat = bsmprops.patterns
     prefix_pos = inter_params[0]
     maplabel_pos = inter_params[1]
     mat_pos = inter_params[2]
@@ -398,7 +391,7 @@ def interpretpattern(self, context, inter_params):
             pat = 2
     if elements == 1:
         pat = 4
-    kosvars.patterns = str(pat)
+    bsmprops.patterns = str(pat)
 
     return
 
@@ -408,8 +401,8 @@ def poolprefix(self, context, lefile):
 
     basename = os.path.basename(lefile)
 
-    kosvars = context.scene.kosvars
-    separator = kosvars.separator
+    bsmprops = context.scene.bsmprops
+    separator = bsmprops.separator
     dircontent = os.listdir(folder)
     reference = basename[:-4].split(separator)
     refpositions = otherpositions(self, context, lefile)[0]
@@ -444,7 +437,7 @@ def poolprefix(self, context, lefile):
                 pos = positions[1]
 
             if rate > 50:
-                kosvars.prefix = leprefix
+                bsmprops.prefix = leprefix
                 break
             else:
                 leprefix = "DefaultPrefix"
@@ -455,8 +448,8 @@ def poolprefix(self, context, lefile):
 
 def reversepattern(self, context, lefile):
     scene = context.scene
-    kosvars = scene.kosvars
-    separator = kosvars.separator
+    bsmprops = scene.bsmprops
+    separator = bsmprops.separator
     lefolder = os.path.dirname(lefile) + os.path.sep
     lematname = MatnameCleaner.clean(self, context)[1]
     basename = os.path.basename(lefile)
@@ -482,7 +475,7 @@ def reversepattern(self, context, lefile):
                 positions = otherpositions(self, context, lefile)
                 mat_pos = positions[1]
                 prefix_pos = poolpe[1]
-                kosvars.prefix = poolpe[0]
+                bsmprops.prefix = poolpe[0]
                 remainingpos = positions[0]
                 remainingpos.remove(poolpe[1])
                 maplabels_pos = remainingpos[0]
@@ -510,14 +503,14 @@ def reversepattern(self, context, lefile):
             inter_params = [None, 0, None, 1]
             interpretpattern(self, context, inter_params)
     # TODO check if no deathloop
-    if kosvars.kosdir == os.path.expanduser('~'):
+    if bsmprops.usr_dir == os.path.expanduser('~'):
         # if default set as the first tex folder met
-        kosvars.kosdir = lefolder
+        bsmprops.usr_dir = lefolder
     rate = poolpe[2]
     return rate
 
 
-def kosfilerefresh(self, context):
+def file_update(self, context):
     if self.manual:
         reversepattern(self, context, self.lefilename)
     if os.path.isfile(self.lefilename):
@@ -535,39 +528,39 @@ def mapext_cb(self, context):
 
 def mapext_up(self, context):
     if not self.manual:
-        bpy.ops.kos.assumename(kospnumber=self.ID)
+        bpy.ops.bsm.assumename(line_num=self.ID)
     return
 
 
 def shaderlist_cb(self, context):
-    lashaderlist = kosinit_cb(self, context)
+    lashaderlist = bsm_init_cb(self, context)
 
     return lashaderlist
 
 
 def shaderlist_up(self, context):
     scene = context.scene
-    if len(scene.koshi) == 0:
-        bpy.ops.kos.createdummy()
+    if len(scene.shader_links) == 0:
+        bpy.ops.bsm.createdummy()
     cleaninputsockets(self,context)
     return
 
 
 def manual_up(self, context):
-    kosvars = context.scene.kosvars
+    bsmprops = context.scene.bsmprops
     if not self.manual:
-        bpy.ops.kos.assumename(kospnumber=self.ID)
-    kosvars.manison = manison_cb(kosvars, context)
+        bpy.ops.bsm.assumename(line_num=self.ID)
+    bsmprops.manison = manison_cb(bsmprops, context)
 
     return
 
 def expert_up(self, context):
-    if len(context.scene.koshi) == 0:
-        bpy.ops.kos.createdummy()
+    if len(context.scene.shader_links) == 0:
+        bpy.ops.bsm.createdummy()
     if not self.expert:
         for i in range(self.panelrows):
-            kosp = eval(f"context.scene.kosp{i}")
-            kosp.manual = False
+            panel_line = eval(f"context.scene.panel_line{i}")
+            panel_line.manual = False
             self.skipnormals = False
         self.applyall = self.applyall
         # forced update of applyall_up
@@ -576,13 +569,13 @@ def expert_up(self, context):
     return
 
 
-def kosdirefresh(self, context):
-    if not os.path.isdir(self.kosdir):
-        self.kosdir = os.path.expanduser('~') + os.path.sep
+def usr_direfresh(self, context):
+    if not os.path.isdir(self.usr_dir):
+        self.usr_dir = os.path.expanduser('~') + os.path.sep
     scene = context.scene
-    if len(scene.koshi) == 0:
-        bpy.ops.kos.createdummy()
-    directory = self.kosdir
+    if len(scene.shader_links) == 0:
+        bpy.ops.bsm.createdummy()
+    directory = self.usr_dir
     dircontent = os.listdir(directory)
     self.dircontent = " ".join(str(x) for x in dircontent)
     lematname = MatnameCleaner.clean(self, context)[1]
@@ -596,12 +589,12 @@ def kosdirefresh(self, context):
 
         if rate > 50:
             break
-    assumenamefromkosvars(self, context)
+    assumenamefrombsmprops(self, context)
 
 
 def skipnormal_up(self, context):  #
-    if len(context.scene.koshi) == 0:
-        bpy.ops.kos.createdummy()
+    if len(context.scene.shader_links) == 0:
+        bpy.ops.bsm.createdummy()
     return
 
 
@@ -609,7 +602,7 @@ class PatternsVariations():
     def liste(self, context, params):
         Prefix = params[0]
         mapname = params[1]
-        separator = context.scene.kosvars.separator
+        separator = context.scene.bsmprops.separator
         Extension = params[2]
         matname = MatnameCleaner.clean(self, context)[1]
 
@@ -633,21 +626,21 @@ class PatternsVariations():
 
 
 def prefix_up(self, context):
-    if len(context.scene.koshi) == 0:
-        bpy.ops.kos.createdummy()
-    assumenamefromkosvars(self, context)
-    checknamefromkosvars(self, context)
+    if len(context.scene.shader_links) == 0:
+        bpy.ops.bsm.createdummy()
+    assumenamefrombsmprops(self, context)
+    checknamefrombsmprops(self, context)
     return
 
 
 def separator_up(self, context):
-    if len(context.scene.koshi) == 0:
-        bpy.ops.kos.createdummy()
+    if len(context.scene.shader_links) == 0:
+        bpy.ops.bsm.createdummy()
     if self.separator.isspace() or len(self.separator) == 0:
         self.separator = "_"
 
-    assumenamefromkosvars(self, context)
-    checknamefromkosvars(self, context)
+    assumenamefrombsmprops(self, context)
+    checknamefrombsmprops(self, context)
     return
 
 
@@ -663,37 +656,37 @@ def patternslist(self, context):
 
 
 def patterns_up(self, context):
-    if len(context.scene.koshi) == 0:
-        bpy.ops.kos.createdummy()
-    assumenamefromkosvars(self, context)
+    if len(context.scene.shader_links) == 0:
+        bpy.ops.bsm.createdummy()
+    assumenamefrombsmprops(self, context)
     return
 
 
 def applyall_up(self, context):
-    if len(context.scene.koshi) == 0:
-        bpy.ops.kos.createdummy()
+    if len(context.scene.shader_links) == 0:
+        bpy.ops.bsm.createdummy()
     if self.eraseall:
         self.shader = True
     return
 
 
 def onlyamat_up(self, context):
-    if len(context.scene.koshi) == 0:
-        bpy.ops.kos.createdummy()
+    if len(context.scene.shader_links) == 0:
+        bpy.ops.bsm.createdummy()
 
     return
 
 
 def fixname_up(self, context):
-    if len(context.scene.koshi) == 0:
-        bpy.ops.kos.createdummy()
+    if len(context.scene.shader_links) == 0:
+        bpy.ops.bsm.createdummy()
 
     return
 
 
 def manison_cb(self, context):
     manualenabled = (i for i in range(self.panelrows) if
-                     eval(f"bpy.context.scene.kosp{i}.labelbools") and eval(f"bpy.context.scene.kosp{i}.manual"))
+                     eval(f"bpy.context.scene.panel_line{i}.labelbools") and eval(f"bpy.context.scene.panel_line{i}.manual"))
 
     manison = bool(len(list(manualenabled)))
     if manison:
@@ -707,29 +700,29 @@ def isindir_updater(self, context):
     isit = False
     if context != None:
         if "scene" in dir(context)[:]:
-            kosp = self
-            self.isindir = os.path.isfile(kosp.probable)
+            panel_line = self
+            self.isindir = os.path.isfile(panel_line.probable)
 
     return isit
 def cleaninputsockets(self,context):
     for i in range(10):
-        kosp = eval(f"context.scene.kosp{i}")
-        inputs = kosp.inputsockets
+        panel_line = eval(f"context.scene.panel_line{i}")
+        inputs = panel_line.inputsockets
         if not inputs.isalnum() :
-            kosp.inputsockets = '0'
+            panel_line.inputsockets = '0'
     return
 def shaderup(self, context):
     scene = bpy.context.scene
     cleaninputsockets(self,context)
 
 
-        # poutputsokets_up(kosp, context)
+        # poutputsokets_up(panel_line, context)
 
 def onlyactiveobj_up(self, context):
     if self.onlyactiveobj:
         self.applyall = False
     return
-class KosVars(PropertyGroup):  # kosvars
+class BSMprops(PropertyGroup):  # bsmprops
 
     customshader: BoolProperty(
         name="Enable or Disable",
@@ -815,14 +808,14 @@ class KosVars(PropertyGroup):  # kosvars
         update=patterns_up,
     )
 
-    kosdir: StringProperty(
+    usr_dir: StringProperty(
         name="",
         description="Folder containing the Textures Images to be imported",
         subtype='DIR_PATH',
         default=os.path.expanduser('~') + os.path.sep,
-        update=kosdirefresh
+        update=usr_direfresh
     )
-    kosall: StringProperty(
+    bsm_all: StringProperty(
         name="allsettings",
         description="allsettingssaved",
         default="None",
@@ -894,15 +887,15 @@ class KosVars(PropertyGroup):  # kosvars
     )
 
 
-class Paneline0(PropertyGroup):
-    # kosp0
+class PaneLine0(PropertyGroup):
+    # panel_line0
     ID: IntProperty(
         name="ID",
         default=0
     )
     name: StringProperty(
         name="name",
-        default="Paneline0"
+        default="PaneLine0"
     )
     maplabels: StringProperty(
         name="Map name",
@@ -927,7 +920,7 @@ class Paneline0(PropertyGroup):
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=kosfilerefresh,
+        update=file_update,
     )
     probable: StringProperty(
         subtype='FILE_PATH',
@@ -951,19 +944,19 @@ class Paneline0(PropertyGroup):
         name="",
         description="Is 'probable' a file ?",
         default=False
-        # isindir_updater("context.scene.kosp0",None)
+        # isindir_updater("context.scene.panel_line0",None)
     )
 
 
-class Paneline1(PropertyGroup):
-    #kosp1
+class PaneLine1(PropertyGroup):
+    #panel_line1
     ID: IntProperty(
         name="ID",
         default=1
     )
     name: StringProperty(
         name="name",
-        default="Paneline1"
+        default="PaneLine1"
     )
     maplabels: StringProperty(
         name="Map name",
@@ -989,7 +982,7 @@ class Paneline1(PropertyGroup):
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=kosfilerefresh,
+        update=file_update,
     )
     probable: StringProperty(
         subtype='FILE_PATH',
@@ -1010,15 +1003,15 @@ class Paneline1(PropertyGroup):
         update=manual_up
     )
 
-class Paneline2(PropertyGroup):
-    # kosp2
+class PaneLine2(PropertyGroup):
+    # panel_line2
     ID: IntProperty(
         name="ID",
         default=2
     )
     name: StringProperty(
         name="name",
-        default="Paneline2"
+        default="PaneLine2"
     )
     maplabels: StringProperty(
         name="Map name",
@@ -1043,7 +1036,7 @@ class Paneline2(PropertyGroup):
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=kosfilerefresh,
+        update=file_update,
 
     )
     probable: StringProperty(
@@ -1066,15 +1059,15 @@ class Paneline2(PropertyGroup):
     )
 
 
-class Paneline3(PropertyGroup):
-    # kosp3
+class PaneLine3(PropertyGroup):
+    # panel_line3
     ID: IntProperty(
         name="ID",
         default=3
     )
     name: StringProperty(
         name="name",
-        default="Paneline3"
+        default="PaneLine3"
     )
     maplabels: StringProperty(
         name="Map name",
@@ -1099,7 +1092,7 @@ class Paneline3(PropertyGroup):
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=kosfilerefresh,
+        update=file_update,
 
     )
     probable: StringProperty(
@@ -1122,15 +1115,15 @@ class Paneline3(PropertyGroup):
     )
 
 
-class Paneline4(PropertyGroup):
-    # kosp4
+class PaneLine4(PropertyGroup):
+    # panel_line4
     ID: IntProperty(
         name="ID",
         default=4
     )
     name: StringProperty(
         name="name",
-        default="Paneline4"
+        default="PaneLine4"
     )
     maplabels: StringProperty(
         name="Map name",
@@ -1155,7 +1148,7 @@ class Paneline4(PropertyGroup):
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=kosfilerefresh,
+        update=file_update,
 
     )
     probable: StringProperty(
@@ -1177,15 +1170,15 @@ class Paneline4(PropertyGroup):
     )
 
 
-class Paneline5(PropertyGroup):
-    # kosp5
+class PaneLine5(PropertyGroup):
+    # panel_line5
     ID: IntProperty(
         name="ID",
         default=5
     )
     name: StringProperty(
         name="name",
-        default="Paneline5"
+        default="PaneLine5"
     )
     maplabels: StringProperty(
         name="Map name",
@@ -1210,7 +1203,7 @@ class Paneline5(PropertyGroup):
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=kosfilerefresh,
+        update=file_update,
 
     )
     probable: StringProperty(
@@ -1232,15 +1225,15 @@ class Paneline5(PropertyGroup):
     )
 
 
-class Paneline6(PropertyGroup):
-    # kosp6
+class PaneLine6(PropertyGroup):
+    # panel_line6
     ID: IntProperty(
         name="ID",
         default=6
     )
     name: StringProperty(
         name="name",
-        default="Paneline6"
+        default="PaneLine6"
     )
     maplabels: StringProperty(
         name="Map name",
@@ -1265,7 +1258,7 @@ class Paneline6(PropertyGroup):
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=kosfilerefresh,
+        update=file_update,
 
     )
     probable: StringProperty(
@@ -1288,15 +1281,15 @@ class Paneline6(PropertyGroup):
     )
 
 
-class Paneline7(PropertyGroup):
-    # kosp7
+class PaneLine7(PropertyGroup):
+    # panel_line7
     ID: IntProperty(
         name="ID",
         default=7
     )
     name: StringProperty(
         name="name",
-        default="Paneline7"
+        default="PaneLine7"
     )
     maplabels: StringProperty(
         name="Map name",
@@ -1321,7 +1314,7 @@ class Paneline7(PropertyGroup):
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=kosfilerefresh,
+        update=file_update,
 
     )
     probable: StringProperty(
@@ -1344,15 +1337,15 @@ class Paneline7(PropertyGroup):
     )
 
 
-class Paneline8(PropertyGroup):
-    # kosp8
+class PaneLine8(PropertyGroup):
+    # panel_line8
     ID: IntProperty(
         name="ID",
         default=8
     )
     name: StringProperty(
         name="name",
-        default="Paneline8"
+        default="PaneLine8"
     )
     maplabels: StringProperty(
         name="Map name",
@@ -1377,7 +1370,7 @@ class Paneline8(PropertyGroup):
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=kosfilerefresh,
+        update=file_update,
 
     )
     probable: StringProperty(
@@ -1399,15 +1392,15 @@ class Paneline8(PropertyGroup):
     )
 
 
-class Paneline9(PropertyGroup):
-    # kosp9
+class PaneLine9(PropertyGroup):
+    # panel_line9
     ID: IntProperty(
         name="ID",
         default=9
     )
     name: StringProperty(
         name="name",
-        default="Paneline9"
+        default="PaneLine9"
     )
     maplabels: StringProperty(
         name="Map name",
@@ -1432,7 +1425,7 @@ class Paneline9(PropertyGroup):
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=kosfilerefresh,
+        update=file_update,
     )
     probable: StringProperty(
         subtype='FILE_PATH',
