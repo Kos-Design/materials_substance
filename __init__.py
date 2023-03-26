@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Blender Substance Texture Importer",
     "author": "Cosmin Planchon",
-    "version": (0, 2, 3),
+    "version": (0, 2, 4),
     "blender": (2, 82, 0),
     "location": "Properties > Material",
     "description": "Import & autoassign images from Substance Painter or similar 3D painting tools",
@@ -34,7 +34,7 @@ from . operators import ( BSM_MT_presetsmenu, BSM_OT_execute_preset,
                           BSM_OT_add_map_line, BSM_OT_find_ext,
                           )
 
-from . panels import (  BSM_PT_presets, BSM_PT_importpanel, BSM_PT_linestopanel,
+from . panels import (  BSM_PT_presets, BSM_PT_importpanel, BSM_PT_panel_line,
                         BSM_PT_prefs, BSM_PT_options, BSM_PT_params, BSM_PT_buttons,
                         )
 
@@ -65,7 +65,7 @@ classesp = (
     BSM_OT_import_textures,
     BSM_PT_importpanel,
     BSM_PT_params,
-    BSM_PT_linestopanel,
+    BSM_PT_panel_line,
     BSM_PT_prefs,
     BSM_PT_buttons,
     BSM_PT_options,

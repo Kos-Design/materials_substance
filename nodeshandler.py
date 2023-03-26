@@ -325,22 +325,22 @@ class NodeHandler():
         gofile = True
         if not manual:
             # bpy.ops.bsm.name_maker(line_num = index)
-            gofile = (bpy.ops.bsm.name_checker(linen=index, lorigin="plug", called=True) == {'FINISHED'})
-        lefilepath = panel_line.file_name
+            gofile = (bpy.ops.bsm.name_checker(line_number=index, lorigin="plug", called=True) == {'FINISHED'})
+        active_filepath = panel_line.file_name
 
-        imagename = Path(lefilepath).name
+        imagename = Path(active_filepath).name
         lamap = panel_line.map_label
         if manual:
-            lamap = Path(lefilepath).stem
+            lamap = Path(active_filepath).stem
 
         if lematerial.node_tree.nodes.find(lamap) > 0:
 
-            if Path(lefilepath).is_file() and gofile:
+            if Path(active_filepath).is_file() and gofile:
                 bpy.ops.image.open(
-                    filepath=Path(lefilepath).name,
-                    directory=str(Path(lefilepath).parent),
+                    filepath=Path(active_filepath).name,
+                    directory=str(Path(active_filepath).parent),
                     #TODO why declare twice ?
-                    files=[{"name": Path(lefilepath).name, "name": Path(lefilepath).name}],
+                    files=[{"name": Path(active_filepath).name, "name": Path(active_filepath).name}],
                     show_multiview=False
                 )
                 nodestofill = (nod for nod in lematerial.node_tree.nodes if nod.label == lamap)

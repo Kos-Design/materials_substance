@@ -129,6 +129,8 @@ class BSM_OT_name_maker(sub_poll,Operator):
             supposed = patterns_list[patternselected][1]
 
             panel_line.probable = str(Path(lefolder).joinpath(supposed))
+
+            propper.update_file_is_real(context=panel_line)
             if Path(panel_line.probable).is_file():
                 break
 
@@ -138,22 +140,22 @@ class BSM_OT_name_maker(sub_poll,Operator):
 class BSM_OT_find_ext(sub_poll,Operator):
     bl_idname = "bsm.find_ext"
     bl_label = ""
-    bl_description = "set panel_line{linen}.map_ext according to dir content"
+    bl_description = "set panel_line{line_number}.map_ext according to dir content"
 
     keepat: bpy.props.BoolProperty(default=False)
-    linen: bpy.props.IntProperty()
+    line_number: bpy.props.IntProperty()
     called: bpy.props.BoolProperty(default=True)
 
     def execute(self, context):
         keepat = self.keepat
-        linen = self.linen
+        line_number = self.line_number
         scene = context.scene
-        panel_line = eval(f"scene.panel_line{linen}")
+        panel_line = eval(f"scene.panel_line{line_number}")
         manual = panel_line.manual
         propper = ph()
-        gs_params = {'context': context, 'props':panel_line, 'keep_pattern':keepat}
+        ft_params = {'context': context, 'props':panel_line, 'keep_pattern':keepat}
         currentext = panel_line.map_ext
-        is_in_dir = propper.file_tester(**gs_params)
+        is_in_dir = propper.file_tester(**ft_params)
 
         if not is_in_dir and not manual:
 
@@ -165,7 +167,7 @@ class BSM_OT_find_ext(sub_poll,Operator):
             for ext in filetypes:
                 panel_line.map_ext = ext
 
-                is_in_dir = propper.file_tester(**gs_params)
+                is_in_dir = propper.file_tester(**ft_params)
 
                 if is_in_dir:
                     break
@@ -182,7 +184,7 @@ class BSM_OT_name_checker(sub_poll,Operator):
     bl_label = ""
     bl_description = "Check if a file containing the Map Name keyword matches the Pattern"
 
-    linen: bpy.props.IntProperty(default=0)
+    line_number: bpy.props.IntProperty(default=0)
     lorigin: bpy.props.StringProperty(default="Not Set")
     called: bpy.props.BoolProperty(default=True)
     notfromext: bpy.props.BoolProperty(default=True)
@@ -192,10 +194,10 @@ class BSM_OT_name_checker(sub_poll,Operator):
         keepat = self.keepat
         scene = context.scene
         bsmprops = scene.bsmprops
-        linen = self.linen
+        line_number = self.line_number
         notfromext = self.notfromext
 
-        panel_line = eval(f"scene.panel_line{linen}")
+        panel_line = eval(f"scene.panel_line{line_number}")
         manual = panel_line.manual
         advanced_mode = bsmprops.advanced_mode
         prefix = bsmprops.prefix
@@ -203,7 +205,7 @@ class BSM_OT_name_checker(sub_poll,Operator):
         mat = sel.active_material
         mat.use_nodes = True
         propper = ph()
-        gs_params = {'context':context, 'props':panel_line, 'keep_pattern':keepat}
+        ft_params = {'context':context, 'props':panel_line, 'keep_pattern':keepat}
         if self.lorigin == "plug" and not manual:
             panel_line.probable = "reseted"
 
@@ -211,11 +213,11 @@ class BSM_OT_name_checker(sub_poll,Operator):
 
         if not manual:
 
-            gotafile = propper.file_tester(**gs_params)
+            gotafile = propper.file_tester(**ft_params)
 
             if not gotafile:
-                bpy.ops.bsm.find_ext(linen=linen)
-            isafile = propper.file_tester(**gs_params)
+                bpy.ops.bsm.find_ext(line_number=line_number)
+            isafile = propper.file_tester(**ft_params)
 
             if not isafile and self.called :
                 toreport = panel_line.probable + " not found "
@@ -290,7 +292,7 @@ class BSM_OT_add_map_line(sub_poll, Operator):
     bl_label = ""
     bl_description = "Add a new map line below"
 
-    linen: IntProperty(default=0)
+    line_number: IntProperty(default=0)
 
     def execute(self, context):
         if len(context.scene.shader_links) == 0:

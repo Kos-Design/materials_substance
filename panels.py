@@ -1,5 +1,4 @@
 import bpy
-from pathlib import Path
 
 from bpy.types import Panel
 
@@ -50,8 +49,8 @@ class BSM_PT_params(TexImporterPanel, Panel):
         row.prop(bsmprops, "usr_dir")
 
 
-class BSM_PT_linestopanel(TexImporterPanel, Panel):
-    bl_idname = "BSM_PT_linestopanel"
+class BSM_PT_panel_line(TexImporterPanel, Panel):
+    bl_idname = "BSM_PT_panel_line"
     bl_label = "Texture maps"
     bl_parent_id = "BSM_PT_importpanel"
     bl_options = {'HIDE_HEADER'}
@@ -63,8 +62,6 @@ class BSM_PT_linestopanel(TexImporterPanel, Panel):
         bsmprops = scene.bsmprops
         advanced_modemode = bsmprops.advanced_mode
         panel_rows = bsmprops.panel_rows
-        #TODO: no globbing in panel, get it propped
-        dir_content = [x.name for x in Path(bsmprops.usr_dir).glob('*.*') ]
         row = layout.row()
         col = row.column()
         col.alignment = 'RIGHT'
@@ -101,12 +98,6 @@ class BSM_PT_linestopanel(TexImporterPanel, Panel):
             panel_line = eval(f"scene.panel_line{k}")
             file_name = panel_line.file_name
             manual = panel_line.manual
-            lefile = Path(panel_line.probable).name
-            
-            if manual:
-                lefile = Path(file_name).name
-                dir_content = bsmprops.dir_content
-
             row = layout.row(align = True)
             row.prop(panel_line, "line_on", text = "")
             row.use_property_split = True
@@ -125,10 +116,10 @@ class BSM_PT_linestopanel(TexImporterPanel, Panel):
             col = row.column(align = True)
             col.alignment = 'EXPAND'
             if not advanced_modemode:
-                if lefile in dir_content:
-                    col.operator('BSM_OT_name_checker', icon='CHECKMARK').linen = k
+                if panel_line.file_is_real:
+                    col.operator('BSM_OT_name_checker', icon='CHECKMARK').line_number = k
                 else:
-                    col.operator('BSM_OT_name_checker', icon='QUESTION').linen = k
+                    col.operator('BSM_OT_name_checker', icon='QUESTION').line_number = k
             else :
 
                 col.prop(panel_line, "manual", text="", toggle=1, icon='FILE_TICK')

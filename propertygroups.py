@@ -25,7 +25,7 @@ def line_on_cb(self, context):
     bsmprops.manual_on = manual_on_cb(bsmprops, context)
     if not self.manual:
         bpy.ops.bsm.name_maker(line_num=self.ID)
-        bpy.ops.bsm.name_checker(linen=self.ID, lorigin="line_on_cb", called=False)
+        bpy.ops.bsm.name_checker(line_number=self.ID, lorigin="line_on_cb", called=False)
     return
 
 def apply_to_all_cb(self, context):
@@ -127,7 +127,7 @@ def enum_sockets_up(self, context):
 def map_label_cb(self, context):
     if not self.manual:
         bpy.ops.bsm.name_maker(line_num=self.ID)
-        bpy.ops.bsm.find_ext(linen=self.ID, keepat=True, called=True)
+        bpy.ops.bsm.find_ext(line_number=self.ID, keepat=True, called=True)
     return
 
 def map_ext_cb(self, context):
@@ -194,9 +194,9 @@ def usr_dir_cb(self, context):
 
     for filez in relatedfiles:
         try:
-            lefile = directory + filez
+            active_file = directory + filez
 
-            rate = propper.pattern_weight(context, lefile)
+            rate = propper.pattern_weight(context, active_file)
 
             if rate > 50:
                 break
@@ -579,6 +579,11 @@ class PaneLine0(PropertyGroup):
         default=False,
         update=manual_up
     )
+    file_is_real: BoolProperty(
+        name="",
+        description="Associated file detected in that folder",
+        default=False,
+    )
 
     is_in_dir: BoolProperty(
         name="",
@@ -641,6 +646,11 @@ class PaneLine1(PropertyGroup):
         default=False,
         update=manual_up
     )
+    file_is_real: BoolProperty(
+        name="",
+        description="Associated file detected in that folder",
+        default=False,
+    )
 
 
 class PaneLine2(PropertyGroup):
@@ -696,6 +706,11 @@ class PaneLine2(PropertyGroup):
         description="Manual Mode (Enable to select the Map File directly)",
         default=False,
         update=manual_up
+    )
+    file_is_real: BoolProperty(
+        name="",
+        description="Associated file detected in that folder",
+        default=False,
     )
 
 
@@ -753,6 +768,11 @@ class PaneLine3(PropertyGroup):
         default=False,
         update=manual_up
     )
+    file_is_real: BoolProperty(
+        name="",
+        description="Associated file detected in that folder",
+        default=False,
+    )
 
 
 class PaneLine4(PropertyGroup):
@@ -808,6 +828,11 @@ class PaneLine4(PropertyGroup):
         default=False,
         update=manual_up
     )
+    file_is_real: BoolProperty(
+        name="",
+        description="Associated file detected in that folder",
+        default=False,
+    )
 
 
 class PaneLine5(PropertyGroup):
@@ -862,6 +887,11 @@ class PaneLine5(PropertyGroup):
         description="Manual Mode (Enable to select the Map File directly)",
         default=False,
         update=manual_up
+    )
+    file_is_real: BoolProperty(
+        name="",
+        description="Associated file detected in that folder",
+        default=False,
     )
 
 
@@ -919,6 +949,11 @@ class PaneLine6(PropertyGroup):
         default=False,
         update=manual_up
     )
+    file_is_real: BoolProperty(
+        name="",
+        description="Associated file detected in that folder",
+        default=False,
+    )
 
 
 class PaneLine7(PropertyGroup):
@@ -975,6 +1010,11 @@ class PaneLine7(PropertyGroup):
         default=False,
         update=manual_up
     )
+    file_is_real: BoolProperty(
+        name="",
+        description="Associated file detected in that folder",
+        default=False,
+    )
 
 
 class PaneLine8(PropertyGroup):
@@ -1030,6 +1070,11 @@ class PaneLine8(PropertyGroup):
         default=False,
         update=manual_up
     )
+    file_is_real: BoolProperty(
+        name="",
+        description="Associated file detected in that folder",
+        default=False,
+    )
 
 
 class PaneLine9(PropertyGroup):
@@ -1084,4 +1129,9 @@ class PaneLine9(PropertyGroup):
         description="Manual Mode (Enable to select the Map File directly)",
         default=False,
         update=manual_up
+    )
+    file_is_real: BoolProperty(
+        name="",
+        description="Associated file detected in that folder",
+        default=False,
     )
