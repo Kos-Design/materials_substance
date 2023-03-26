@@ -1,5 +1,5 @@
-import os
 import bpy
+from pathlib import Path
 
 class NodeHandler():
     """
@@ -28,7 +28,7 @@ class NodeHandler():
 
         """
         bsmprops = context.scene.bsmprops
-        panel_rows = bsmprops.panelrows
+        panel_rows = bsmprops.panel_rows
         maps = []
         chans = []
         indexer = [i for i in range(panel_rows) if eval(f"bpy.context.scene.panel_line{i}.labelbools")]
@@ -36,7 +36,7 @@ class NodeHandler():
             panel_line = eval(f"bpy.context.scene.panel_line{i}")
             chans.append(panel_line.inputsockets)
             if panel_line.manual:
-                maps.append(os.path.basename(panel_line.lefilename))    
+                maps.append(str(Path(panel_line.lefilename).name))    
             else:
                 maps.append(panel_line.maplabels)
         line = {"maps":maps, "chans":chans, "indexer":indexer}
@@ -73,25 +73,25 @@ class NodeHandler():
 
         for i in range(len(maslots)):
             leselected.active_material_index = i
-            lematos = leselected.active_material
+            mat_active = leselected.active_material
 
-            if lematos != None:
+            if mat_active != None:
 
-                if lematos.name not in already_done:
-                    lematos.use_nodes = True
+                if mat_active.name not in already_done:
+                    mat_active.use_nodes = True
                     
 
                     enabled = params['indexer']
                     if lafunction == "plug":
                         for indexed in enabled:
-                            pg_params = {'context':context, 'mat':lematos, 'idx':indexed}
+                            pg_params = {'context':context, 'mat':mat_active, 'idx':indexed}
                             self.plugthenodes(**pg_params)
 
                     if lafunction == "dothem":
-                        do_params = {'context':context, 'maps':params['maps'], 'chans':params['chans'], 'mat':lematos}
+                        do_params = {'context':context, 'maps':params['maps'], 'chans':params['chans'], 'mat':mat_active}
                         self.dothenodes(**do_params)
 
-                    already_done.append(lematos.name)
+                    already_done.append(mat_active.name)
 
         leselected.active_material_index = idx
         return already_done
@@ -100,7 +100,7 @@ class NodeHandler():
         context = do_params['context']
         maps = do_params['maps']
         chans = do_params['chans']
-        lematos = do_params['mat']
+        mat_active = do_params['mat']
         leoldshader = None
         scene = context.scene
         bsmprops = scene.bsmprops
@@ -111,10 +111,10 @@ class NodeHandler():
 
 
         if bsmprops.eraseall:
-            lematos.node_tree.nodes.clear()
+            mat_active.node_tree.nodes.clear()
 
-        nods = lematos.node_tree.nodes
-        treez = lematos.node_tree
+        nods = mat_active.node_tree.nodes
+        treez = mat_active.node_tree
         linkz = treez.links
 
         lesoutputs = list(lesnodes for lesnodes in nods if lesnodes.type == "OUTPUT_MATERIAL")
@@ -168,7 +168,7 @@ class NodeHandler():
         mapin = None
         lescoord = None
         mapnumbr = 0
-        mov_params = {'context':context, 'mat':lematos, 'shader':lesurfaceshader, 'nodes':nods, 'old_shader':leoldshader}
+        mov_params = {'context':context, 'mat':mat_active, 'shader':lesurfaceshader, 'nodes':nods, 'old_shader':leoldshader}
 
         self.move_existing(**mov_params)
 
@@ -176,14 +176,14 @@ class NodeHandler():
 
             if not mapin:
                 mapin = nods.new('ShaderNodeMapping')
-                mapin.label = lematos.name + "Mapping"
+                mapin.label = mat_active.name + "Mapping"
 
             if not lescoord:
                 lescoord = nods.new('ShaderNodeTexCoord')
-                lescoord.label = lematos.name + "Coordinates"
+                lescoord.label = mat_active.name + "Coordinates"
 
             if not lescoord.outputs[0].is_linked:
-                # lematos.node_tree.nodes['Texture Coordinate'].outputs['UV']
+                # mat_active.node_tree.nodes['Texture Coordinate'].outputs['UV']
                 linkz.new(lescoord.outputs['UV'], mapin.inputs['Vector'])
 
             line = (i for i in range(len(list(maps))) if f"bpy.context.scene.panel_line{i}.labelbools")
@@ -198,11 +198,11 @@ class NodeHandler():
                 islinked = (lechan != "0")
                 isdispvector = 'Disp Vector' in lechan
                 if manual:
-                    lamap = os.path.basename(panel_line.lefilename)[:-4]
+                    lamap = Path(panel_line.lefilename).stem
                 isnormal = ("normal" in lamap or "Normal" in lamap)
                 isheight = ("height" in lamap or "Height" in lamap)
                 washn = "height" in maps or "Height" in maps or "normal" in maps or "Normal" in maps
-                addextras = bsmprops.extras and not (isnormal or isheight)
+                addextras = bsmprops.tweak_levels and not (isnormal or isheight)
                 colbool = ("Color" in lechan)
                 emibool = ("Emission" in lechan)
                 noramps = ["Subsurface Radius", "Normal", "Tangent"]
@@ -332,18 +332,19 @@ class NodeHandler():
             gofile = (bpy.ops.bsm.checkmaps(linen=index, lorigin="plug", called=True) == {'FINISHED'})
         lefilepath = panel_line.lefilename
 
-        imagename = os.path.basename(lefilepath)
+        imagename = Path(lefilepath).name
         lamap = panel_line.maplabels
         if manual:
-            lamap = imagename[:-4]
+            lamap = Path(lefilepath).stem
 
         if lematerial.node_tree.nodes.find(lamap) > 0:
 
-            if os.path.isfile(lefilepath) == True and gofile:
+            if Path(lefilepath).is_file() and gofile:
                 bpy.ops.image.open(
-                    filepath=os.path.basename(lefilepath),
-                    directory=os.path.dirname(lefilepath),
-                    files=[{"name": os.path.basename(lefilepath), "name": os.path.basename(lefilepath)}],
+                    filepath=Path(lefilepath).name,
+                    directory=str(Path(lefilepath).parent),
+                    #TODO why declare twice ?
+                    files=[{"name": Path(lefilepath).name, "name": Path(lefilepath).name}],
                     show_multiview=False
                 )
                 nodestofill = (nod for nod in lematerial.node_tree.nodes if nod.label == lamap)
@@ -383,16 +384,16 @@ class NodeHandler():
     def move_existing(self, **mov_params):
         context = mov_params['context']
         scene = context.scene
-        lematos = mov_params['mat']
+        mat_active = mov_params['mat']
         lesurfaceshader = mov_params['shader']
         nods = mov_params['nodes']
         bsmprops = scene.bsmprops
         leoldshader = mov_params['old_shader']
         replace = bsmprops.shader
-        panelrows = bsmprops.panelrows
+        panel_rows = bsmprops.panel_rows
         imgs = list(nod for nod in nods if nod.type == 'TEX_IMAGE')
 
-        enabled = list(k for k in range(panelrows) if eval(f"bpy.context.scene.panel_line{k}.labelbools"))
+        enabled = list(k for k in range(panel_rows) if eval(f"bpy.context.scene.panel_line{k}.labelbools"))
         adding = len(enabled)
         listofshadernodes = []  # TODO get a lish of all shadernodes
         ylocsall = []

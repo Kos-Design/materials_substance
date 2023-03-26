@@ -14,9 +14,8 @@ from bpy.props import (
     EnumProperty,
 )
 
-from . propertygroups import (PatternsVariations,
-                                      extlist, BsmInit
-                                      )
+from . propertieshandler import PropertiesHandler as ph
+                                    
 from bpy.utils import (register_class, unregister_class)
 
 
@@ -29,8 +28,8 @@ def ShowMessageBox(message="", title="Message", icon='INFO'):
 def selector(self, context):
     viewl = context.view_layer
     bsmprops = context.scene.bsmprops
-    onlyactiveobj = bsmprops.onlyactiveobj
-    applytoall = bsmprops.applyall
+    only_active_obj = bsmprops.only_active_obj
+    applytoall = bsmprops.apply_to_all
 
     leset = viewl.objects.selected
 
@@ -38,7 +37,7 @@ def selector(self, context):
     validtypes = ['SURFACE', 'CURVE', 'META', 'MESH', 'GPENCIL']
     if applytoall:
         leset = viewl.objects
-    if onlyactiveobj:
+    if only_active_obj:
         leset = [context.object]
 
     for obj in leset:
@@ -122,10 +121,12 @@ class BSM_OT_assumename(popol,Operator):
         separator = bsmprops.separator
         patternselected = int(bsmprops.patterns)
         allexts = [fullext.capitalize(), fullext.upper(), fullext, ]
+        propper = ph()
+        matname = propper.mat_cleaner(context)[1]
         for ext in allexts:
-            params = [prefix, mapname, ext]
-            patternslist = PatternsVariations.liste(None, context, params)
-            supposed = patternslist[patternselected][1]
+            params = [prefix, mapname, ext, matname]
+            patterns_list = propper.patterns_list(context, params)
+            supposed = patterns_list[patternselected][1]
 
             panel_line.probable = lefolder + supposed
             if Path(panel_line.probable).is_file():
@@ -142,13 +143,14 @@ class GuessName():
         keepat = gs_params['keep_pattern']
         bsmprops = scene.bsmprops
         prefix = bsmprops.prefix
-        isindir = str(Path(panel_line.lefilename).stem) in str(Path(panel_line.lefilename).parent)
-        #isindir = (os.path.basename(panel_line.lefilename) in os.path.dirname(panel_line.lefilename))
+        isindir = Path(panel_line.lefilename).name in str(Path(panel_line.lefilename).parent)
         # almost always True but better safe than sorry
         fullext = panel_line.mapext
         allexts = [fullext, fullext.upper(), fullext.capitalize()]
         manual = panel_line.manual
         mapname = panel_line.maplabels
+        propper = ph()
+        matname = propper.mat_cleaner(context)[1]
         isindir = False
         patternselected = int(bsmprops.patterns)
         if not manual:
@@ -157,10 +159,10 @@ class GuessName():
 
                 if isindir:
                     break
-                params = [prefix, mapname, ext]
-                patterns = PatternsVariations.liste(None, context, params)
+                params = [prefix, mapname, ext, matname]
+                patterns = propper.patterns_list(context, params)
                 supposed = patterns[patternselected][1]
-                panel_line.probable = bsmprops.usr_dir + supposed
+                panel_line.probable = str(Path(bsmprops.usr_dir).joinpath(supposed))
                 if Path(panel_line.probable).is_file():
                     panel_line.lefilename = panel_line.probable
 
@@ -171,7 +173,7 @@ class GuessName():
                 if not keepat:
                     for liner in patterns:
                         tentative = liner[1]
-                        panel_line.probable = bsmprops.usr_dir + tentative
+                        panel_line.probable = str(Path(bsmprops.usr_dir).joinpath(tentative))
 
                         if Path(panel_line.probable).is_file():
                             panel_line.lefilename = panel_line.probable
@@ -200,13 +202,14 @@ class BSM_OT_guessfilext(popol,Operator):
         panel_line = eval(f"scene.panel_line{linen}")
         manual = panel_line.manual
         gsn = GuessName()
+        propper = ph()
         gs_params = {'context': context, 'props':panel_line, 'keep_pattern':keepat}
         currentext = panel_line.mapext
         isindir = gsn.testit(**gs_params)
 
         if not isindir and not manual:
 
-            filetypesraw = extlist.givelist(self, context)
+            filetypesraw = propper.givelist(context)
             filetypes = []
             for i in range(len(filetypesraw)):
                 filetypes.append(filetypesraw[i][0])
@@ -346,7 +349,7 @@ class BSM_OT_addaline(popol, Operator):
     def execute(self, context):
         if len(context.scene.shader_links) == 0:
             bpy.ops.bsm.createdummy()
-        context.scene.bsmprops.panelrows += 1
+        context.scene.bsmprops.panel_rows += 1
 
         return {'FINISHED'}
 
@@ -362,8 +365,8 @@ class BSM_OT_removeline(popol, Operator):
         if len(context.scene.shader_links) == 0:
             bpy.ops.bsm.createdummy()
         scene = context.scene
-        context.scene.bsmprops.panelrows -= 1
-        panel_line = eval(f"scene.panel_line{scene.bsmprops.panelrows}")
+        context.scene.bsmprops.panel_rows -= 1
+        panel_line = eval(f"scene.panel_line{scene.bsmprops.panel_rows}")
         panel_line.manual = False
         panel_line.labelbools = False
 
@@ -556,10 +559,10 @@ class BSM_OT_addpreset(BsmAddPresetbase, Operator):
                      'bsmprops.expert',
                      'bsmprops.bsm_all',
                      'bsmprops.usr_dir', 'bsmprops.separator',
-                     'bsmprops.panelrows',
-                     'bsmprops.applyall', 'bsmprops.eraseall',
-                     'bsmprops.extras',
-                     'bsmprops.onlyactiveobj', 'bsmprops.skipnormals',
+                     'bsmprops.panel_rows',
+                     'bsmprops.apply_to_all', 'bsmprops.eraseall',
+                     'bsmprops.tweak_levels',
+                     'bsmprops.only_active_obj', 'bsmprops.skipnormals',
                      'bsmprops.onlyamat',
                      'bsmprops.fixname',
                      'bsmprops.prefix',
@@ -586,7 +589,8 @@ class BSM_OT_createdummy(popol, Operator):
         scene = context.scene
         scenename = str(scene.name_full)
         bsmprops = scene.bsmprops
-        lashaderlist = BsmInit.exec(None, context)
+        propper = ph()
+        lashaderlist = propper.populate(context)
         for obj in context.view_layer.objects.selected:
             fetchedObjects.append(obj)
         bpy.ops.object.select_all(action='DESELECT')
@@ -609,8 +613,8 @@ class BSM_OT_createdummy(popol, Operator):
 
         leshaderoutputnodes = []
         allshaderstnodes = []
-        lenghtlist = 11  # only create nodes for the initial shaderlist aka bsminit
-
+        # only create nodes for the initial shaderlist populated by ph.populate
+        lenghtlist = 11  
         for lesnods in range(lenghtlist):
             laligne = lashaderlist[lesnods]
             lID = int(lesnods)
@@ -736,16 +740,12 @@ class BsmExecutePreset(Operator):
     )
 
     def execute(self, context):
-
-        #from os.path import basename, splitext
         filepath = self.filepath
 
         # change the menu title to the most recently chosen option
         preset_class = BSM_MT_presetsmenu  # getattr(bpy.types, self.menu_idname)
         preset_class.bl_label = bpy.path.display_name(Path(filepath).stem)
-
-        #ext = splitext(filepath)[1].lower()
-        ext = str(Path(filepath).suffix)
+        ext = str(Path(filepath).suffix).lower()
         if ext not in {".py", ".xml"}:
             self.report({'ERROR'}, "unknown filetype: %r" % ext)
             return {'CANCELLED'}

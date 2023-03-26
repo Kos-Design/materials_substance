@@ -1,5 +1,5 @@
 import bpy
-import os
+from pathlib import Path
 
 from bpy.types import (
     Panel, Menu, AddonPreferences, PropertyGroup,
@@ -62,7 +62,9 @@ class BSM_PT_linestopanel(TexImporterPanel, Panel):
         scene = bpy.context.scene
         bsmprops = scene.bsmprops
         expertmode = bsmprops.expert
-        panelrows = bsmprops.panelrows
+        panel_rows = bsmprops.panel_rows
+        #TODO: no globbing in panel, get it propped
+        dir_content = [x.name for x in Path(bsmprops.usr_dir).glob('*') ]
         row = layout.row()
         col = row.column()
         col.alignment = 'RIGHT'
@@ -94,16 +96,16 @@ class BSM_PT_linestopanel(TexImporterPanel, Panel):
         col.label(text="Sockets")
         row.separator()
         row = layout.row()
-
-        for k in range(panelrows):
+        
+        for k in range(panel_rows):
             panel_line = eval(f"scene.panel_line{k}")
             lefilename = panel_line.lefilename
             manual = panel_line.manual
-            lefile = os.path.basename(panel_line.probable)
-            dircontent = os.listdir(bsmprops.usr_dir)
+            lefile = Path(panel_line.probable).name
+            
             if manual:
-                lefile = os.path.basename(lefilename)
-                dircontent = bsmprops.dircontent
+                lefile = Path(lefilename).name
+                dir_content = bsmprops.dir_content
 
             row = layout.row(align = True)
             row.prop(panel_line, "labelbools", text = "")
@@ -123,7 +125,7 @@ class BSM_PT_linestopanel(TexImporterPanel, Panel):
             col = row.column(align = True)
             col.alignment = 'EXPAND'
             if not expertmode:
-                if lefile in dircontent:
+                if lefile in dir_content:
                     col.operator('BSM_OT_checkmaps', icon='CHECKMARK').linen = k
                 else:
                     col.operator('BSM_OT_checkmaps', icon='QUESTION').linen = k
@@ -140,7 +142,7 @@ class BSM_PT_linestopanel(TexImporterPanel, Panel):
             col = row.column()
             col.enabled = panel_line.labelbools
             if not col.active :
-                col.prop(bsmprops, "emptylist" , text="")
+                col.prop(bsmprops, "enum_placeholder" , text="")
             else:
                 col.prop(panel_line, "inputsockets" , text="")
             row.separator()
@@ -219,18 +221,18 @@ class BSM_PT_options(TexImporterPanel, Panel):
         row = layout.row()
         row = layout.row()
         row.enabled = not bsmprops.manison
-        row.prop(bsmprops, "applyall", text="Apply to all visible objects", )
+        row.prop(bsmprops, "apply_to_all", text="Apply to all visible objects", )
         row = layout.row()
         row.enabled = not bsmprops.manison
-        row.prop(bsmprops, "onlyactiveobj", text="Apply to active object only", )
+        row.prop(bsmprops, "only_active_obj", text="Apply to active object only", )
         row = layout.row()
         row.prop(bsmprops, "skipnormals", )
         row = layout.row()
-        row.prop(bsmprops, "customshader", text="Enable Custom Shaders", icon='NONE', icon_only=True)
+        row.prop(bsmprops, "custom_shader_on", text="Enable Custom Shaders", icon='NONE', icon_only=True)
         row = layout.row()
         row.prop(bsmprops, "eraseall", text="Clear nodes from material", )
         row = layout.row()
-        row.prop(bsmprops, "extras", text="Attach Curves and Ramps ", )
+        row.prop(bsmprops, "tweak_levels", text="Attach Curves and Ramps ", )
         row = layout.row()
         row.enabled = not bsmprops.manison
         row.prop(bsmprops, "onlyamat", text="Only active Material",)
