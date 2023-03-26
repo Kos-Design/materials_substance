@@ -24,7 +24,7 @@ Installation:
 
 https://youtu.be/lumrnhikSOg
 
-Download the git release from https://github.com/Kos-Design/materials_substance/releases/download/0.2.1/Blender_Substance_Texture_Importer.zip
+Download the git release from https://github.com/Kos-Design/materials_substance/releases/download/0.2.4/Blender_Substance_Texture_Importer.zip
 and install it in Blender via Edit > Preferences > Add-ons > Install an Addon
 Note : if you download the files manually from git, place them ( __init__.py, Operators.py, Panels.py and PropertyGroups.py ) in a folder called "materials_substance" inside your Blender Add-Ons directory.
 It will appear in the Add-Ons list, enable it by ticking the checkbox in front of “Material: Blender Substance Texture Importer”
