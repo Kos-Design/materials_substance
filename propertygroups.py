@@ -20,12 +20,12 @@ def line_on_cb(self, context):
     scene = context.scene
     bsmprops = scene.bsmprops
     if len(scene.shader_links) == 0:
-        bpy.ops.bsm.createdummy()
+        bpy.ops.bsm.make_nodetree()
 
     bsmprops.manual_on = manual_on_cb(bsmprops, context)
     if not self.manual:
-        bpy.ops.bsm.namemaker(line_num=self.ID)
-        bpy.ops.bsm.namechecker(linen=self.ID, lorigin="line_on_cb", called=False)
+        bpy.ops.bsm.name_maker(line_num=self.ID)
+        bpy.ops.bsm.name_checker(linen=self.ID, lorigin="line_on_cb", called=False)
     return
 
 def apply_to_all_cb(self, context):
@@ -37,13 +37,13 @@ def apply_to_all_cb(self, context):
         target = "all visible objects"
         self.only_active_obj = False
 
-    bpy.types.BSM_OT_subimport.bl_description = "Setup nodes and load textures maps on " + target
-    bpy.types.BSM_OT_createnodes.bl_description = "Setup Nodes on " + target
-    bpy.types.BSM_OT_assignnodes.bl_description = "Load textures maps on " + target
+    bpy.types.BSM_OT_import_textures.bl_description = "Setup nodes and load textures maps on " + target
+    bpy.types.BSM_OT_make_nodes.bl_description = "Setup Nodes on " + target
+    bpy.types.BSM_OT_assign_nodes.bl_description = "Load textures maps on " + target
     liste = [
-        bpy.types.BSM_OT_subimport,
-        bpy.types.BSM_OT_createnodes,
-        bpy.types.BSM_OT_assignnodes
+        bpy.types.BSM_OT_import_textures,
+        bpy.types.BSM_OT_make_nodes,
+        bpy.types.BSM_OT_assign_nodes
     ]
     for cls in liste:
         laclasse = cls
@@ -126,8 +126,8 @@ def enum_sockets_up(self, context):
 
 def map_label_cb(self, context):
     if not self.manual:
-        bpy.ops.bsm.namemaker(line_num=self.ID)
-        bpy.ops.bsm.guessfilext(linen=self.ID, keepat=True, called=True)
+        bpy.ops.bsm.name_maker(line_num=self.ID)
+        bpy.ops.bsm.find_ext(linen=self.ID, keepat=True, called=True)
     return
 
 def map_ext_cb(self, context):
@@ -138,7 +138,7 @@ def map_ext_cb(self, context):
 
 def map_ext_up(self, context):
     if not self.manual:
-        bpy.ops.bsm.namemaker(line_num=self.ID)
+        bpy.ops.bsm.name_maker(line_num=self.ID)
     return
 
 def shaders_list_cb(self, context):
@@ -150,14 +150,14 @@ def shaders_list_up(self, context):
     propper = ph()
     scene = context.scene
     if len(scene.shader_links) == 0:
-        bpy.ops.bsm.createdummy()
+        bpy.ops.bsm.make_nodetree()
     propper.clean_input_sockets(context)
     return
 
 def manual_up(self, context):
     bsmprops = context.scene.bsmprops
     if not self.manual:
-        bpy.ops.bsm.namemaker(line_num=self.ID)
+        bpy.ops.bsm.name_maker(line_num=self.ID)
     #TODO: why ? this could loop ?    
     bsmprops.manual_on = manual_on_cb(bsmprops, context)
 
@@ -165,7 +165,7 @@ def manual_up(self, context):
 
 def advanced_mode_up(self, context):
     if len(context.scene.shader_links) == 0:
-        bpy.ops.bsm.createdummy()
+        bpy.ops.bsm.make_nodetree()
     if not self.advanced_mode:
         for i in range(self.panel_rows):
             panel_line = eval(f"context.scene.panel_line{i}")
@@ -184,7 +184,7 @@ def usr_dir_cb(self, context):
         self.usr_dir = str(Path.home())
     scene = context.scene
     if len(scene.shader_links) == 0:
-        bpy.ops.bsm.createdummy()
+        bpy.ops.bsm.make_nodetree()
     directory = self.usr_dir
     dir_content = [x.name for x in Path(directory).glob('*.*') ]
     self.dir_content = " ".join(str(x) for x in dir_content)
@@ -206,12 +206,12 @@ def usr_dir_cb(self, context):
 
 def skip_normals_up(self, context):  #
     if len(context.scene.shader_links) == 0:
-        bpy.ops.bsm.createdummy()
+        bpy.ops.bsm.make_nodetree()
     return
 
 def prefix_cb(self, context):
     if len(context.scene.shader_links) == 0:
-        bpy.ops.bsm.createdummy()
+        bpy.ops.bsm.make_nodetree()
     propper = ph()
     propper.make_names(context)
     propper.check_names(context)
@@ -219,7 +219,7 @@ def prefix_cb(self, context):
 
 def separator_cb(self, context):
     if len(context.scene.shader_links) == 0:
-        bpy.ops.bsm.createdummy()
+        bpy.ops.bsm.make_nodetree()
     if self.separator.isspace() or len(self.separator) == 0:
         self.separator = "_"
     propper = ph()
@@ -242,27 +242,27 @@ def patterns_cb(self, context):
 def patterns_up(self, context):
     propper = ph()
     if len(context.scene.shader_links) == 0:
-        bpy.ops.bsm.createdummy()
+        bpy.ops.bsm.make_nodetree()
     propper = ph()    
     propper.make_names(context)
     return
 
 def apply_to_all_cb(self, context):
     if len(context.scene.shader_links) == 0:
-        bpy.ops.bsm.createdummy()
+        bpy.ops.bsm.make_nodetree()
     if self.eraseall:
         self.shader = True
     return
 
 def only_active_mat_up(self, context):
     if len(context.scene.shader_links) == 0:
-        bpy.ops.bsm.createdummy()
+        bpy.ops.bsm.make_nodetree()
 
     return
 
 def fix_name_up(self, context):
     if len(context.scene.shader_links) == 0:
-        bpy.ops.bsm.createdummy()
+        bpy.ops.bsm.make_nodetree()
 
     return
 

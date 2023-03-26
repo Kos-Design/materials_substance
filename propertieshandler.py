@@ -82,14 +82,14 @@ class PropertiesHandler():
         allpanel_rows = 10
         panel_lines = list(k for k in range(allpanel_rows) if not eval(f"bpy.context.scene.panel_line{k}.manual"))
         for ks in panel_lines:
-            bpy.ops.bsm.namechecker(linen=ks, called=False, lorigin="bsmprops")
+            bpy.ops.bsm.name_checker(linen=ks, called=False, lorigin="bsmprops")
         return
 
     def make_names(self, context):
         allpanel_rows = 10
         panel_lines = list(k for k in range(allpanel_rows) if not eval(f"bpy.context.scene.panel_line{k}.manual"))
         for ks in panel_lines:
-            bpy.ops.bsm.namemaker(line_num=ks)
+            bpy.ops.bsm.name_maker(line_num=ks)
 
         return
 
@@ -202,6 +202,7 @@ class PropertiesHandler():
         print("scanning dir")
         reference = str(Path(lefile).stem).split(separator)
         refpositions = self.positions_order(context, lefile)[0]
+        positions = refpositions
         prefixis1 = []
         prefixis2 = []
         leprefix = None

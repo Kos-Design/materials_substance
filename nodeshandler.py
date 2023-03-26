@@ -37,28 +37,29 @@ class NodeHandler():
         line = {"maps":maps, "chans":chans, "indexer":indexer}
         return line
 
-    def process_materials(self, **mat_params):
+    def process_materials(self, **params):
         """helper function used to manipulate nodes
 
-        `helper`  Used by the function BSM_OT_createnodes and BSM_OT_assignnodes.
+        `helper`  Used by the function BSM_OT_make_nodes and BSM_OT_assign_nodes.
         Set the nodes for each material in the material slots according to the maps and channels defined in the Ui panel:
 
         Args:
             self (self): The first parameter.
             context (context): The second parameter.
-            mat_params (array): [selected object, matsdone (?), string tag "dothem" or "plug"]
+            params (array): [selected object, matsdone (?), string tag "dothem" or "plug"]
 
         Returns:
-            already_done : mat_params[1] (to update the list)
+            already_done : params[1] (to update the list)
 
         .. More:
             https://www.python.org/dev/peps/pep-0484/
 
         """
-        context = mat_params['context']
-        already_done = mat_params['already_done']
-        leselected = mat_params['selection']
-        lafunction = mat_params['caller']
+        context = params['context']
+        already_done = params['already_done']
+        leselected = params['selection']
+        lafunction = params['caller']
+        caller = params['ops']
         maslots = leselected.material_slots
         bsmprops = context.scene.bsmprops
         idx = leselected.active_material_index
@@ -79,23 +80,23 @@ class NodeHandler():
                     enabled = params['indexer']
                     if lafunction == "plug":
                         for indexed in enabled:
-                            pg_params = {'context':context, 'mat':mat_active, 'idx':indexed}
-                            self.setup_nodes(**pg_params)
+                            sn_params = {'ops':caller, 'context':context, 'mat':mat_active, 'idx':indexed}
+                            self.setup_nodes(**sn_params)
 
                     if lafunction == "dothem":
-                        do_params = {'context':context, 'maps':params['maps'], 'chans':params['chans'], 'mat':mat_active}
-                        self.create_nodes(**do_params)
+                        cn_params = {'context':context, 'maps':params['maps'], 'chans':params['chans'], 'mat':mat_active}
+                        self.create_nodes(**cn_params)
 
                     already_done.append(mat_active.name)
 
         leselected.active_material_index = idx
         return already_done
     
-    def create_nodes(self, **do_params):
-        context = do_params['context']
-        maps = do_params['maps']
-        chans = do_params['chans']
-        mat_active = do_params['mat']
+    def create_nodes(self, **params):
+        context = params['context']
+        maps = params['maps']
+        chans = params['chans']
+        mat_active = params['mat']
         leoldshader = None
         scene = context.scene
         bsmprops = scene.bsmprops
@@ -163,9 +164,9 @@ class NodeHandler():
         mapin = None
         lescoord = None
         mapnumbr = 0
-        mov_params = {'context':context, 'mat':mat_active, 'shader':lesurfaceshader, 'nodes':nods, 'old_shader':leoldshader}
+        mn_params = {'context':context, 'mat':mat_active, 'shader':lesurfaceshader, 'nodes':nods, 'old_shader':leoldshader}
 
-        self.move_nodes(**mov_params)
+        self.move_nodes(**mn_params)
 
         if len(maps) > 0:
 
@@ -299,32 +300,32 @@ class NodeHandler():
                 if isnormal and not skip_normals:
                     normalmapnode.location = (base_x + offsetter_x, base_y + offsetter_y * mapnumbr)
                 mapnumbr += 1
-            sl_params = {'context':context,'shader':lesurfaceshader, 'nodes':nods}
-            lesurfaceshader.location[1] = self.get_sockets_center(**sl_params) + 128  # just a bit higher
+            gc_params = {'context':context,'shader':lesurfaceshader, 'nodes':nods}
+            lesurfaceshader.location[1] = self.get_sockets_center(**gc_params) + 128  # just a bit higher
             lesurfaceshader.location[0] += 128
             matos_output.location[1] = lesurfaceshader.location[1]
             mapin.location = (base_x + offsetter_x * (int(addextras) + int(washn) + 2) + offsetter_x, base_y)
             lescoord.location = (mapin.location[0] + offsetter_x, mapin.location[1])
-            mp_params = {'context':context, 'maps':mapin, 'nodes':nods}
-            mapin.location[1] = self.map_links(**mp_params)
+            ml_params = {'context':context, 'maps':mapin, 'nodes':nods}
+            mapin.location[1] = self.map_links(**ml_params)
             lescoord.location[1] = mapin.location[1]
             # for nodez in nods:
             #     nodez.location[1] = nodez.location[1] - 156
 
         return
 
-    def setup_nodes(self, **pg_params):
-        context = pg_params['context']
-        lematerial = pg_params['mat']
-        index = pg_params['idx']
-
+    def setup_nodes(self, **params):
+        context = params['context']
+        lematerial = params['mat']
+        index = params['idx']
+        caller = params['ops']
         bsmprops = context.scene.bsmprops
         panel_line = eval(f"context.scene.panel_line{index}")
         manual = panel_line.manual
         gofile = True
         if not manual:
-            # bpy.ops.bsm.namemaker(line_num = index)
-            gofile = (bpy.ops.bsm.namechecker(linen=index, lorigin="plug", called=True) == {'FINISHED'})
+            # bpy.ops.bsm.name_maker(line_num = index)
+            gofile = (bpy.ops.bsm.name_checker(linen=index, lorigin="plug", called=True) == {'FINISHED'})
         lefilepath = panel_line.file_name
 
         imagename = Path(lefilepath).name
@@ -349,21 +350,21 @@ class NodeHandler():
                         nods.image.colorspace_settings.name = 'Non-Color'
 
                 toreport = "Texture file '" + imagename + "' assigned in "+ lematerial.name
-                self.report({'INFO'}, toreport)
+                caller.report({'INFO'}, toreport)
             else:
                 toreport = "Texture '" + imagename + "' not found"
-                self.report({'INFO'}, toreport)
+                caller.report({'INFO'}, toreport)
 
         else:
             toreport = "node label " + lamap + " not found"
-            self.report({'INFO'}, toreport)
+            caller.report({'INFO'}, toreport)
 
         return
 
-    def map_links(self, **mp_params):
-        context = mp_params['context']
-        mapin = mp_params['maps']
-        nods = mp_params['nodes']
+    def map_links(self, **params):
+        context = params['context']
+        mapin = params['maps']
+        nods = params['nodes']
         ylocs = []
         connected = list(linked for linked in mapin.outputs[0].links if linked.is_valid)
         if len(connected) > 0:
@@ -376,14 +377,14 @@ class NodeHandler():
         center = (ylocs[0] + ylocs[-1]) / 2
         return center   
 
-    def move_nodes(self, **mov_params):
-        context = mov_params['context']
+    def move_nodes(self, **params):
+        context = params['context']
         scene = context.scene
-        mat_active = mov_params['mat']
-        lesurfaceshader = mov_params['shader']
-        nods = mov_params['nodes']
+        mat_active = params['mat']
+        lesurfaceshader = params['shader']
+        nods = params['nodes']
         bsmprops = scene.bsmprops
-        leoldshader = mov_params['old_shader']
+        leoldshader = params['old_shader']
         replace = bsmprops.shader
         panel_rows = bsmprops.panel_rows
         imgs = list(nod for nod in nods if nod.type == 'TEX_IMAGE')
@@ -426,10 +427,10 @@ class NodeHandler():
 
         return
 
-    def get_sockets_center(self, **sl_params):
-        context = sl_params['context']
-        lesurfaceshader = sl_params['shader']
-        nods = sl_params['nodes']
+    def get_sockets_center(self, **params):
+        context = params['context']
+        lesurfaceshader = params['shader']
+        nods = params['nodes']
         ylocs = []
         connected = list(linked for linked in lesurfaceshader.inputs if linked.is_linked)
         if len(connected) > 0:

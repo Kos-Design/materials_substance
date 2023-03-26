@@ -1,10 +1,7 @@
 import bpy
 from pathlib import Path
 
-from bpy.types import (
-    Panel, Menu, AddonPreferences, PropertyGroup,
-    UIList, WindowManager, Scene
-)
+from bpy.types import Panel
 
 from bl_ui.utils import PresetPanel
 
@@ -24,7 +21,7 @@ class BSM_PT_presets(PresetPanel, Panel):
     bl_label = 'Presets'
     preset_subdir = 'bsm_presets'
     preset_operator = 'bsm.execute_preset'
-    preset_add_operator = 'bsm.addpreset'
+    preset_add_operator = 'bsm.add_preset'
 
 
 class BSM_PT_importpanel(TexImporterPanel, Panel):
@@ -73,7 +70,7 @@ class BSM_PT_linestopanel(TexImporterPanel, Panel):
         col.alignment = 'RIGHT'
         row = col.row()
         row.alignment = 'RIGHT'
-        row.operator("BSM_OT_addaline", icon="ADD")
+        row.operator("BSM_OT_add_map_line", icon="ADD")
         row.separator()
         row = layout.row(align=True)
         row = row.split(factor=.02)
@@ -129,9 +126,9 @@ class BSM_PT_linestopanel(TexImporterPanel, Panel):
             col.alignment = 'EXPAND'
             if not advanced_modemode:
                 if lefile in dir_content:
-                    col.operator('BSM_OT_namechecker', icon='CHECKMARK').linen = k
+                    col.operator('BSM_OT_name_checker', icon='CHECKMARK').linen = k
                 else:
-                    col.operator('BSM_OT_namechecker', icon='QUESTION').linen = k
+                    col.operator('BSM_OT_name_checker', icon='QUESTION').linen = k
             else :
 
                 col.prop(panel_line, "manual", text="", toggle=1, icon='FILE_TICK')
@@ -163,7 +160,7 @@ class BSM_PT_prefs(TexImporterPanel,Panel):
         layout = self.layout
         row = layout.row()
         row = row.split(factor=.95)
-        row.operator("BSM_OT_removeline", icon="REMOVE",)
+        row.operator("BSM_OT_del_map_line", icon="REMOVE",)
 
 
     def draw(self, context):
@@ -197,15 +194,15 @@ class BSM_PT_buttons(TexImporterPanel, Panel):
         layout = self.layout
         row = layout.row()
         col = row.column(align = True)
-        col.operator("BSM_OT_subimport")
+        col.operator("BSM_OT_import_textures")
         col.separator()
 
         row = col.row(align = True)
         col = layout.column(align = True)
         row = col.row(align = True)
-        row.operator("BSM_OT_assignnodes")
+        row.operator("BSM_OT_assign_nodes")
         row.separator()
-        row.operator("BSM_OT_createnodes")
+        row.operator("BSM_OT_make_nodes")
 
 
 class BSM_PT_options(TexImporterPanel, Panel):

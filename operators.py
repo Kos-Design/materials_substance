@@ -59,8 +59,8 @@ class sub_poll():
         return False
 
 
-class BSM_OT_createnodes(sub_poll,Operator):
-    bl_idname = "bsm.createnodes"
+class BSM_OT_make_nodes(sub_poll,Operator):
+    bl_idname = "bsm.make_nodes"
     bl_label = "Only Setup Nodes"
     bl_description = "Setup empty Texture Nodes"
 
@@ -70,7 +70,7 @@ class BSM_OT_createnodes(sub_poll,Operator):
         ndh = nha()
         scene = context.scene
         if len(scene.shader_links) == 0:
-            bpy.ops.bsm.createdummy()
+            bpy.ops.bsm.make_nodetree()
         matsdone = []
 
         og_selection = list(context.view_layer.objects.selected)
@@ -82,7 +82,7 @@ class BSM_OT_createnodes(sub_poll,Operator):
         for leselected in lecleanselect:
             leselected.select_set(True)
             context.view_layer.objects.active = leselected
-            mat_params = {'context':context, 'selection':leselected, 'already_done':matsdone, 'caller':"dothem"}
+            mat_params = {'ops':self, 'context':context, 'selection':leselected, 'already_done':matsdone, 'caller':"dothem"}
             matsdone = ndh.process_materials(**mat_params)
             
             leselected.select_set(False)
@@ -97,8 +97,8 @@ class BSM_OT_createnodes(sub_poll,Operator):
         return {'FINISHED'}
 
 
-class BSM_OT_namemaker(sub_poll,Operator):
-    bl_idname = "bsm.namemaker"
+class BSM_OT_name_maker(sub_poll,Operator):
+    bl_idname = "bsm.name_maker"
     bl_label = ""
     bl_description = "Assume a probable filename "
 
@@ -135,8 +135,8 @@ class BSM_OT_namemaker(sub_poll,Operator):
         return {'FINISHED'}
 
 
-class BSM_OT_guessfilext(sub_poll,Operator):
-    bl_idname = "bsm.guessfilext"
+class BSM_OT_find_ext(sub_poll,Operator):
+    bl_idname = "bsm.find_ext"
     bl_label = ""
     bl_description = "set panel_line{linen}.map_ext according to dir content"
 
@@ -177,8 +177,8 @@ class BSM_OT_guessfilext(sub_poll,Operator):
         return {'FINISHED'}
 
 
-class BSM_OT_namechecker(sub_poll,Operator):
-    bl_idname = "bsm.namechecker"
+class BSM_OT_name_checker(sub_poll,Operator):
+    bl_idname = "bsm.name_checker"
     bl_label = ""
     bl_description = "Check if a file containing the Map Name keyword matches the Pattern"
 
@@ -214,7 +214,7 @@ class BSM_OT_namechecker(sub_poll,Operator):
             gotafile = propper.file_tester(**gs_params)
 
             if not gotafile:
-                bpy.ops.bsm.guessfilext(linen=linen)
+                bpy.ops.bsm.find_ext(linen=linen)
             isafile = propper.file_tester(**gs_params)
 
             if not isafile and self.called :
@@ -240,8 +240,8 @@ class BSM_OT_namechecker(sub_poll,Operator):
         return {'CANCELLED'}
 
 
-class BSM_OT_assignnodes(sub_poll,Operator):
-    bl_idname = "bsm.assignnodes"
+class BSM_OT_assign_nodes(sub_poll,Operator):
+    bl_idname = "bsm.assign_nodes"
     bl_label = "Only Assign Images"
     bl_description = "import maps for all selected objects"
 
@@ -251,7 +251,7 @@ class BSM_OT_assignnodes(sub_poll,Operator):
         ndh = nha()
         scene = context.scene
         if len(scene.shader_links) == 0:
-            bpy.ops.bsm.createdummy()
+            bpy.ops.bsm.make_nodetree()
         og_selection = list(context.view_layer.objects.selected)
         activeobj = context.view_layer.objects.active
         lecleanselect = selector(self, context)
@@ -261,7 +261,7 @@ class BSM_OT_assignnodes(sub_poll,Operator):
         for leselected in lecleanselect:
             leselected.select_set(True)
             context.view_layer.objects.active = leselected
-            mat_params = {'context':context, 'selection':leselected, 'already_done':matsdone, 'caller':"plug"}
+            mat_params = {'ops':self, 'context':context, 'selection':leselected, 'already_done':matsdone, 'caller':"plug"}
             matsdone = ndh.process_materials(**mat_params)
             leselected.select_set(False)
 
@@ -274,21 +274,19 @@ class BSM_OT_assignnodes(sub_poll,Operator):
         return {'FINISHED'}
 
 
-class BSM_OT_subimport(sub_poll, Operator):
-    bl_idname = "bsm.subimport"
+class BSM_OT_import_textures(sub_poll, Operator):
+    bl_idname = "bsm.import_textures"
     bl_label = "Import Substance Maps"
     bl_description = "Import Texture Maps for active object"
 
     def execute(self, context):
-        bpy.ops.bsm.createnodes(fromimportbutton=True)
-        bpy.ops.bsm.assignnodes(fromimportbutton=True)
-        # ShowMessageBox("Nodes created and Textures loaded", "Success !", 'FAKE_USER_ON')
-
+        bpy.ops.bsm.make_nodes(fromimportbutton=True)
+        bpy.ops.bsm.assign_nodes(fromimportbutton=True)
         return {'FINISHED'}
 
 
-class BSM_OT_addaline(sub_poll, Operator):
-    bl_idname = "bsm.addaline"
+class BSM_OT_add_map_line(sub_poll, Operator):
+    bl_idname = "bsm.add_map_line"
     bl_label = ""
     bl_description = "Add a new map line below"
 
@@ -296,14 +294,14 @@ class BSM_OT_addaline(sub_poll, Operator):
 
     def execute(self, context):
         if len(context.scene.shader_links) == 0:
-            bpy.ops.bsm.createdummy()
+            bpy.ops.bsm.make_nodetree()
         context.scene.bsmprops.panel_rows += 1
 
         return {'FINISHED'}
 
 
-class BSM_OT_removeline(sub_poll, Operator):
-    bl_idname = "bsm.removeline"
+class BSM_OT_del_map_line(sub_poll, Operator):
+    bl_idname = "bsm.del_map_line"
     bl_label = ""
     bl_description = "Remove last Map from the list"
 
@@ -311,7 +309,7 @@ class BSM_OT_removeline(sub_poll, Operator):
 
     def execute(self, context):
         if len(context.scene.shader_links) == 0:
-            bpy.ops.bsm.createdummy()
+            bpy.ops.bsm.make_nodetree()
         scene = context.scene
         context.scene.bsmprops.panel_rows -= 1
         panel_line = eval(f"scene.panel_line{scene.bsmprops.panel_rows}")
@@ -322,7 +320,7 @@ class BSM_OT_removeline(sub_poll, Operator):
         return {'FINISHED'}
 
 
-class BsmAddPresetbase:
+class BSM_presetbase:
     #    """Base preset class, only for subclassing
     #    subclasses must define
     #     - preset_values
@@ -353,7 +351,7 @@ class BsmAddPresetbase:
 
         # lazy init maketrans
         def maketrans_init():
-            cls = BsmAddPresetbase
+            cls = BSM_presetbase
             attr = "_as_filename_trans"
 
             trans = getattr(cls, attr, None)
@@ -370,7 +368,7 @@ class BsmAddPresetbase:
     def execute(self, context):
         import os
         from bpy.utils import is_path_builtin
-        bpy.ops.bsm.saveall()
+        bpy.ops.bsm.save_all()
         if hasattr(self, "pre_cb"):
             self.pre_cb(context)
 
@@ -493,8 +491,8 @@ class BsmAddPresetbase:
         return {'FINISHED'}
 
 
-class BSM_OT_addpreset(BsmAddPresetbase, Operator):
-    bl_idname = 'bsm.addpreset'
+class BSM_OT_add_preset(BSM_presetbase, Operator):
+    bl_idname = 'bsm.add_preset'
     bl_label = 'Add A preset'
     preset_menu = 'BSM_MT_presetsmenu'
 
@@ -521,9 +519,9 @@ class BSM_OT_addpreset(BsmAddPresetbase, Operator):
     preset_subdir = 'bsm_presets'
 
 
-class BSM_OT_createdummy(sub_poll, Operator):
-    bl_idname = "bsm.createdummy"
-    bl_label = "dummy creator"
+class BSM_OT_make_nodetree(sub_poll, Operator):
+    bl_idname = "bsm.make_nodetree"
+    bl_label = "tree creator"
     bl_description = "used to initialize some dynamic props"
 
     def execute(self, context):
@@ -607,8 +605,8 @@ class BSM_OT_createdummy(sub_poll, Operator):
         return {'FINISHED'}
 
 
-class BSM_OT_saveall(sub_poll, Operator):
-    bl_idname = 'bsm.saveall'
+class BSM_OT_save_all(sub_poll, Operator):
+    bl_idname = 'bsm.save_all'
     bl_label = 'save all values'
     bl_description = 'Save all relevant vars'
 
@@ -634,8 +632,8 @@ class BSM_OT_saveall(sub_poll, Operator):
         return {'FINISHED'}
 
 
-class BSM_OT_loadall(sub_poll, Operator):
-    bl_idname = 'bsm.loadall'
+class BSM_OT_load_all(sub_poll, Operator):
+    bl_idname = 'bsm.load_all'
     bl_label = 'save all values'
     bl_description = 'load preset '
 
@@ -672,7 +670,7 @@ class BSM_MT_presetsmenu(Menu):
     draw = Menu.draw_preset
 
 
-class BsmExecutePreset(Operator):
+class BSM_OT_execute_preset(Operator):
     # """Execute a preset"""
     bl_idname = "bsm.execute_preset"
     bl_label = "Execute a Python Preset"
@@ -715,5 +713,5 @@ class BsmExecutePreset(Operator):
 
         if hasattr(preset_class, "post_cb"):
             preset_class.post_cb(context)
-        bpy.ops.bsm.loadall()
+        bpy.ops.bsm.load_all()
         return {'FINISHED'}
