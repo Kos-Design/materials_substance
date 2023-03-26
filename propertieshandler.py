@@ -1,17 +1,13 @@
 import bpy
 from pathlib import Path
 
-from bpy.utils import (register_class,
-                       unregister_class
-                       )
-
 class PropertiesHandler():
 
-    def populate(self, context):
+    def get_shaders_list(self, context):
 
         nodes_links = context.scene.node_links
 
-        lashaderlist = [
+        shaders_list = [
 
             ('ShaderNodeBsdfAnisotropic', 'Anisotropic BSDF', ''),
             ('ShaderNodeBsdfDiffuse', 'Diffuse BSDF', ''),
@@ -28,25 +24,25 @@ class PropertiesHandler():
         if context.scene.bsmprops.custom_shader_on:
             for i in range(len(nodes_links)):
                 item = nodes_links[i].nodetype
-                lashaderlist.append((item, item, ''), )
+                shaders_list.append((item, item, ''), )
 
-        lashaderlist.reverse()
+        shaders_list.reverse()
 
-        return lashaderlist
+        return shaders_list
     
-    def mat_cleaner(self, context):
+    def mat_name_cleaner(self, context):
             bsmprops = context.scene.bsmprops
 
             leobject = context.view_layer.objects.active
 
             material = leobject.active_material
             lematname = material.name
-            if (".0" in lematname) and bsmprops.fixname:
+            if (".0" in lematname) and bsmprops.fix_name:
                 lematname = lematname[:-4]
             matline = (material, lematname)
             return matline
 
-    def findnodegroups(self, context):
+    def set_nodes_groups(self, context):
         ng = bpy.data.node_groups
         nodes_links = context.scene.node_links
         nodes_links.clear()
@@ -72,33 +68,33 @@ class PropertiesHandler():
                     if validinput:
                         inplist.append(socket.name)
 
-                newentry.inputsockets = "@-¯\(°_o)/¯-@".join(str(x) for x in inplist)
+                newentry.input_sockets = "@-¯\(°_o)/¯-@".join(str(x) for x in inplist)
 
-    def cleaninputsockets(self,context):
+    def clean_input_sockets(self,context):
         for i in range(10):
             panel_line = eval(f"context.scene.panel_line{i}")
-            inputs = panel_line.inputsockets
+            inputs = panel_line.input_sockets
             if not inputs.isalnum() :
-                panel_line.inputsockets = '0'
+                panel_line.input_sockets = '0'
         return
 
-    def checknamefrombsmprops(self, context):
+    def check_names(self, context):
         allpanel_rows = 10
         panel_lines = list(k for k in range(allpanel_rows) if not eval(f"bpy.context.scene.panel_line{k}.manual"))
         for ks in panel_lines:
-            bpy.ops.bsm.checkmaps(linen=ks, called=False, lorigin="bsmprops")
+            bpy.ops.bsm.namechecker(linen=ks, called=False, lorigin="bsmprops")
         return
 
-    def assumenamefrombsmprops(self, context):
+    def make_names(self, context):
         allpanel_rows = 10
         panel_lines = list(k for k in range(allpanel_rows) if not eval(f"bpy.context.scene.panel_line{k}.manual"))
         for ks in panel_lines:
-            bpy.ops.bsm.assumename(line_num=ks)
+            bpy.ops.bsm.namemaker(line_num=ks)
 
         return
 
-    def currentshaderinputs(self, context,mat_used):
-        #lematerial = __self__.mat_cleaner(context)[0]
+    def get_shader_inputs(self, context,mat_used):
+        #lematerial = __self__.mat_name_cleaner(context)[0]
         if mat_used != None:
             for lesnodes in mat_used.node_tree.nodes:
                 validoutput = lesnodes.type == "OUTPUT_MATERIAL" and lesnodes.is_active_output and lesnodes.inputs['Surface'].is_linked
@@ -110,7 +106,7 @@ class PropertiesHandler():
                         return keyz
         return []
 
-    def arrangeinputlist(self, context, rawdata):
+    def format_enum(self, context, rawdata):
         dispitem = [('Disp Vector', 'Disp Vector', ''), ('Displacement', 'Displacement', '')]
         default = ('0', '', '')
         items = []
@@ -123,7 +119,7 @@ class PropertiesHandler():
 
         return items
 
-    def givelist(self, context):
+    def get_extensions(self, context):
         filetypes = [
             ('.exr', 'EXR', ''),
             ('.bmp', 'BMP', ''),
@@ -144,8 +140,8 @@ class PropertiesHandler():
 
         return filetypes
     
-    def other_positions(self, context, lefile):
-        lematname = self.mat_cleaner(context)[1]
+    def positions_order(self, context, lefile):
+        lematname = self.mat_name_cleaner(context)[1]
 
         separator = context.scene.bsmprops.separator
         extractargs = str(Path(lefile).stem).split(separator)
@@ -157,7 +153,7 @@ class PropertiesHandler():
         result = [otherpositions, position]
         return result
 
-    def interpretpattern(self, context, **inter_params):
+    def set_patterns(self, context, **inter_params):
         elements = inter_params['elements']
         bsmprops = context.scene.bsmprops
         pat = bsmprops.patterns
@@ -195,17 +191,17 @@ class PropertiesHandler():
 
         return
 
-    def poolprefix(self, context, lefile):
+    def guess_prefix(self, context, lefile):
         folder = str(Path(lefile).parent)
 
         basename = Path(lefile).name
 
         bsmprops = context.scene.bsmprops
         separator = bsmprops.separator
-        dir_content = [x.name for x in Path(folder).glob('*') ]
+        dir_content = [x.name for x in Path(folder).glob('*.*') ]
         print("scanning dir")
         reference = str(Path(lefile).stem).split(separator)
-        refpositions = self.other_positions(context, lefile)[0]
+        refpositions = self.positions_order(context, lefile)[0]
         prefixis1 = []
         prefixis2 = []
         leprefix = None
@@ -219,22 +215,24 @@ class PropertiesHandler():
                 leprefix = prefix
 
                 for files in dir_content:
-                    if Path(files).is_file():
-                        extractargs = str(Path(files).stem).split(separator)
-                        positions = self.other_positions(context, files)[0]
-                        if len(extractargs) > 1:
+                    try:
+                        if Path(files).is_file():
+                            extractargs = str(Path(files).stem).split(separator)
+                            positions = self.positions_order(context, files)[0]
+                            if len(extractargs) > 1:
 
-                            if str(prefix) == str(extractargs[positions[0]]):
-                                prefixis1.append(1)
-                            if prefix == str(extractargs[positions[1]]):
-                                prefixis2.append(1)
-
-                poolprefixis1 = (len(prefixis1) / len(dir_content)) * 100
-                poolprefixis2 = (len(prefixis2) / len(dir_content)) * 100
+                                if str(prefix) == str(extractargs[positions[0]]):
+                                    prefixis1.append(1)
+                                if prefix == str(extractargs[positions[1]]):
+                                    prefixis2.append(1)
+                    except IOError:
+                        continue
+                guess_is_1 = (len(prefixis1) / len(dir_content)) * 100
+                guess_is_2 = (len(prefixis2) / len(dir_content)) * 100
                 pos = positions[0]
-                rate = poolprefixis1
-                if poolprefixis1 < poolprefixis2:
-                    rate = poolprefixis2
+                rate = guess_is_1
+                if guess_is_1 < guess_is_2:
+                    rate = guess_is_2
                     pos = positions[1]
 
                 if rate > 50:
@@ -246,22 +244,22 @@ class PropertiesHandler():
         result = [leprefix, pos, rate]
         return result
 
-    def reversepattern(self, context, lefile):
+    def pattern_weight(self, context, lefile):
         scene = context.scene
         bsmprops = scene.bsmprops
         separator = bsmprops.separator
         lefolder = str(Path(lefile).parent)
-        lematname = str(self.mat_cleaner(context)[1])
+        lematname = str(self.mat_name_cleaner(context)[1])
         basename = Path(lefile).name
         extractargs = str(Path(lefile).stem).split(separator)
         ext_tryout = str(Path(lefile).suffix).lower()
-        filetypesraw = self.givelist(context)
+        filetypesraw = self.get_extensions(context)
         filetypes = []
         containsmatname = lematname in extractargs
-        poolpe = self.poolprefix(context, lefile)
+        guessed = self.guess_prefix(context, lefile)
 
-        if len(poolpe) > 0 :
-            poolpe = list(poolpe)
+        if len(guessed) > 0 :
+            guessed = list(guessed)
         else:
             return 0    
 
@@ -274,55 +272,55 @@ class PropertiesHandler():
 
         if ext_tryout in filetypes:
 
-            self.mapext = ext_tryout
+            self.map_ext = ext_tryout
             if patternof3detected and containsmatname:
 
-                if poolpe[2] > 50:
-                    positions = self.other_positions(context, lefile)
+                if guessed[2] > 50:
+                    positions = self.positions_order(context, lefile)
                     mat_pos = positions[1]
-                    prefix_pos = poolpe[1]
-                    bsmprops.prefix = poolpe[0]
+                    prefix_pos = guessed[1]
+                    bsmprops.prefix = guessed[0]
                     remainingpos = positions[0]
-                    remainingpos.remove(poolpe[1])
-                    maplabels_pos = remainingpos[0]
-                    self.maplabels = extractargs[maplabels_pos]
-                    params = {'px_pos':prefix_pos, 'mp_pos':maplabels_pos, 'mt_pos':mat_pos, 'elements':3}
-                    self.interpretpattern(context, **params)
+                    remainingpos.remove(guessed[1])
+                    map_label_pos = remainingpos[0]
+                    self.map_label = extractargs[map_label_pos]
+                    params = {'px_pos':prefix_pos, 'mp_pos':map_label_pos, 'mt_pos':mat_pos, 'elements':3}
+                    self.set_patterns(context, **params)
 
             if patternof2detected:
                 remaining = extractargs[:]
                 if containsmatname:
                     mat_pos = extractargs.index(lematname)
                     remaining.remove(lematname)
-                    self.maplabels = remaining[0]
-                    maplabels_pos = extractargs.index(self.maplabels)
-                    params = {'px_pos':None, 'mp_pos':maplabels_pos, 'mt_pos':mat_pos, 'elements':2}
-                    self.interpretpattern(context, **params)
+                    self.map_label = remaining[0]
+                    map_label_pos = extractargs.index(self.map_label)
+                    params = {'px_pos':None, 'mp_pos':map_label_pos, 'mt_pos':mat_pos, 'elements':2}
+                    self.set_patterns(context, **params)
                 else:
-                    if poolpe[0] in remaining :
-                        remaining.remove(poolpe[0])
-                    self.maplabels = remaining[0]
-                    maplabels_pos = extractargs.index(self.maplabels)
-                    params = {'px_pos':poolpe[1], 'mp_pos':maplabels_pos, 'mt_pos':None, 'elements':2}
-                    self.interpretpattern(context, **params)
+                    if guessed[0] in remaining :
+                        remaining.remove(guessed[0])
+                    self.map_label = remaining[0]
+                    map_label_pos = extractargs.index(self.map_label)
+                    params = {'px_pos':guessed[1], 'mp_pos':map_label_pos, 'mt_pos':None, 'elements':2}
+                    self.set_patterns(context, **params)
             if patternof1detected:
                 self.maplabel = extractargs[0]
                 params = {'px_pos':None, 'mp_pos':0, 'mt_pos':None, 'elements':1}
 
-                self.interpretpattern(context, **params)
+                self.set_patterns(context, **params)
         # TODO check if no deathloop
         if bsmprops.usr_dir in str(Path.home()):
             # if default set as the first tex folder met
             bsmprops.usr_dir = lefolder
-        rate = poolpe[2]
+        rate = guessed[2]
         return rate
     
-    def patterns_list(self, context, params):
-        Prefix = params[0]
-        mapname = params[1]
+    def get_patterns(self, context, **params):
+        Prefix = params['prefix']
+        mapname = params['map_name']
         separator = context.scene.bsmprops.separator
-        Extension = params[2]
-        matname = params[3]
+        Extension = params['ext']
+        matname = params['mat_name']
 
         items = [
             ('0', Prefix + separator + mapname + Extension, ''),
@@ -341,4 +339,54 @@ class PropertiesHandler():
             # Add your own patterns following this format
         ]
         return items
+    
+    def file_tester(self, **gs_params):
+            context = gs_params['context']
+            scene = context.scene
+            panel_line = gs_params['props']
+            keepat = gs_params['keep_pattern']
+            bsmprops = scene.bsmprops
+            prefix = bsmprops.prefix
+            is_in_dir = Path(panel_line.file_name).name in str(Path(panel_line.file_name).parent)
+            # almost always True but better safe than sorry
+            fullext = panel_line.map_ext
+            allexts = [fullext, fullext.upper(), fullext.capitalize()]
+            manual = panel_line.manual
+            mapname = panel_line.map_label
+            
+            matname = self.mat_name_cleaner(context)[1]
+            is_in_dir = False
+            patternselected = int(bsmprops.patterns)
+            if not manual:
+
+                for ext in allexts:
+
+                    if is_in_dir:
+                        break
+                    params = {'prefix':prefix, 'map_name':mapname, 'ext':ext, 'mat_name':matname}
+                    patterns = self.get_patterns(context, **params)
+                    supposed = patterns[patternselected][1]
+                    panel_line.probable = str(Path(bsmprops.usr_dir).joinpath(supposed))
+                    if Path(panel_line.probable).is_file():
+                        panel_line.file_name = panel_line.probable
+
+                        panel_line.probable = panel_line.file_name
+                        is_in_dir = True
+                        break
+
+                    if not keepat:
+                        for liner in patterns:
+                            tentative = liner[1]
+                            panel_line.probable = str(Path(bsmprops.usr_dir).joinpath(tentative))
+
+                            if Path(panel_line.probable).is_file():
+                                panel_line.file_name = panel_line.probable
+                                bsmprops.patterns = liner[0]  # TODO pattern_weight maybe
+                                panel_line.probable = panel_line.file_name
+                                is_in_dir = True
+
+                                break
+
+            return is_in_dir
+
 

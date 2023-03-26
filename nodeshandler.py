@@ -2,16 +2,11 @@ import bpy
 from pathlib import Path
 
 class NodeHandler():
-    """
-    def __init__(self, project=None):
-        #self._set()
-        self.project = project
-        self.tasks_types = None
-    """
-    def checklist(self, context):
+ 
+    def get_mat_params(self, context):
         """dictionary generator {maps, channels, index}
 
-        `helper` dict generated from properties stored in context.scene.bsmprops. Used by the method foreachmat .
+        `helper` dict generated from properties stored in context.scene.bsmprops. Used by the method process_materials .
         For each panel_rows (rows in the ui panel) returns the string value of the map and the channel associated 
         as well as bool representing the state of that line in the UI panel:
 
@@ -31,18 +26,18 @@ class NodeHandler():
         panel_rows = bsmprops.panel_rows
         maps = []
         chans = []
-        indexer = [i for i in range(panel_rows) if eval(f"bpy.context.scene.panel_line{i}.labelbools")]
+        indexer = [i for i in range(panel_rows) if eval(f"bpy.context.scene.panel_line{i}.line_on")]
         for i in indexer :
             panel_line = eval(f"bpy.context.scene.panel_line{i}")
-            chans.append(panel_line.inputsockets)
+            chans.append(panel_line.input_sockets)
             if panel_line.manual:
-                maps.append(str(Path(panel_line.lefilename).name))    
+                maps.append(str(Path(panel_line.file_name).name))    
             else:
-                maps.append(panel_line.maplabels)
+                maps.append(panel_line.map_label)
         line = {"maps":maps, "chans":chans, "indexer":indexer}
         return line
 
-    def foreachmat(self, **mat_params):
+    def process_materials(self, **mat_params):
         """helper function used to manipulate nodes
 
         `helper`  Used by the function BSM_OT_createnodes and BSM_OT_assignnodes.
@@ -67,8 +62,8 @@ class NodeHandler():
         maslots = leselected.material_slots
         bsmprops = context.scene.bsmprops
         idx = leselected.active_material_index
-        params = self.checklist(context)
-        if bsmprops.onlyamat:
+        params = self.get_mat_params(context)
+        if bsmprops.only_active_mat:
             maslots = [leselected.material_slots[idx]]
 
         for i in range(len(maslots)):
@@ -85,18 +80,18 @@ class NodeHandler():
                     if lafunction == "plug":
                         for indexed in enabled:
                             pg_params = {'context':context, 'mat':mat_active, 'idx':indexed}
-                            self.plugthenodes(**pg_params)
+                            self.setup_nodes(**pg_params)
 
                     if lafunction == "dothem":
                         do_params = {'context':context, 'maps':params['maps'], 'chans':params['chans'], 'mat':mat_active}
-                        self.dothenodes(**do_params)
+                        self.create_nodes(**do_params)
 
                     already_done.append(mat_active.name)
 
         leselected.active_material_index = idx
         return already_done
     
-    def dothenodes(self, **do_params):
+    def create_nodes(self, **do_params):
         context = do_params['context']
         maps = do_params['maps']
         chans = do_params['chans']
@@ -105,8 +100,8 @@ class NodeHandler():
         scene = context.scene
         bsmprops = scene.bsmprops
         nodes_links = scene.node_links
-        skipnormals = bsmprops.skipnormals
-        selectedshader = bsmprops.shaderlist
+        skip_normals = bsmprops.skip_normals
+        selectedshader = bsmprops.shaders_list
         cutstomshd = selectedshader in nodes_links
 
 
@@ -170,7 +165,7 @@ class NodeHandler():
         mapnumbr = 0
         mov_params = {'context':context, 'mat':mat_active, 'shader':lesurfaceshader, 'nodes':nods, 'old_shader':leoldshader}
 
-        self.move_existing(**mov_params)
+        self.move_nodes(**mov_params)
 
         if len(maps) > 0:
 
@@ -186,7 +181,7 @@ class NodeHandler():
                 # mat_active.node_tree.nodes['Texture Coordinate'].outputs['UV']
                 linkz.new(lescoord.outputs['UV'], mapin.inputs['Vector'])
 
-            line = (i for i in range(len(list(maps))) if f"bpy.context.scene.panel_line{i}.labelbools")
+            line = (i for i in range(len(list(maps))) if f"bpy.context.scene.panel_line{i}.line_on")
 
             for i in line:
                 lamap = maps[i]
@@ -198,7 +193,7 @@ class NodeHandler():
                 islinked = (lechan != "0")
                 isdispvector = 'Disp Vector' in lechan
                 if manual:
-                    lamap = Path(panel_line.lefilename).stem
+                    lamap = Path(panel_line.file_name).stem
                 isnormal = ("normal" in lamap or "Normal" in lamap)
                 isheight = ("height" in lamap or "Height" in lamap)
                 washn = "height" in maps or "Height" in maps or "normal" in maps or "Normal" in maps
@@ -234,11 +229,11 @@ class NodeHandler():
                     if okramp or okcurve:
                         extranode.label = extranode.name + lamap
 
-                if isnormal and not skipnormals:
+                if isnormal and not skip_normals:
                     normalmapnode = nods.new('ShaderNodeNormalMap')
                     linkz.new(lanewnode.outputs[0], normalmapnode.inputs[1])
 
-                if isheight and not skipnormals:
+                if isheight and not skip_normals:
 
                     bumpnode = nods.new('ShaderNodeBump')
                     linkz.new(lanewnode.outputs[0], bumpnode.inputs[2])
@@ -248,21 +243,21 @@ class NodeHandler():
 
                 if islinked and not isdisplacement and not isdispvector:
 
-                    if isnormal and not skipnormals:
+                    if isnormal and not skip_normals:
                         if isdisplacement:
                             linkz.new(normalmapnode.outputs[0], matos_output.inputs[2])
 
                         else:
                             linkz.new(normalmapnode.outputs[0], lesurfaceshader.inputs[lechan])
 
-                    if isheight and not skipnormals:
+                    if isheight and not skip_normals:
                         if isdisplacement:
                             linkz.new(bumpnode.outputs[0], matos_output.inputs[2])
 
                         else:
                             linkz.new(bumpnode.outputs[0], lesurfaceshader.inputs[lechan])
 
-                    if not (isheight or isnormal) or skipnormals:
+                    if not (isheight or isnormal) or skip_normals:
                         if addextras:
 
                             linkz.new(extranode.outputs[0], lesurfaceshader.inputs[lechan])
@@ -275,11 +270,11 @@ class NodeHandler():
                     linkz.new(dispmapnode.outputs[0], matos_output.inputs['Displacement'])
                     if addextras:
                         linkz.new(extranode.outputs[0], dispmapnode.inputs['Height'])
-                    if isheight and not skipnormals:
+                    if isheight and not skip_normals:
                         pass
-                    if isnormal and not skipnormals:
+                    if isnormal and not skip_normals:
                         linkz.new(normalmapnode.outputs[0], dispmapnode.inputs['Normal'])
-                    if (not isnormal or skipnormals) and not addextras:
+                    if (not isnormal or skip_normals) and not addextras:
                         linkz.new(lanewnode.outputs[0], dispmapnode.inputs['Height'])
                 if isdispvector:  # TODO implement link sanity
                     dispvectnode = nods.new('ShaderNodeVectorDisplacement')
@@ -287,10 +282,10 @@ class NodeHandler():
                     linkz.new(dispvectnode.outputs[0], matos_output.inputs['Displacement'])
                     if addextras:
                         linkz.new(extranode.outputs[0], dispvectnode.inputs['Vector'])
-                    if isnormal and not skipnormals:
+                    if isnormal and not skip_normals:
                         linkz.new(normalmapnode.outputs[0], dispvectnode.inputs['Vector'])
                         # not sure it makes any sense
-                    if (not isnormal or skipnormals) and not addextras:
+                    if (not isnormal or skip_normals) and not addextras:
                         linkz.new(lanewnode.outputs[0], dispvectnode.inputs['Vector'])
 
                 lanewnode.location = ((base_x + offsetter_x * (int(addextras) + int(isnormal or isheight) + 1)),
@@ -299,13 +294,13 @@ class NodeHandler():
                 if addextras:  # again to be sure
                     extranode.location = (
                         (base_x + offsetter_x * (int(isnormal or isheight) + 1)), (base_y + offsetter_y * mapnumbr))
-                if isheight and not skipnormals:
+                if isheight and not skip_normals:
                     bumpnode.location = (base_x + offsetter_x, base_y + offsetter_y * mapnumbr)
-                if isnormal and not skipnormals:
+                if isnormal and not skip_normals:
                     normalmapnode.location = (base_x + offsetter_x, base_y + offsetter_y * mapnumbr)
                 mapnumbr += 1
             sl_params = {'context':context,'shader':lesurfaceshader, 'nodes':nods}
-            lesurfaceshader.location[1] = self.surfaceshaderlinks(**sl_params) + 128  # just a bit higher
+            lesurfaceshader.location[1] = self.get_sockets_center(**sl_params) + 128  # just a bit higher
             lesurfaceshader.location[0] += 128
             matos_output.location[1] = lesurfaceshader.location[1]
             mapin.location = (base_x + offsetter_x * (int(addextras) + int(washn) + 2) + offsetter_x, base_y)
@@ -318,7 +313,7 @@ class NodeHandler():
 
         return
 
-    def plugthenodes(self, **pg_params):
+    def setup_nodes(self, **pg_params):
         context = pg_params['context']
         lematerial = pg_params['mat']
         index = pg_params['idx']
@@ -328,12 +323,12 @@ class NodeHandler():
         manual = panel_line.manual
         gofile = True
         if not manual:
-            # bpy.ops.bsm.assumename(line_num = index)
-            gofile = (bpy.ops.bsm.checkmaps(linen=index, lorigin="plug", called=True) == {'FINISHED'})
-        lefilepath = panel_line.lefilename
+            # bpy.ops.bsm.namemaker(line_num = index)
+            gofile = (bpy.ops.bsm.namechecker(linen=index, lorigin="plug", called=True) == {'FINISHED'})
+        lefilepath = panel_line.file_name
 
         imagename = Path(lefilepath).name
-        lamap = panel_line.maplabels
+        lamap = panel_line.map_label
         if manual:
             lamap = Path(lefilepath).stem
 
@@ -381,7 +376,7 @@ class NodeHandler():
         center = (ylocs[0] + ylocs[-1]) / 2
         return center   
 
-    def move_existing(self, **mov_params):
+    def move_nodes(self, **mov_params):
         context = mov_params['context']
         scene = context.scene
         mat_active = mov_params['mat']
@@ -393,7 +388,7 @@ class NodeHandler():
         panel_rows = bsmprops.panel_rows
         imgs = list(nod for nod in nods if nod.type == 'TEX_IMAGE')
 
-        enabled = list(k for k in range(panel_rows) if eval(f"bpy.context.scene.panel_line{k}.labelbools"))
+        enabled = list(k for k in range(panel_rows) if eval(f"bpy.context.scene.panel_line{k}.line_on"))
         adding = len(enabled)
         listofshadernodes = []  # TODO get a lish of all shadernodes
         ylocsall = []
@@ -431,7 +426,7 @@ class NodeHandler():
 
         return
 
-    def surfaceshaderlinks(self, **sl_params):
+    def get_sockets_center(self, **sl_params):
         context = sl_params['context']
         lesurfaceshader = sl_params['shader']
         nods = sl_params['nodes']
@@ -447,3 +442,4 @@ class NodeHandler():
         center = (ylocs[0] + ylocs[-1]) / 2
         return center
 
+    

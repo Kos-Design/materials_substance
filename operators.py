@@ -1,7 +1,7 @@
 import bpy
 from pathlib import Path
 
-from . nodeshandler import NodeHandler
+from . nodeshandler import NodeHandler as nha
 
 from bpy.types import (
     Operator, PropertyGroup, UIList, WindowManager,
@@ -47,7 +47,7 @@ def selector(self, context):
 
     return lecleanselect
 
-class popol():
+class sub_poll():
     bl_options = {'INTERNAL', 'UNDO'}
 
     @classmethod
@@ -59,7 +59,7 @@ class popol():
         return False
 
 
-class BSM_OT_createnodes(popol,Operator):
+class BSM_OT_createnodes(sub_poll,Operator):
     bl_idname = "bsm.createnodes"
     bl_label = "Only Setup Nodes"
     bl_description = "Setup empty Texture Nodes"
@@ -67,7 +67,7 @@ class BSM_OT_createnodes(popol,Operator):
     fromimportbutton: bpy.props.BoolProperty(default=False)
 
     def execute(self, context):
-        ndh = NodeHandler()
+        ndh = nha()
         scene = context.scene
         if len(scene.shader_links) == 0:
             bpy.ops.bsm.createdummy()
@@ -83,7 +83,7 @@ class BSM_OT_createnodes(popol,Operator):
             leselected.select_set(True)
             context.view_layer.objects.active = leselected
             mat_params = {'context':context, 'selection':leselected, 'already_done':matsdone, 'caller':"dothem"}
-            matsdone = ndh.foreachmat(**mat_params)
+            matsdone = ndh.process_materials(**mat_params)
             
             leselected.select_set(False)
 
@@ -97,13 +97,13 @@ class BSM_OT_createnodes(popol,Operator):
         return {'FINISHED'}
 
 
-class BSM_OT_assumename(popol,Operator):
-    bl_idname = "bsm.assumename"
+class BSM_OT_namemaker(sub_poll,Operator):
+    bl_idname = "bsm.namemaker"
     bl_label = ""
     bl_description = "Assume a probable filename "
 
     line_num: bpy.props.IntProperty(default=0)
-    #TODO: override popol type ?
+    #TODO: override sub_poll type ?
     @classmethod
     def poll(cls, context):
         # return (context.object is not None)
@@ -116,80 +116,29 @@ class BSM_OT_assumename(popol,Operator):
         bsmprops = scene.bsmprops
         lefolder = bsmprops.usr_dir
         prefix = bsmprops.prefix
-        fullext = panel_line.mapext
-        mapname = panel_line.maplabels
+        fullext = panel_line.map_ext
+        mapname = panel_line.map_label
         separator = bsmprops.separator
         patternselected = int(bsmprops.patterns)
         allexts = [fullext.capitalize(), fullext.upper(), fullext, ]
         propper = ph()
-        matname = propper.mat_cleaner(context)[1]
+        matname = propper.mat_name_cleaner(context)[1]
         for ext in allexts:
-            params = [prefix, mapname, ext, matname]
-            patterns_list = propper.patterns_list(context, params)
+            params = {'prefix':prefix, 'map_name':mapname, 'ext':ext, 'mat_name':matname}
+            patterns_list = propper.get_patterns(context, **params)
             supposed = patterns_list[patternselected][1]
 
-            panel_line.probable = lefolder + supposed
+            panel_line.probable = str(Path(lefolder).joinpath(supposed))
             if Path(panel_line.probable).is_file():
                 break
 
         return {'FINISHED'}
 
 
-class GuessName():
-    def testit(self, **gs_params):
-        context = gs_params['context']
-        scene = context.scene
-        panel_line = gs_params['props']
-        keepat = gs_params['keep_pattern']
-        bsmprops = scene.bsmprops
-        prefix = bsmprops.prefix
-        isindir = Path(panel_line.lefilename).name in str(Path(panel_line.lefilename).parent)
-        # almost always True but better safe than sorry
-        fullext = panel_line.mapext
-        allexts = [fullext, fullext.upper(), fullext.capitalize()]
-        manual = panel_line.manual
-        mapname = panel_line.maplabels
-        propper = ph()
-        matname = propper.mat_cleaner(context)[1]
-        isindir = False
-        patternselected = int(bsmprops.patterns)
-        if not manual:
-
-            for ext in allexts:
-
-                if isindir:
-                    break
-                params = [prefix, mapname, ext, matname]
-                patterns = propper.patterns_list(context, params)
-                supposed = patterns[patternselected][1]
-                panel_line.probable = str(Path(bsmprops.usr_dir).joinpath(supposed))
-                if Path(panel_line.probable).is_file():
-                    panel_line.lefilename = panel_line.probable
-
-                    panel_line.probable = panel_line.lefilename
-                    isindir = True
-                    break
-
-                if not keepat:
-                    for liner in patterns:
-                        tentative = liner[1]
-                        panel_line.probable = str(Path(bsmprops.usr_dir).joinpath(tentative))
-
-                        if Path(panel_line.probable).is_file():
-                            panel_line.lefilename = panel_line.probable
-                            bsmprops.patterns = liner[0]  # TODO reversepattern maybe
-                            panel_line.probable = panel_line.lefilename
-                            isindir = True
-
-                            break
-
-        return isindir
-
-
-class BSM_OT_guessfilext(popol,Operator):
+class BSM_OT_guessfilext(sub_poll,Operator):
     bl_idname = "bsm.guessfilext"
     bl_label = ""
-    bl_description = "set panel_line{linen}.mapext according to dir content"
+    bl_description = "set panel_line{linen}.map_ext according to dir content"
 
     keepat: bpy.props.BoolProperty(default=False)
     linen: bpy.props.IntProperty()
@@ -201,36 +150,35 @@ class BSM_OT_guessfilext(popol,Operator):
         scene = context.scene
         panel_line = eval(f"scene.panel_line{linen}")
         manual = panel_line.manual
-        gsn = GuessName()
         propper = ph()
         gs_params = {'context': context, 'props':panel_line, 'keep_pattern':keepat}
-        currentext = panel_line.mapext
-        isindir = gsn.testit(**gs_params)
+        currentext = panel_line.map_ext
+        is_in_dir = propper.file_tester(**gs_params)
 
-        if not isindir and not manual:
+        if not is_in_dir and not manual:
 
-            filetypesraw = propper.givelist(context)
+            filetypesraw = propper.get_extensions(context)
             filetypes = []
             for i in range(len(filetypesraw)):
                 filetypes.append(filetypesraw[i][0])
-            originalext = panel_line.mapext
+            originalext = panel_line.map_ext
             for ext in filetypes:
-                panel_line.mapext = ext
+                panel_line.map_ext = ext
 
-                isindir = gsn.testit(**gs_params)
+                is_in_dir = propper.file_tester(**gs_params)
 
-                if isindir:
+                if is_in_dir:
                     break
-            if not isindir:
+            if not is_in_dir:
                 if not self.called:
                     toreport = "Could not guess file extension, File not found"
                     self.report({'INFO'}, toreport)
-                panel_line.mapext = originalext
+                panel_line.map_ext = originalext
         return {'FINISHED'}
 
 
-class BSM_OT_checkmaps(popol,Operator):
-    bl_idname = "bsm.checkmaps"
+class BSM_OT_namechecker(sub_poll,Operator):
+    bl_idname = "bsm.namechecker"
     bl_label = ""
     bl_description = "Check if a file containing the Map Name keyword matches the Pattern"
 
@@ -249,12 +197,12 @@ class BSM_OT_checkmaps(popol,Operator):
 
         panel_line = eval(f"scene.panel_line{linen}")
         manual = panel_line.manual
-        expert = bsmprops.expert
+        advanced_mode = bsmprops.advanced_mode
         prefix = bsmprops.prefix
         sel = context.object
         mat = sel.active_material
         mat.use_nodes = True
-        gsn = GuessName()
+        propper = ph()
         gs_params = {'context':context, 'props':panel_line, 'keep_pattern':keepat}
         if self.lorigin == "plug" and not manual:
             panel_line.probable = "reseted"
@@ -263,16 +211,16 @@ class BSM_OT_checkmaps(popol,Operator):
 
         if not manual:
 
-            gotafile = gsn.testit(**gs_params)
+            gotafile = propper.file_tester(**gs_params)
 
             if not gotafile:
                 bpy.ops.bsm.guessfilext(linen=linen)
-            isafile = gsn.testit(**gs_params)
+            isafile = propper.file_tester(**gs_params)
 
             if not isafile and self.called :
                 toreport = panel_line.probable + " not found "
                 self.report({'INFO'}, toreport)
-                __class__.bl_description = "No Image containing the keyword " + panel_line.maplabels + " found , verify the Prefix, the Map name and/or the Maps Folder"
+                __class__.bl_description = "No Image containing the keyword " + panel_line.map_label + " found , verify the Prefix, the Map name and/or the Maps Folder"
 
                 if not prefix.isalnum():
                     toreport = "Prefix is empty"
@@ -292,7 +240,7 @@ class BSM_OT_checkmaps(popol,Operator):
         return {'CANCELLED'}
 
 
-class BSM_OT_assignnodes(popol,Operator):
+class BSM_OT_assignnodes(sub_poll,Operator):
     bl_idname = "bsm.assignnodes"
     bl_label = "Only Assign Images"
     bl_description = "import maps for all selected objects"
@@ -300,7 +248,7 @@ class BSM_OT_assignnodes(popol,Operator):
     fromimportbutton: bpy.props.BoolProperty(default=False)
 
     def execute(self, context):
-        ndh = NodeHandler()
+        ndh = nha()
         scene = context.scene
         if len(scene.shader_links) == 0:
             bpy.ops.bsm.createdummy()
@@ -314,7 +262,7 @@ class BSM_OT_assignnodes(popol,Operator):
             leselected.select_set(True)
             context.view_layer.objects.active = leselected
             mat_params = {'context':context, 'selection':leselected, 'already_done':matsdone, 'caller':"plug"}
-            matsdone = ndh.foreachmat(**mat_params)
+            matsdone = ndh.process_materials(**mat_params)
             leselected.select_set(False)
 
         for obj in og_selection:
@@ -326,7 +274,7 @@ class BSM_OT_assignnodes(popol,Operator):
         return {'FINISHED'}
 
 
-class BSM_OT_subimport(popol, Operator):
+class BSM_OT_subimport(sub_poll, Operator):
     bl_idname = "bsm.subimport"
     bl_label = "Import Substance Maps"
     bl_description = "Import Texture Maps for active object"
@@ -339,7 +287,7 @@ class BSM_OT_subimport(popol, Operator):
         return {'FINISHED'}
 
 
-class BSM_OT_addaline(popol, Operator):
+class BSM_OT_addaline(sub_poll, Operator):
     bl_idname = "bsm.addaline"
     bl_label = ""
     bl_description = "Add a new map line below"
@@ -354,7 +302,7 @@ class BSM_OT_addaline(popol, Operator):
         return {'FINISHED'}
 
 
-class BSM_OT_removeline(popol, Operator):
+class BSM_OT_removeline(sub_poll, Operator):
     bl_idname = "bsm.removeline"
     bl_label = ""
     bl_description = "Remove last Map from the list"
@@ -368,7 +316,7 @@ class BSM_OT_removeline(popol, Operator):
         context.scene.bsmprops.panel_rows -= 1
         panel_line = eval(f"scene.panel_line{scene.bsmprops.panel_rows}")
         panel_line.manual = False
-        panel_line.labelbools = False
+        panel_line.line_on = False
 
         context.view_layer.update()
         return {'FINISHED'}
@@ -556,15 +504,15 @@ class BSM_OT_addpreset(BsmAddPresetbase, Operator):
                       ]
     # Properties to store in the preset
     preset_values = [
-                     'bsmprops.expert',
+                     'bsmprops.advanced_mode',
                      'bsmprops.bsm_all',
                      'bsmprops.usr_dir', 'bsmprops.separator',
                      'bsmprops.panel_rows',
                      'bsmprops.apply_to_all', 'bsmprops.eraseall',
                      'bsmprops.tweak_levels',
-                     'bsmprops.only_active_obj', 'bsmprops.skipnormals',
-                     'bsmprops.onlyamat',
-                     'bsmprops.fixname',
+                     'bsmprops.only_active_obj', 'bsmprops.skip_normals',
+                     'bsmprops.only_active_mat',
+                     'bsmprops.fix_name',
                      'bsmprops.prefix',
                      'bsmprops.patterns'
 
@@ -573,7 +521,7 @@ class BSM_OT_addpreset(BsmAddPresetbase, Operator):
     preset_subdir = 'bsm_presets'
 
 
-class BSM_OT_createdummy(popol, Operator):
+class BSM_OT_createdummy(sub_poll, Operator):
     bl_idname = "bsm.createdummy"
     bl_label = "dummy creator"
     bl_description = "used to initialize some dynamic props"
@@ -590,7 +538,7 @@ class BSM_OT_createdummy(popol, Operator):
         scenename = str(scene.name_full)
         bsmprops = scene.bsmprops
         propper = ph()
-        lashaderlist = propper.populate(context)
+        shaders_list = propper.get_shaders_list(context)
         for obj in context.view_layer.objects.selected:
             fetchedObjects.append(obj)
         bpy.ops.object.select_all(action='DESELECT')
@@ -609,19 +557,19 @@ class BSM_OT_createdummy(popol, Operator):
         lecubetmp.data.materials.append(lematcree)
         mattemp = lecubetmp.material_slots[-1].material
         mattemp.use_nodes = True
-        lashaderlistraw = []
+        shaders_list_raw = []
 
         leshaderoutputnodes = []
         allshaderstnodes = []
-        # only create nodes for the initial shaderlist populated by ph.populate
+        # only create nodes for the initial shaders_list populated by ph.get_shaders_list
         lenghtlist = 11  
         for lesnods in range(lenghtlist):
-            laligne = lashaderlist[lesnods]
+            laligne = shaders_list[lesnods]
             lID = int(lesnods)
             letyp = str(laligne[0])
             lename = str(laligne[1])
             fetchedShaders.append((lename, letyp), )
-            lashaderlistraw.append(laligne)
+            shaders_list_raw.append(laligne)
             lanewnode = mattemp.node_tree.nodes.new(type=letyp)
             lanewnode.name = lename
             lanewnode.label = lanewnode.name
@@ -644,7 +592,7 @@ class BSM_OT_createdummy(popol, Operator):
             newentry = context.scene.shader_links.add()
             newentry.name = lename
             newentry.shadertype = letyp
-            newentry.inputsockets = "@-¯\(°_o)/¯-@".join(str(x) for x in fetchedInputs)
+            newentry.input_sockets = "@-¯\(°_o)/¯-@".join(str(x) for x in fetchedInputs)
             newentry.outputsockets = "@-¯\(°_o)/¯-@".join(str(x) for x in fetchedOutputs)
 
             allshaderstnodes.append(leshaderoutputnodes)
@@ -659,7 +607,7 @@ class BSM_OT_createdummy(popol, Operator):
         return {'FINISHED'}
 
 
-class BSM_OT_saveall(popol, Operator):
+class BSM_OT_saveall(sub_poll, Operator):
     bl_idname = 'bsm.saveall'
     bl_label = 'save all values'
     bl_description = 'Save all relevant vars'
@@ -669,15 +617,15 @@ class BSM_OT_saveall(popol, Operator):
         bsmprops = scene.bsmprops
         arey = []
         for i in range(10):
-            maplabels = eval(f"scene.panel_line{i}").maplabels
-            lechan = eval(f"scene.panel_line{i}").inputsockets
-            enabled = str(eval(f"scene.panel_line{i}").labelbools)
-            exts = eval(f"scene.panel_line{i}").mapext
-            lesfilenames = eval(f"scene.panel_line{i}").lefilename
+            map_label = eval(f"scene.panel_line{i}").map_label
+            lechan = eval(f"scene.panel_line{i}").input_sockets
+            enabled = str(eval(f"scene.panel_line{i}").line_on)
+            exts = eval(f"scene.panel_line{i}").map_ext
+            lesfilenames = eval(f"scene.panel_line{i}").file_name
             probables = eval(f"scene.panel_line{i}").probable
             manuals = str(eval(f"scene.panel_line{i}").manual)
 
-            lineitems = [str(eval(f"scene.panel_line{i}").name), maplabels, lechan, enabled, exts, lesfilenames, probables, manuals ]
+            lineitems = [str(eval(f"scene.panel_line{i}").name), map_label, lechan, enabled, exts, lesfilenames, probables, manuals ]
             lineraw = "@\_/@".join(str(lx) for lx in lineitems)
             arey.append(lineraw)
 
@@ -686,7 +634,7 @@ class BSM_OT_saveall(popol, Operator):
         return {'FINISHED'}
 
 
-class BSM_OT_loadall(popol, Operator):
+class BSM_OT_loadall(sub_poll, Operator):
     bl_idname = 'bsm.loadall'
     bl_label = 'save all values'
     bl_description = 'load preset '
@@ -702,14 +650,14 @@ class BSM_OT_loadall(popol, Operator):
             allin.append(zob)
         for i in range(10):
             PaneLine = eval(f"scene.panel_line{i}")
-            PaneLine.maplabels = allin[i][1]
+            PaneLine.map_label = allin[i][1]
             try :
-                PaneLine.inputsockets = allin[i][2]
+                PaneLine.input_sockets = allin[i][2]
             except TypeError :
-                PaneLine.inputsockets = '0'
-            PaneLine.labelbools = bool(int(eval(allin[i][3])))
-            PaneLine.mapext = allin[i][4]
-            PaneLine.lefilename = allin[i][5]
+                PaneLine.input_sockets = '0'
+            PaneLine.line_on = bool(int(eval(allin[i][3])))
+            PaneLine.map_ext = allin[i][4]
+            PaneLine.file_name = allin[i][5]
             PaneLine.probable = allin[i][6]
             PaneLine.manual = bool(int(eval(allin[i][7])))
 

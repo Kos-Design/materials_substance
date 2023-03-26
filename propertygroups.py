@@ -16,22 +16,22 @@ from bpy.utils import (register_class,
                        )
 from . propertieshandler import PropertiesHandler as ph
 
-def labelbools_cb(self, context):
+def line_on_cb(self, context):
     scene = context.scene
     bsmprops = scene.bsmprops
     if len(scene.shader_links) == 0:
         bpy.ops.bsm.createdummy()
 
-    bsmprops.manison = manison_cb(bsmprops, context)
+    bsmprops.manual_on = manual_on_cb(bsmprops, context)
     if not self.manual:
-        bpy.ops.bsm.assumename(line_num=self.ID)
-        bpy.ops.bsm.checkmaps(linen=self.ID, lorigin="labelbools_cb", called=False)
+        bpy.ops.bsm.namemaker(line_num=self.ID)
+        bpy.ops.bsm.namechecker(linen=self.ID, lorigin="line_on_cb", called=False)
     return
 
 def apply_to_all_cb(self, context):
     target = "selected objects"
 
-    if self.expert:
+    if self.advanced_mode:
         target = "active object"
     if self.apply_to_all:
         target = "all visible objects"
@@ -52,125 +52,125 @@ def apply_to_all_cb(self, context):
 
     return
 
-def file_update_cb(self, context):
+def file_name_update_cb(self, context):
     propper = ph()
     if self.manual:
-        propper.reversepattern(context, self.lefilename)
-    if Path(self.lefilename).is_file():
-        self.probable = self.lefilename
+        propper.pattern_weight(context, self.file_name)
+    if Path(self.file_name).is_file():
+        self.probable = self.file_name
 
-    isindir_updater(self,context=context)
+    is_in_dir_updater(self,context=context)
     return
 
 def custom_shader_on_cb(self, context):
     propper = ph()
     if context.scene.bsmprops.custom_shader_on:
-        propper.findnodegroups(context)
+        propper.set_nodes_groups(context)
     else:
         context.scene.node_links.clear()
-    propper.cleaninputsockets(context)
+    propper.clean_input_sockets(context)
     return
   
-def poutputsokets_cb(self, context):
+def enum_sockets_cb(self, context):
     # callback for the enumlist of the dynamic enums
     scene = context.scene
     shaders_links = scene.shader_links
     nodes_links = scene.node_links
     bsmprops = scene.bsmprops
-    selectedshader = scene.bsmprops.shaderlist
+    selectedshader = scene.bsmprops.shaders_list
     items = []
     rawdata = []
     propper = ph()
     for i in range(len(shaders_links)):
         if selectedshader in shaders_links[i].shadertype:
-            rawdata = shaders_links[i].inputsockets.split("@-¯\(°_o)/¯-@")
+            rawdata = shaders_links[i].input_sockets.split("@-¯\(°_o)/¯-@")
 
     for i in range(len(nodes_links)):
         if selectedshader in nodes_links[i].nodetype:
-            rawdata = nodes_links[i].inputsockets.split("@-¯\(°_o)/¯-@")
+            rawdata = nodes_links[i].input_sockets.split("@-¯\(°_o)/¯-@")
 
     if not bsmprops.shader:  # and valid mat
-        mat_used = propper.mat_cleaner(context)[0]
-        rawdata = propper.currentshaderinputs(context,mat_used)
+        mat_used = propper.mat_name_cleaner(context)[0]
+        rawdata = propper.get_shader_inputs(context,mat_used)
 
-    items = propper.arrangeinputlist(context, rawdata)
+    items = propper.format_enum(context, rawdata)
     # if len(items)
     return items
 
-def poutputsokets_up(self, context):
+def enum_sockets_up(self, context):
     # update for the enumlist
     scene = context.scene
-    state = self.inputsockets
+    state = self.input_sockets
     if state.isalnum == '' :
-        self.inputsockets = '0'
+        self.input_sockets = '0'
     disped = ['Displacement', 'Disp Vector']
 
     zid = self.ID
     if state != '0':
-        same = (i for i in range(10) if state == eval(f"bpy.context.scene.panel_line{i}").inputsockets and i != zid)
+        same = (i for i in range(10) if state == eval(f"bpy.context.scene.panel_line{i}").input_sockets and i != zid)
         # if same in another slot then clear
         for i in same:
             panel_line = eval(f"scene.panel_line{i}")
-            panel_line.inputsockets = '0'
+            panel_line.input_sockets = '0'
         if state in disped:
-            disped = list(j for j in range(10) if (str(eval(f"bpy.context.scene.panel_line{j}").inputsockets) in disped))
+            disped = list(j for j in range(10) if (str(eval(f"bpy.context.scene.panel_line{j}").input_sockets) in disped))
 
             # if already a kind of Disp in list then clear
             for j in disped:
 
                 if j != zid:
                     panel_line = eval(f"scene.panel_line{j}")
-                    panel_line.inputsockets = '0'
+                    panel_line.input_sockets = '0'
  
     return
 
-def maptester_cb(self, context):
+def map_label_cb(self, context):
     if not self.manual:
-        bpy.ops.bsm.assumename(line_num=self.ID)
+        bpy.ops.bsm.namemaker(line_num=self.ID)
         bpy.ops.bsm.guessfilext(linen=self.ID, keepat=True, called=True)
     return
 
-def mapext_cb(self, context):
+def map_ext_cb(self, context):
     propper = ph()
-    filetypes = propper.givelist(context)
+    filetypes = propper.get_extensions(context)
 
     return filetypes
 
-def mapext_up(self, context):
+def map_ext_up(self, context):
     if not self.manual:
-        bpy.ops.bsm.assumename(line_num=self.ID)
+        bpy.ops.bsm.namemaker(line_num=self.ID)
     return
 
-def shaderlist_cb(self, context):
+def shaders_list_cb(self, context):
     propper = ph()
-    lashaderlist = propper.populate(context)
-    return lashaderlist
+    shaders_list = propper.get_shaders_list(context)
+    return shaders_list
 
-def shaderlist_up(self, context):
+def shaders_list_up(self, context):
     propper = ph()
     scene = context.scene
     if len(scene.shader_links) == 0:
         bpy.ops.bsm.createdummy()
-    propper.cleaninputsockets(context)
+    propper.clean_input_sockets(context)
     return
 
 def manual_up(self, context):
     bsmprops = context.scene.bsmprops
     if not self.manual:
-        bpy.ops.bsm.assumename(line_num=self.ID)
+        bpy.ops.bsm.namemaker(line_num=self.ID)
     #TODO: why ? this could loop ?    
-    bsmprops.manison = manison_cb(bsmprops, context)
+    bsmprops.manual_on = manual_on_cb(bsmprops, context)
 
     return
 
-def expert_up(self, context):
+def advanced_mode_up(self, context):
     if len(context.scene.shader_links) == 0:
         bpy.ops.bsm.createdummy()
-    if not self.expert:
+    if not self.advanced_mode:
         for i in range(self.panel_rows):
             panel_line = eval(f"context.scene.panel_line{i}")
             panel_line.manual = False
-            self.skipnormals = False
+            self.skip_normals = False
         self.apply_to_all = self.apply_to_all
         # forced update of apply_to_all_cb
         #call cb instead
@@ -186,22 +186,25 @@ def usr_dir_cb(self, context):
     if len(scene.shader_links) == 0:
         bpy.ops.bsm.createdummy()
     directory = self.usr_dir
-    dir_content = [x.name for x in Path(directory).glob('*') ]
+    dir_content = [x.name for x in Path(directory).glob('*.*') ]
     self.dir_content = " ".join(str(x) for x in dir_content)
-    lematname = propper.mat_cleaner(context)[1]
+    lematname = propper.mat_name_cleaner(context)[1]
     separator = self.separator
-    relatedfiles = (filez for filez in dir_content if lematname in list(filez[:-4].split(separator)))
+    relatedfiles = (filez for filez in dir_content if lematname in list((Path(filez).stem).split(separator)))
 
     for filez in relatedfiles:
-        lefile = directory + filez
+        try:
+            lefile = directory + filez
 
-        rate = propper.reversepattern(context, lefile)
+            rate = propper.pattern_weight(context, lefile)
 
-        if rate > 50:
-            break
-    propper.assumenamefrombsmprops(context)
+            if rate > 50:
+                break
+        except IOError:
+            continue
+    propper.make_names(context)
 
-def skipnormal_up(self, context):  #
+def skip_normals_up(self, context):  #
     if len(context.scene.shader_links) == 0:
         bpy.ops.bsm.createdummy()
     return
@@ -210,8 +213,8 @@ def prefix_cb(self, context):
     if len(context.scene.shader_links) == 0:
         bpy.ops.bsm.createdummy()
     propper = ph()
-    propper.assumenamefrombsmprops(context)
-    propper.checknamefrombsmprops(context)
+    propper.make_names(context)
+    propper.check_names(context)
     return
 
 def separator_cb(self, context):
@@ -220,28 +223,28 @@ def separator_cb(self, context):
     if self.separator.isspace() or len(self.separator) == 0:
         self.separator = "_"
     propper = ph()
-    propper.assumenamefrombsmprops(context)
-    propper.checknamefrombsmprops(context)
+    propper.make_names(context)
+    propper.check_names(context)
     return
 
-def patterns_list_cb(self, context):
+def patterns_cb(self, context):
     mapname = "Map Name"
     Extension = ".Ext"
     Prefix = self.prefix
     propper = ph()
-    matname = propper.mat_cleaner(context)[1]
-    pt_params = [Prefix, mapname, Extension, matname]
-    items = propper.patterns_list(context, pt_params)
+    matname = propper.mat_name_cleaner(context)[1]
+    pt_params = {'prefix':Prefix, 'map_name':mapname, 'ext':Extension, 'mat_name':matname}
+    items = propper.get_patterns(context, **pt_params)
     items.reverse()
 
     return items
 
-def patterns_cb(self, context):
+def patterns_up(self, context):
     propper = ph()
     if len(context.scene.shader_links) == 0:
         bpy.ops.bsm.createdummy()
     propper = ph()    
-    propper.assumenamefrombsmprops(context)
+    propper.make_names(context)
     return
 
 def apply_to_all_cb(self, context):
@@ -251,48 +254,47 @@ def apply_to_all_cb(self, context):
         self.shader = True
     return
 
-def onlyamat_up(self, context):
+def only_active_mat_up(self, context):
     if len(context.scene.shader_links) == 0:
         bpy.ops.bsm.createdummy()
 
     return
 
-def fixname_up(self, context):
+def fix_name_up(self, context):
     if len(context.scene.shader_links) == 0:
         bpy.ops.bsm.createdummy()
 
     return
 
-def manison_cb(self, context):
-    manualenabled = (i for i in range(self.panel_rows) if
-                     eval(f"bpy.context.scene.panel_line{i}.labelbools") and eval(f"bpy.context.scene.panel_line{i}.manual"))
+def manual_on_cb(self, context):
+    manual_enabled = (i for i in range(self.panel_rows) if
+                     eval(f"bpy.context.scene.panel_line{i}.line_on") and eval(f"bpy.context.scene.panel_line{i}.manual"))
 
-    manison = bool(len(list(manualenabled)))
-    if manison:
-        self.onlyamat = True
+    manual_on = bool(len(list(manual_enabled)))
+    if manual_on:
+        self.only_active_mat = True
         self.apply_to_all = False
         self.only_active_obj = True
-    return manison
+    return manual_on
 
-def isindir_updater(self, context):
+def is_in_dir_updater(self, context):
     isit = False
     if context != None:
         if "scene" in dir(context)[:]:
             panel_line = self
-            self.isindir = Path(panel_line.probable).is_file()
+            self.is_in_dir = Path(panel_line.probable).is_file()
 
     return isit
 
-def shaderup(self, context):
+def shader_up(self, context):
     scene = bpy.context.scene
     propper = ph()
-    propper.cleaninputsockets(context)
+    propper.clean_input_sockets(context)
 
 def only_active_obj_cb(self, context):
     if self.only_active_obj:
         self.apply_to_all = False
     return
-
 
 class ShaderLinks(PropertyGroup):
     # shaders_links
@@ -308,7 +310,7 @@ class ShaderLinks(PropertyGroup):
         name="internal name",
         default="Unknownrawdata"
     )
-    inputsockets: StringProperty(
+    input_sockets: StringProperty(
         name="Sockets",
         description="Shader input sockets in which to plug the Texture Nodes",
         default="Unknownrawdata"
@@ -345,7 +347,7 @@ class NodesLinks(PropertyGroup):
         name="internal name",
         default="Unknownrawdata"
     )
-    inputsockets: StringProperty(
+    input_sockets: StringProperty(
         name="list of input sockets",
         default="Unknownrawdata"
     )
@@ -446,9 +448,9 @@ class BSMprops(PropertyGroup):
     patterns: EnumProperty(
         name="Patterns",
         description="Pattern for the Texture file name ",
-        items=patterns_list_cb,
+        items=patterns_cb,
         # default = '1',
-        update=patterns_cb,
+        update=patterns_up,
     )
     usr_dir: StringProperty(
         name="",
@@ -459,11 +461,10 @@ class BSMprops(PropertyGroup):
     )
     bsm_all: StringProperty(
         name="allsettings",
-        description="allsettingssaved",
+        description="concatenated string of all settings used for preset saving",
         default="None",
-
     )
-    skipnormals: BoolProperty(
+    skip_normals: BoolProperty(
         name="Skip normal map detection",
         description=" Skip Normal maps and Height maps detection\
                             \n\
@@ -471,30 +472,27 @@ class BSMprops(PropertyGroup):
                             \n or a Bump map converter node according to the Texture Maps name\
                             \n Tick to bypass detection and link the Texture Maps directly ",
         default=False,
-        update=skipnormal_up
+        update=skip_normals_up
     )
-
     shader: BoolProperty(
         name="",
         description=" Enable to replace the Material Shader with the one in the list \
                        \n\
                        \n (Enabled by default if 'Apply to all' is activated)",
         default=False,
-        update=shaderup
+        update=shader_up
     )
-
-    shaderlist: EnumProperty(
-        name="lashaderlist:",
+    shaders_list: EnumProperty(
+        name="shaders_list:",
         description=" Base Shader node selector \
                         \n Used to select a replacement for the current Shader node\
                         \n if 'Replace Shader' is enabled or if no valid Shader node is detected.\
-                        \n Currently ",
+                        \n ",
 
-        items=shaderlist_cb,
-        update=shaderlist_up,
+        items=shaders_list_cb,
+        update=shaders_list_up,
     )
-
-    expert: BoolProperty(
+    advanced_mode: BoolProperty(
         name="",
         description=" Allows Manual setup of the Maps filenames, \
                     \n  (Tick the checkbox between Map Name and Ext. to enable Manual)\
@@ -502,27 +500,27 @@ class BSMprops(PropertyGroup):
                     \n  (Tick 'Skip Normals' for Direct nodes connection)\
                     \n Disables 'Apply to All' in the Options tab",
         default=False,
-        update=expert_up
+        update=advanced_mode_up
     )
-    onlyamat: BoolProperty(
+    only_active_mat: BoolProperty(
         name="",
         description=" Apply on active material only, \
                         \n  (By default the script iterates through all materials\
                         \n  presents in the Material Slots.)\
                         \n Enable this to only use the active Material Slot.",
         default=False,
-        update=onlyamat_up
+        update=only_active_mat_up
     )
-    fixname: BoolProperty(
+    fix_name: BoolProperty(
         name="",
         description=" Remove the '.001', '.002', etc. suffixes from a duplicated Material name, \
                          \n without changing the Material name itself. \
                          \n  (Usefull for a copied object or duplicated Material\
                          \n  which got a '.00x' suffix appended. Warning: Experimental !!!) ",
         default=False,
-        update=fixname_up
+        update=fix_name_up
     )
-    manison: BoolProperty(
+    manual_on: BoolProperty(
         name="",
         description="Internal ",
         default=False
@@ -539,41 +537,41 @@ class PaneLine0(PropertyGroup):
         name="name",
         default="PaneLine0"
     )
-    maplabels: StringProperty(
+    map_label: StringProperty(
         name="Map name",
         description="Keyword identifier of the Texture map to be imported",
         default="BaseColor",
-        update=maptester_cb
+        update=map_label_cb
     )
-    inputsockets: EnumProperty(
+    input_sockets: EnumProperty(
         name="Sockets",
         description="Shader input sockets in which to plug the Texture Nodes",
-        items=poutputsokets_cb,
-        update=poutputsokets_up
+        items=enum_sockets_cb,
+        update=enum_sockets_up
     )
-    labelbools: BoolProperty(
+    line_on: BoolProperty(
         name="",
         description="Enable/Disable line",
         default=False,
-        update=labelbools_cb
+        update=line_on_cb
     )
-    lefilename: StringProperty(
+    file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=file_update_cb,
+        update=file_name_update_cb,
     )
     probable: StringProperty(
         subtype='FILE_PATH',
         description="probable filename",
         default="nope",
     )
-    mapext: EnumProperty(
+    map_ext: EnumProperty(
         name="Texture file type",
         description="Extension of the texture map file",
-        items=mapext_cb,
-        update=mapext_up
+        items=map_ext_cb,
+        update=map_ext_up
     )
     manual: BoolProperty(
         name="",
@@ -582,7 +580,7 @@ class PaneLine0(PropertyGroup):
         update=manual_up
     )
 
-    isindir: BoolProperty(
+    is_in_dir: BoolProperty(
         name="",
         description="Is 'probable' a file ?",
         default=False
@@ -599,31 +597,31 @@ class PaneLine1(PropertyGroup):
         name="name",
         default="PaneLine1"
     )
-    maplabels: StringProperty(
+    map_label: StringProperty(
         name="Map name",
         description="Keyword identifier of the Texture map to be imported",
         default="Roughness",
-        update=maptester_cb
+        update=map_label_cb
     )
-    inputsockets: EnumProperty(
+    input_sockets: EnumProperty(
         name="Sockets",
         description="Shader input sockets in which to plug the Texture Nodes",
 
-        items=poutputsokets_cb,
-        update=poutputsokets_up
+        items=enum_sockets_cb,
+        update=enum_sockets_up
     )
-    labelbools: BoolProperty(
+    line_on: BoolProperty(
         name="",
         description="Enable/Disable line",
         default=False,
-        update=labelbools_cb,
+        update=line_on_cb,
     )
-    lefilename: StringProperty(
+    file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=file_update_cb,
+        update=file_name_update_cb,
     )
     probable: StringProperty(
         subtype='FILE_PATH',
@@ -631,11 +629,11 @@ class PaneLine1(PropertyGroup):
         default="nope",
     )
 
-    mapext: EnumProperty(
+    map_ext: EnumProperty(
         name="Texture file type",
         description="Extension of the texture map file",
-        items=mapext_cb,
-        update=mapext_up
+        items=map_ext_cb,
+        update=map_ext_up
     )
     manual: BoolProperty(
         name="",
@@ -655,30 +653,30 @@ class PaneLine2(PropertyGroup):
         name="name",
         default="PaneLine2"
     )
-    maplabels: StringProperty(
+    map_label: StringProperty(
         name="Map name",
         description="Keyword identifier of the Texture map to be imported",
         default="Metallic",
-        update=maptester_cb
+        update=map_label_cb
     )
-    inputsockets: EnumProperty(
+    input_sockets: EnumProperty(
         name="Sockets",
         description="Shader input sockets in which to plug the Texture Nodes",
-        items=poutputsokets_cb,
-        update=poutputsokets_up
+        items=enum_sockets_cb,
+        update=enum_sockets_up
     )
-    labelbools: BoolProperty(
+    line_on: BoolProperty(
         name="",
         description="Enable/Disable line",
         default=False,
-        update=labelbools_cb,
+        update=line_on_cb,
     )
-    lefilename: StringProperty(
+    file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=file_update_cb,
+        update=file_name_update_cb,
 
     )
     probable: StringProperty(
@@ -687,11 +685,11 @@ class PaneLine2(PropertyGroup):
         default="nope",
     )
 
-    mapext: EnumProperty(
+    map_ext: EnumProperty(
         name="Texture file type",
         description="Extension of the texture map file",
-        items=mapext_cb,
-        update=mapext_up
+        items=map_ext_cb,
+        update=map_ext_up
     )
     manual: BoolProperty(
         name="",
@@ -711,30 +709,30 @@ class PaneLine3(PropertyGroup):
         name="name",
         default="PaneLine3"
     )
-    maplabels: StringProperty(
+    map_label: StringProperty(
         name="Map name",
         description="Keyword identifier of the Texture map to be imported",
         default="Normal",
-        update=maptester_cb
+        update=map_label_cb
     )
-    inputsockets: EnumProperty(
+    input_sockets: EnumProperty(
         name="Sockets",
         description="Shader input sockets in which to plug the Texture Nodes",
-        items=poutputsokets_cb,
-        update=poutputsokets_up
+        items=enum_sockets_cb,
+        update=enum_sockets_up
     )
-    labelbools: BoolProperty(
+    line_on: BoolProperty(
         name="",
         description="Enable/Disable line",
         default=False,
-        update=labelbools_cb,
+        update=line_on_cb,
     )
-    lefilename: StringProperty(
+    file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=file_update_cb,
+        update=file_name_update_cb,
 
     )
     probable: StringProperty(
@@ -743,11 +741,11 @@ class PaneLine3(PropertyGroup):
         default="nope",
     )
 
-    mapext: EnumProperty(
+    map_ext: EnumProperty(
         name="Texture file type",
         description="Extension of the texture map file",
-        items=mapext_cb,
-        update=mapext_up
+        items=map_ext_cb,
+        update=map_ext_up
     )
     manual: BoolProperty(
         name="",
@@ -767,30 +765,30 @@ class PaneLine4(PropertyGroup):
         name="name",
         default="PaneLine4"
     )
-    maplabels: StringProperty(
+    map_label: StringProperty(
         name="Map name",
         description="Keyword identifier of the Texture map to be imported",
         default="Height",
-        update=maptester_cb
+        update=map_label_cb
     )
-    inputsockets: EnumProperty(
+    input_sockets: EnumProperty(
         name="Sockets",
         description="Shader input sockets in which to plug the Texture Nodes",
-        items=poutputsokets_cb,
-        update=poutputsokets_up
+        items=enum_sockets_cb,
+        update=enum_sockets_up
     )
-    labelbools: BoolProperty(
+    line_on: BoolProperty(
         name="",
         description="Enable/Disable line",
         default=False,
-        update=labelbools_cb,
+        update=line_on_cb,
     )
-    lefilename: StringProperty(
+    file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=file_update_cb,
+        update=file_name_update_cb,
 
     )
     probable: StringProperty(
@@ -798,11 +796,11 @@ class PaneLine4(PropertyGroup):
         description="probable filename",
         default="nope",
     )
-    mapext: EnumProperty(
+    map_ext: EnumProperty(
         name="Texture file type",
         description="Extension of the texture map file",
-        items=mapext_cb,
-        update=mapext_up
+        items=map_ext_cb,
+        update=map_ext_up
     )
     manual: BoolProperty(
         name="",
@@ -822,30 +820,30 @@ class PaneLine5(PropertyGroup):
         name="name",
         default="PaneLine5"
     )
-    maplabels: StringProperty(
+    map_label: StringProperty(
         name="Map name",
         description="Keyword identifier of the Texture map to be imported",
         default="Specular",
-        update=maptester_cb
+        update=map_label_cb
     )
-    inputsockets: EnumProperty(
+    input_sockets: EnumProperty(
         name="Sockets",
         description="Shader input sockets in which to plug the Texture Nodes",
-        items=poutputsokets_cb,
-        update=poutputsokets_up
+        items=enum_sockets_cb,
+        update=enum_sockets_up
     )
-    labelbools: BoolProperty(
+    line_on: BoolProperty(
         name="",
         description="Enable/Disable line",
         default=False,
-        update=labelbools_cb,
+        update=line_on_cb,
     )
-    lefilename: StringProperty(
+    file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=file_update_cb,
+        update=file_name_update_cb,
 
     )
     probable: StringProperty(
@@ -853,11 +851,11 @@ class PaneLine5(PropertyGroup):
         description="probable filename",
         default="nope",
     )
-    mapext: EnumProperty(
+    map_ext: EnumProperty(
         name="Texture file type",
         description="Extension of the texture map file",
-        items=mapext_cb,
-        update=mapext_up
+        items=map_ext_cb,
+        update=map_ext_up
     )
     manual: BoolProperty(
         name="",
@@ -877,30 +875,30 @@ class PaneLine6(PropertyGroup):
         name="name",
         default="PaneLine6"
     )
-    maplabels: StringProperty(
+    map_label: StringProperty(
         name="Map name",
         description="Keyword identifier of the Texture map to be imported",
         default="Glossy",
-        update=maptester_cb
+        update=map_label_cb
     )
-    inputsockets: EnumProperty(
+    input_sockets: EnumProperty(
         name="Sockets",
         description="Shader input sockets in which to plug the Texture Nodes",
-        items=poutputsokets_cb,
-        update=poutputsokets_up
+        items=enum_sockets_cb,
+        update=enum_sockets_up
     )
-    labelbools: BoolProperty(
+    line_on: BoolProperty(
         name="",
         description="Enable/Disable line",
         default=False,
-        update=labelbools_cb,
+        update=line_on_cb,
     )
-    lefilename: StringProperty(
+    file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=file_update_cb,
+        update=file_name_update_cb,
 
     )
     probable: StringProperty(
@@ -909,11 +907,11 @@ class PaneLine6(PropertyGroup):
         default="nope",
     )
 
-    mapext: EnumProperty(
+    map_ext: EnumProperty(
         name="Texture file type",
         description="Extension of the texture map file",
-        items=mapext_cb,
-        update=mapext_up
+        items=map_ext_cb,
+        update=map_ext_up
     )
     manual: BoolProperty(
         name="",
@@ -933,30 +931,30 @@ class PaneLine7(PropertyGroup):
         name="name",
         default="PaneLine7"
     )
-    maplabels: StringProperty(
+    map_label: StringProperty(
         name="Map name",
         description="Keyword identifier of the Texture map to be imported",
         default="Emission",
-        update=maptester_cb
+        update=map_label_cb
     )
-    inputsockets: EnumProperty(
+    input_sockets: EnumProperty(
         name="Sockets",
         description="Shader input sockets in which to plug the Texture Nodes",
-        items=poutputsokets_cb,
-        update=poutputsokets_up
+        items=enum_sockets_cb,
+        update=enum_sockets_up
     )
-    labelbools: BoolProperty(
+    line_on: BoolProperty(
         name="",
         description="Enable/Disable line",
         default=False,
-        update=labelbools_cb,
+        update=line_on_cb,
     )
-    lefilename: StringProperty(
+    file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=file_update_cb,
+        update=file_name_update_cb,
 
     )
     probable: StringProperty(
@@ -965,11 +963,11 @@ class PaneLine7(PropertyGroup):
         default="nope",
     )
 
-    mapext: EnumProperty(
+    map_ext: EnumProperty(
         name="Texture file type",
         description="Extension of the texture map file",
-        items=mapext_cb,
-        update=mapext_up
+        items=map_ext_cb,
+        update=map_ext_up
     )
     manual: BoolProperty(
         name="",
@@ -989,30 +987,30 @@ class PaneLine8(PropertyGroup):
         name="name",
         default="PaneLine8"
     )
-    maplabels: StringProperty(
+    map_label: StringProperty(
         name="Map name",
         description="Keyword identifier of the Texture map to be imported",
         default="Transparency",
-        update=maptester_cb
+        update=map_label_cb
     )
-    inputsockets: EnumProperty(
+    input_sockets: EnumProperty(
         name="Sockets",
         description="Shader input sockets in which to plug the Texture Nodes",
-        items=poutputsokets_cb,
-        update=poutputsokets_up
+        items=enum_sockets_cb,
+        update=enum_sockets_up
     )
-    labelbools: BoolProperty(
+    line_on: BoolProperty(
         name="",
         description="Enable/Disable line",
         default=False,
-        update=labelbools_cb,
+        update=line_on_cb,
     )
-    lefilename: StringProperty(
+    file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=file_update_cb,
+        update=file_name_update_cb,
 
     )
     probable: StringProperty(
@@ -1020,11 +1018,11 @@ class PaneLine8(PropertyGroup):
         description="probable filename",
         default="nope",
     )
-    mapext: EnumProperty(
+    map_ext: EnumProperty(
         name="Texture file type",
         description="Extension of the texture map file",
-        items=mapext_cb,
-        update=mapext_up
+        items=map_ext_cb,
+        update=map_ext_up
     )
     manual: BoolProperty(
         name="",
@@ -1044,30 +1042,30 @@ class PaneLine9(PropertyGroup):
         name="name",
         default="PaneLine9"
     )
-    maplabels: StringProperty(
+    map_label: StringProperty(
         name="Map name",
         description="Keyword identifier of the Texture map to be imported",
         default="Anisotropic",
-        update=maptester_cb
+        update=map_label_cb
     )
-    inputsockets: EnumProperty(
+    input_sockets: EnumProperty(
         name="Sockets",
         description="Shader input sockets in which to plug the Texture Nodes",
-        items=poutputsokets_cb,
-        update=poutputsokets_up
+        items=enum_sockets_cb,
+        update=enum_sockets_up
     )
-    labelbools: BoolProperty(
+    line_on: BoolProperty(
         name="",
         description="Enable/Disable line",
         default=False,
-        update=labelbools_cb,
+        update=line_on_cb,
     )
-    lefilename: StringProperty(
+    file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=file_update_cb,
+        update=file_name_update_cb,
     )
     probable: StringProperty(
         subtype='FILE_PATH',
@@ -1075,11 +1073,11 @@ class PaneLine9(PropertyGroup):
         default="nope",
     )
 
-    mapext: EnumProperty(
+    map_ext: EnumProperty(
         name="Texture file type",
         description="Extension of the texture map file",
-        items=mapext_cb,
-        update=mapext_up
+        items=map_ext_cb,
+        update=map_ext_up
     )
     manual: BoolProperty(
         name="",
