@@ -183,11 +183,9 @@ def usr_dir_cb(self, context):
     if not Path(self.usr_dir).is_dir():
         self.usr_dir = str(Path.home())
     scene = context.scene
-    if len(scene.shader_links) == 0:
-        bpy.ops.bsm.make_nodetree()
     directory = self.usr_dir
     dir_content = [x.name for x in Path(directory).glob('*.*') ]
-    self.dir_content = " ".join(str(x) for x in dir_content)
+    bpy.context.scene.bsmprops.dir_content = ";;;".join(str(x) for x in dir_content)
     lematname = propper.mat_name_cleaner(context)[1]
     separator = self.separator
     relatedfiles = (filez for filez in dir_content if lematname in list((Path(filez).stem).split(separator)))
@@ -210,16 +208,12 @@ def skip_normals_up(self, context):  #
     return
 
 def prefix_cb(self, context):
-    if len(context.scene.shader_links) == 0:
-        bpy.ops.bsm.make_nodetree()
     propper = ph()
     propper.make_names(context)
     propper.check_names(context)
     return
 
 def separator_cb(self, context):
-    if len(context.scene.shader_links) == 0:
-        bpy.ops.bsm.make_nodetree()
     if self.separator.isspace() or len(self.separator) == 0:
         self.separator = "_"
     propper = ph()
@@ -234,17 +228,14 @@ def patterns_cb(self, context):
     propper = ph()
     matname = propper.mat_name_cleaner(context)[1]
     pt_params = {'prefix':Prefix, 'map_name':mapname, 'ext':Extension, 'mat_name':matname}
-    items = propper.get_patterns(context, **pt_params)
+    items = propper.get_variations(context, **pt_params)
     items.reverse()
 
     return items
 
 def patterns_up(self, context):
-    propper = ph()
-    if len(context.scene.shader_links) == 0:
-        bpy.ops.bsm.make_nodetree()
-    propper = ph()    
-    propper.make_names(context)
+    #propper = ph()    
+    #propper.make_names(context)
     return
 
 def apply_to_all_cb(self, context):
@@ -295,6 +286,11 @@ def only_active_obj_cb(self, context):
     if self.only_active_obj:
         self.apply_to_all = False
     return
+
+def dir_content_up(self,context):
+    propper = ph()
+    propper.set_all_ext()
+    propper.guess_prefix_light(context)
 
 class ShaderLinks(PropertyGroup):
     # shaders_links
@@ -432,6 +428,7 @@ class BSMprops(PropertyGroup):
         name="Setavalue",
         description="content of selected texture folder",
         default="noneYet",
+        update=dir_content_up
     )
     prefix: StringProperty(
         name="",

@@ -1,5 +1,6 @@
 import bpy
 from pathlib import Path
+import itertools
 
 class PropertiesHandler():
 
@@ -86,6 +87,8 @@ class PropertiesHandler():
         return
 
     def make_names(self,context):
+        if len(context.scene.shader_links) == 0:
+            bpy.ops.bsm.make_nodetree()
         allpanel_rows = 10
         panel_lines = list(k for k in range(allpanel_rows) if not eval(f"bpy.context.scene.panel_line{k}.manual"))
         for ks in panel_lines:
@@ -316,10 +319,17 @@ class PropertiesHandler():
         rate = guessed[2]
         return rate
     
-    def get_patterns(self,context,**params):
+    def list_from_string(self,string="",sep=";;;"):
+        return string.split(sep)
+
+    def get_patterns(self):
+        fake_params = {'prefix':"Prefix",'map_name':"MapName",'ext':".ext",'mat_name':"Material"}
+        return self.get_variations(None,**fake_params)
+
+    def get_variations(self,context,**params):
         Prefix = params['prefix']
         mapname = params['map_name']
-        separator = context.scene.bsmprops.separator
+        separator = bpy.context.scene.bsmprops.separator
         Extension = params['ext']
         matname = params['mat_name']
 
@@ -340,7 +350,7 @@ class PropertiesHandler():
             # Add your own patterns following this format
         ]
         return items
-    
+
     def file_tester(self, **params):
             context = params['context']
             scene = context.scene
@@ -365,7 +375,7 @@ class PropertiesHandler():
                     if is_in_dir:
                         break
                     params = {'prefix':prefix, 'map_name':mapname, 'ext':ext, 'mat_name':matname}
-                    patterns = self.get_patterns(context, **params)
+                    patterns = self.get_variations(context, **params)
                     supposed = patterns[patternselected][1]
                     panel_line.probable = str(Path(bsmprops.usr_dir).joinpath(supposed))
                     if Path(panel_line.probable).is_file():
@@ -397,4 +407,87 @@ class PropertiesHandler():
             context.file_is_real = False
         else:
             context.file_is_real = True
-       
+    
+    def guess_prefix_light(self,context):
+        print("guessing prefix")
+        dir_content = self.list_from_string(string=bpy.context.scene.bsmprops.dir_content)
+        sep = bpy.context.scene.bsmprops.separator
+        for files in dir_content:
+            
+            try:
+                first = str(Path(files).stem).split(sep)
+                bpy.context.scene.bsmprops.prefix = first[0]       
+            except IOError:
+                continue
+
+    def set_all_ext(self):
+        print("setting ext")
+        for i in range(bpy.context.scene.bsmprops.panel_rows):
+            panel_line = eval(f"bpy.context.scene.panel_line{i}")
+            extension_detected = self.get_first_valid_ext()
+            panel_line.extension = extension_detected
+            panel_line.map_ext = extension_detected
+    
+    def get_first_valid_ext(self):
+        dir_content = self.list_from_string(string=bpy.context.scene.bsmprops.dir_content)
+        all_ext = self.get_extensions(None)
+        extensions = [x[0] for x in all_ext]
+        for files in dir_content :
+            try :
+                print(files)
+                ext = Path(files).suffix
+                if ext in extensions :
+                    #print(f"found {ext}")
+                    return ext
+            except IOError:
+                continue
+    
+        return ".exr"
+
+    def get_combination(self, combinable):
+        return map(''.join, itertools.product(*zip(combinable.upper(), combinable.lower())))
+
+    def get_map_permutations (self,context):
+        props = bpy.context.scene.bsmprops
+        map_combinations = self.get_combination(context.map_label)
+        all_patterns = []
+        enum_index = []
+        maps = []
+        patterns_list = []
+        #TODO: get material
+        for map in map_combinations:
+                
+            args = {'prefix':props.prefix, 'map_name':map, 'mat_name':"material", 'ext':context.map_ext}
+            for i in range(len(self.get_variations(context,**args))):
+                all_patterns.append(self.get_variations(context,**args)[i][1])
+                enum_index.append(i)
+                maps.append(map)
+        return [enum_index,all_patterns,map]           
+        
+    def reverse_pattern(self,context):
+        patterns_list = self.get_map_permutations(self,context)
+        dir_content = (self.list_from_string(string=props.dir_content))        
+        for map_file in dir_content:
+            if(map_file in patterns_list[1]):
+                idx = patterns_list[1].index(map_file)
+                pattern = patterns_list[0][idx]
+                #print(map_file)
+                #print(all_patterns[idx])
+                #print(f"{idx} is pattern {pattern}")
+                #print (f"Pattern is of type {self.get_patterns()[pattern][1]}")
+                return
+
+    def compare_lower(self,context):
+        props = bpy.context.scene.bsmprops
+        dir_content = self.list_from_string(props.dir_content)
+        lower_dir_content = props.dir_content.lower().split(";;;")
+        #get material
+        args = {'prefix':props.prefix, 'map_name':context.map_label.lower(), 'mat_name':"material", 'ext':context.map_ext}
+        
+        for i in range(len(self.get_patterns())):
+            if self.get_variations(context,**args)[i][1].lower() in lower_dir_content :
+                idx = lower_dir_content.index(self.get_variations(context,**args)[i][1].lower())
+                #print(f"{i} for {self.get_variations(context,**args)[i][1]}")
+                context.file_name = context.probable = str(Path(props.usr_dir).joinpath(Path(dir_content[idx])))
+                print(context.file_name)
+                break

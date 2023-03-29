@@ -125,7 +125,7 @@ class BSM_OT_name_maker(sub_poll,Operator):
         matname = propper.mat_name_cleaner(context)[1]
         for ext in allexts:
             params = {'prefix':prefix, 'map_name':mapname, 'ext':ext, 'mat_name':matname}
-            patterns_list = propper.get_patterns(context, **params)
+            patterns_list = propper.get_variations(context, **params)
             supposed = patterns_list[patternselected][1]
 
             panel_line.probable = str(Path(lefolder).joinpath(supposed))
@@ -205,6 +205,8 @@ class BSM_OT_name_checker(sub_poll,Operator):
         mat = sel.active_material
         mat.use_nodes = True
         propper = ph()
+        #propper.get_map_permutations(context=panel_line)
+        propper.compare_lower(context=panel_line)
         ft_params = {'context':context, 'props':panel_line, 'keep_pattern':keepat}
         if self.lorigin == "plug" and not manual:
             panel_line.probable = "reseted"

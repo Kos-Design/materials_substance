@@ -336,11 +336,13 @@ class NodeHandler():
         if lematerial.node_tree.nodes.find(lamap) > 0:
 
             if Path(active_filepath).is_file() and gofile:
+                file_path = Path(active_filepath).name
+                dir_path = str(Path(active_filepath).parent)
                 bpy.ops.image.open(
-                    filepath=Path(active_filepath).name,
-                    directory=str(Path(active_filepath).parent),
+                    filepath=file_path,
+                    directory=dir_path,
                     #TODO why declare twice ?
-                    files=[{"name": Path(active_filepath).name, "name": Path(active_filepath).name}],
+                    files=[{"name":file_path}],
                     show_multiview=False
                 )
                 nodestofill = (nod for nod in lematerial.node_tree.nodes if nod.label == lamap)
