@@ -194,7 +194,7 @@ class NodeHandler():
                 islinked = (lechan != "0")
                 isdispvector = 'Disp Vector' in lechan
                 if manual:
-                    lamap = Path(panel_line.file_name).stem
+                    lamap = Path(panel_line.file_name).name
                 isnormal = ("normal" in lamap or "Normal" in lamap)
                 isheight = ("height" in lamap or "Height" in lamap)
                 washn = "height" in maps or "Height" in maps or "normal" in maps or "Normal" in maps
@@ -322,29 +322,27 @@ class NodeHandler():
         bsmprops = context.scene.bsmprops
         panel_line = eval(f"context.scene.panel_line{index}")
         manual = panel_line.manual
+        """
         gofile = True
         if not manual:
             # bpy.ops.bsm.name_maker(line_num = index)
             gofile = (bpy.ops.bsm.name_checker(line_number=index, lorigin="plug", called=True) == {'FINISHED'})
+        """
+        
         active_filepath = panel_line.file_name
 
-        imagename = Path(active_filepath).name
-        lamap = panel_line.map_label
-        if manual:
-            lamap = Path(active_filepath).stem
+        imagename = lamap = Path(active_filepath).name
+       
+        #lamap = panel_line.map_label
+        #if manual:
+        #    lamap = Path(active_filepath).name
 
         if lematerial.node_tree.nodes.find(lamap) > 0:
 
-            if Path(active_filepath).is_file() and gofile:
+            if Path(active_filepath).is_file():
+                print(f"opening{active_filepath}")
                 file_path = Path(active_filepath).name
-                dir_path = str(Path(active_filepath).parent)
-                bpy.ops.image.open(
-                    filepath=file_path,
-                    directory=dir_path,
-                    #TODO why declare twice ?
-                    files=[{"name":file_path}],
-                    show_multiview=False
-                )
+                bpy.ops.image.open(filepath=active_filepath,show_multiview=False)
                 nodestofill = (nod for nod in lematerial.node_tree.nodes if nod.label == lamap)
                 for nods in nodestofill:
                     nods.image = bpy.data.images[imagename]
