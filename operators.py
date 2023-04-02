@@ -25,27 +25,6 @@ def ShowMessageBox(message="", title="Message", icon='INFO'):
 
     bpy.context.window_manager.popup_menu(draw, title=title, icon=icon)
 
-def selector(self, context):
-    viewl = context.view_layer
-    bsmprops = context.scene.bsmprops
-    only_active_obj = bsmprops.only_active_obj
-    applytoall = bsmprops.apply_to_all
-
-    leset = viewl.objects.selected
-
-    lecleanselect = []
-    validtypes = ['SURFACE', 'CURVE', 'META', 'MESH', 'GPENCIL']
-    if applytoall:
-        leset = viewl.objects
-    if only_active_obj:
-        leset = [context.object]
-
-    for obj in leset:
-        if obj.type in validtypes:
-            lecleanselect.append(obj)
-            obj.select_set(False)
-
-    return lecleanselect
 
 class sub_poll():
     bl_options = {'INTERNAL', 'UNDO'}
@@ -69,21 +48,23 @@ class BSM_OT_make_nodes(sub_poll,Operator):
     def execute(self, context):
         ndh = nha()
         scene = context.scene
+        props = scene.bsmprops
         if len(scene.shader_links) == 0:
             bpy.ops.bsm.make_nodetree()
         og_selection = list(context.view_layer.objects.selected)
         activeobj = context.view_layer.objects.active
-        lecleanselect = selector(self, context)
+        selected = ndh.selector(context)
         already_done = []
         for obj in og_selection:
             obj.select_set(False)
-        for leselected in lecleanselect:
-            leselected.select_set(True)
-            context.view_layer.objects.active = leselected
-            mat_params = {'ops':self, 'context':context, 'selection':leselected, 'already_done':already_done, 'caller':"dothem"}
+        for obj in selected:
+            obj.select_set(True)
+            context.view_layer.objects.active = obj
+            props.prefix = obj.name
+            mat_params = {'ops':self, 'context':context, 'selection':obj, 'already_done':already_done, 'caller':"make_nodes"}
             already_done = ndh.process_materials(**mat_params)
            
-            leselected.select_set(False)
+            obj.select_set(False)
 
         for obj in og_selection:
             obj.select_set(True)
@@ -119,8 +100,8 @@ class BSM_OT_name_maker(sub_poll,Operator):
         propper = ph()
         matname = propper.mat_name_cleaner(context)[1]
         
-        params = {'prefix':prefix, 'map_name':mapname, 'ext':fullext, 'mat_name':matname}
-        file_name = propper.find_file(context,**params)
+        args = {'prefix':prefix, 'map_name':mapname, 'ext':fullext, 'mat_name':matname}
+        file_name = propper.find_file(context,**args)
         if file_name is not None :
             panel_line.file_name = panel_line.probable = file_name
                
@@ -179,9 +160,6 @@ class BSM_OT_name_checker(sub_poll,Operator):
                 toreport = panel_line.probable + " detected in Maps Folder"
                 self.report({'INFO'}, toreport)
 
-            return {'FINISHED'}
-        #return {'CANCELLED'}
-        
         return {'FINISHED'}
 
 class BSM_OT_assign_nodes(sub_poll,Operator):
@@ -194,21 +172,23 @@ class BSM_OT_assign_nodes(sub_poll,Operator):
     def execute(self, context):
         ndh = nha()
         scene = context.scene
+        props = scene.bsmprops
         if len(scene.shader_links) == 0:
             bpy.ops.bsm.make_nodetree()
         og_selection = list(context.view_layer.objects.selected)
         activeobj = context.view_layer.objects.active
-        lecleanselect = selector(self, context)
+        selected = ndh.selector(context)
         already_done = []
         for obj in og_selection:
             obj.select_set(False)
-        for leselected in lecleanselect:
-            leselected.select_set(True)
-            context.view_layer.objects.active = leselected
-            mat_params = {'ops':self, 'context':context, 'selection':leselected, 'already_done':already_done, 'caller':"plug"}
+        for obj in selected:
+            obj.select_set(True)
+            context.view_layer.objects.active = obj
+            props.prefix = obj.name
+            mat_params = {'ops':self, 'context':context, 'selection':obj, 'already_done':already_done, 'caller':"assign_nodes"}
             already_done = ndh.process_materials(**mat_params)
             print("mat preocessed - make_nodes")
-            leselected.select_set(False)
+            obj.select_set(False)
 
         for obj in og_selection:
             obj.select_set(True)
@@ -451,7 +431,7 @@ class BSM_OT_add_preset(BSM_presetbase, Operator):
                      'bsmprops.bsm_all',
                      'bsmprops.usr_dir', 'bsmprops.separator',
                      'bsmprops.panel_rows',
-                     'bsmprops.apply_to_all', 'bsmprops.eraseall',
+                     'bsmprops.apply_to_all', 'bsmprops.clear_nodes',
                      'bsmprops.tweak_levels',
                      'bsmprops.only_active_obj', 'bsmprops.skip_normals',
                      'bsmprops.only_active_mat',

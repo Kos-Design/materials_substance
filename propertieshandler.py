@@ -22,7 +22,7 @@ class PropertiesHandler():
             ('ShaderNodeBsdfVelvet', 'Velvet BSDF', ''),
             ('ShaderNodeBsdfPrincipled', 'Principled BSDF', ''),
         ]
-        if context.scene.bsmprops.custom_shader_on:
+        if context.scene.bsmprops.include_ngroups:
             for i in range(len(nodes_links)):
                 item = nodes_links[i].nodetype
                 shaders_list.append((item, item, ''), )
@@ -89,8 +89,8 @@ class PropertiesHandler():
     def make_names(self,context):
         if len(context.scene.shader_links) == 0:
             bpy.ops.bsm.make_nodetree()
-        allpanel_rows = 10
-        panel_lines = list(k for k in range(allpanel_rows) if not eval(f"bpy.context.scene.panel_line{k}.manual"))
+        panel_rows = context.scene.bsmprops.panel_rows
+        panel_lines = list(k for k in range(panel_rows) if not eval(f"bpy.context.scene.panel_line{k}.manual"))
         for ks in panel_lines:
             bpy.ops.bsm.name_maker(line_num=ks)
 
@@ -384,15 +384,7 @@ class PropertiesHandler():
             
     def guess_prefix_light(self,context):
         print("guessing prefix")
-        dir_content = self.list_from_string(string=bpy.context.scene.bsmprops.dir_content)
-        sep = bpy.context.scene.bsmprops.separator
-        for files in dir_content:
-            
-            try:
-                first = str(Path(files).stem).split(sep)
-                bpy.context.scene.bsmprops.prefix = first[0]       
-            except IOError:
-                continue
+        context.scene.bsmprops.prefix = context.view_layer.objects.active.name
 
     def set_all_ext(self):
         print("setting ext")

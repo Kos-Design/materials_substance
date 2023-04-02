@@ -16,7 +16,7 @@ from bpy.utils import (register_class,
                        )
 from . propertieshandler import PropertiesHandler as ph
 
-def line_on_cb(self, context):
+def line_on_up(self, context):
     scene = context.scene
     bsmprops = scene.bsmprops
     if len(scene.shader_links) == 0:
@@ -25,10 +25,10 @@ def line_on_cb(self, context):
     bsmprops.manual_on = manual_on_cb(bsmprops, context)
     if not self.manual:
         bpy.ops.bsm.name_maker(line_num=self.ID)
-        bpy.ops.bsm.name_checker(line_number=self.ID, lorigin="line_on_cb", called=False)
+        bpy.ops.bsm.name_checker(line_number=self.ID, lorigin="line_on_up", called=False)
     return
 
-def apply_to_all_cb(self, context):
+def apply_to_all_up(self, context):
     target = "selected objects"
 
     if self.advanced_mode:
@@ -52,19 +52,19 @@ def apply_to_all_cb(self, context):
 
     return
 
-def file_name_update_cb(self, context):
+def file_name_up(self, context):
+    props = bpy.context.scene.bsmprops
     propper = ph()
-    if self.manual:
-        propper.pattern_weight(context, self.file_name)
-    if Path(self.file_name).is_file():
+    #if self.manual:
+    #    propper.pattern_weight(context, self.file_name)
+    self.is_in_dir = self.file_name in propper.list_from_string(props.usr_dir)
+    if self.is_in_dir:
         self.probable = self.file_name
-
-    is_in_dir_updater(self,context=context)
     return
 
-def custom_shader_on_cb(self, context):
+def include_ngroups_up(self, context):
     propper = ph()
-    if context.scene.bsmprops.custom_shader_on:
+    if context.scene.bsmprops.include_ngroups:
         propper.set_nodes_groups(context)
     else:
         context.scene.node_links.clear()
@@ -89,7 +89,7 @@ def enum_sockets_cb(self, context):
         if selectedshader in nodes_links[i].nodetype:
             rawdata = nodes_links[i].input_sockets.split("@-¯\(°_o)/¯-@")
 
-    if not bsmprops.shader:  # and valid mat
+    if not bsmprops.replace_shader:  # and valid mat
         mat_used = propper.mat_name_cleaner(context)[0]
         rawdata = propper.get_shader_inputs(context,mat_used)
 
@@ -170,9 +170,7 @@ def advanced_mode_up(self, context):
             panel_line = eval(f"context.scene.panel_line{i}")
             panel_line.manual = False
             self.skip_normals = False
-        self.apply_to_all = self.apply_to_all
-        # forced update of apply_to_all_cb
-        #call cb instead
+        self.apply_to_all_up(context)
     else:
         self.apply_to_all = False
     return
@@ -189,7 +187,9 @@ def usr_dir_up(self, context):
     lematname = propper.mat_name_cleaner(context)[1]
     separator = self.separator
     relatedfiles = (filez for filez in dir_content if lematname in list(str(Path(filez).stem).split(separator)))
-
+    propper.guess_prefix_light(context)
+    # Delete me
+    """
     for filez in relatedfiles:
         try:
             active_file = str(Path(self.usr_dir).joinpath(filez))
@@ -200,6 +200,7 @@ def usr_dir_up(self, context):
                 break
         except IOError:
             continue
+    """    
     propper.make_names(context)
 
 def line_dir_up(self, context):
@@ -210,13 +211,13 @@ def skip_normals_up(self, context):  #
         bpy.ops.bsm.make_nodetree()
     return
 
-def prefix_cb(self, context):
+def prefix_up(self, context):
     propper = ph()
     propper.make_names(context)
     propper.check_names(context)
     return
 
-def separator_cb(self, context):
+def separator_up(self, context):
     if self.separator.isspace() or len(self.separator) == 0:
         self.separator = "_"
     propper = ph()
@@ -230,8 +231,8 @@ def patterns_cb(self, context):
     Prefix = self.prefix
     propper = ph()
     matname = propper.mat_name_cleaner(context)[1]
-    pt_params = {'prefix':Prefix, 'map_name':mapname, 'ext':Extension, 'mat_name':matname}
-    items = propper.get_variations(context, **pt_params)
+    args = {'prefix':Prefix, 'map_name':mapname, 'ext':Extension, 'mat_name':matname}
+    items = propper.get_variations(context, **args)
     items.reverse()
 
     return items
@@ -241,11 +242,11 @@ def patterns_up(self, context):
     #propper.make_names(context)
     return
 
-def apply_to_all_cb(self, context):
+def clear_nodes_up(self, context):
     if len(context.scene.shader_links) == 0:
         bpy.ops.bsm.make_nodetree()
-    if self.eraseall:
-        self.shader = True
+    if self.clear_nodes:
+        self.replace_shader = True
     return
 
 def only_active_mat_up(self, context):
@@ -271,21 +272,12 @@ def manual_on_cb(self, context):
         self.only_active_obj = True
     return manual_on
 
-def is_in_dir_updater(self, context):
-    isit = False
-    if context != None:
-        if "scene" in dir(context)[:]:
-            panel_line = self
-            self.is_in_dir = Path(panel_line.probable).is_file()
-
-    return isit
-
-def shader_up(self, context):
+def replace_shader_up(self, context):
     scene = bpy.context.scene
     propper = ph()
     propper.clean_input_sockets(context)
 
-def only_active_obj_cb(self, context):
+def only_active_obj_up(self, context):
     if self.only_active_obj:
         self.apply_to_all = False
     return
@@ -370,7 +362,7 @@ class NodesLinks(PropertyGroup):
 
 class BSMprops(PropertyGroup):
 
-    custom_shader_on: BoolProperty(
+    include_ngroups: BoolProperty(
         name="Enable or Disable",
         description=" Append your own Nodegroups in the 'Replace Shader' list above \
                     \n\
@@ -379,19 +371,19 @@ class BSMprops(PropertyGroup):
                     \n and at least one input socket to appear in the list \
                     \n (Experimental !!!)",
         default=False,
-        update=custom_shader_on_cb,
+        update=include_ngroups_up,
     )
     apply_to_all: BoolProperty(
         name="Enable or Disable",
         description="Apply Operations to all visible objects ",
         default=False,
-        update=apply_to_all_cb,
+        update=apply_to_all_up,
     )
     only_active_obj: BoolProperty(
         name="Enable or Disable",
         description="Apply Operations to active object only ",
         default=False,
-        update=only_active_obj_cb
+        update=only_active_obj_up
     )
     separator: StringProperty(
         name="",
@@ -399,16 +391,16 @@ class BSMprops(PropertyGroup):
                     \n for the Texture Map File name auto-detection.  \
                     \n (In most cases you want to leave it as it is)",
         default="_",
-        update=separator_cb,
+        update=separator_up,
     )
-    eraseall: BoolProperty(
+    clear_nodes: BoolProperty(
         name="Enable or Disable",
         description=" Clear existing nodes \
                      \n Removes all nodes from the material shader \
                      \n before setting up the nodes trees",
         default=False,
         #TODO:why ? Check behaviour 
-        update=apply_to_all_cb
+        update=clear_nodes_up
     )
     tweak_levels: BoolProperty(
         name="Enable or Disable",
@@ -436,9 +428,9 @@ class BSMprops(PropertyGroup):
     prefix: StringProperty(
         name="",
         description=" Prefix of the file names used in the pattern selector below \
-                     \n for the Texture Map file name auto-detection.",
+                     \n for the Texture Map file name auto-detection. (Usually the object name)",
         default="PrefixNotSet",
-        update=prefix_cb,
+        update=prefix_up,
     )
     enum_placeholder: EnumProperty(
         name="Enable row to select input socket.",
@@ -474,13 +466,13 @@ class BSMprops(PropertyGroup):
         default=False,
         update=skip_normals_up
     )
-    shader: BoolProperty(
+    replace_shader: BoolProperty(
         name="",
         description=" Enable to replace the Material Shader with the one in the list \
                        \n\
                        \n (Enabled by default if 'Apply to all' is activated)",
         default=False,
-        update=shader_up
+        update=replace_shader_up
     )
     shaders_list: EnumProperty(
         name="shaders_list:",
@@ -553,14 +545,14 @@ class PaneLine0(PropertyGroup):
         name="",
         description="Enable/Disable line",
         default=False,
-        update=line_on_cb
+        update=line_on_up
     )
     file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=file_name_update_cb,
+        update=file_name_up,
     )
     probable: StringProperty(
         subtype='FILE_PATH',
@@ -626,14 +618,14 @@ class PaneLine1(PropertyGroup):
         name="",
         description="Enable/Disable line",
         default=False,
-        update=line_on_cb,
+        update=line_on_up,
     )
     file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=file_name_update_cb,
+        update=file_name_up,
     )
     probable: StringProperty(
         subtype='FILE_PATH',
@@ -693,14 +685,14 @@ class PaneLine2(PropertyGroup):
         name="",
         description="Enable/Disable line",
         default=False,
-        update=line_on_cb,
+        update=line_on_up,
     )
     file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=file_name_update_cb,
+        update=file_name_up,
 
     )
     probable: StringProperty(
@@ -761,14 +753,14 @@ class PaneLine3(PropertyGroup):
         name="",
         description="Enable/Disable line",
         default=False,
-        update=line_on_cb,
+        update=line_on_up,
     )
     file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=file_name_update_cb,
+        update=file_name_up,
 
     )
     probable: StringProperty(
@@ -829,14 +821,14 @@ class PaneLine4(PropertyGroup):
         name="",
         description="Enable/Disable line",
         default=False,
-        update=line_on_cb,
+        update=line_on_up,
     )
     file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=file_name_update_cb,
+        update=file_name_up,
 
     )
     probable: StringProperty(
@@ -896,14 +888,14 @@ class PaneLine5(PropertyGroup):
         name="",
         description="Enable/Disable line",
         default=False,
-        update=line_on_cb,
+        update=line_on_up,
     )
     file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=file_name_update_cb,
+        update=file_name_up,
 
     )
     probable: StringProperty(
@@ -963,14 +955,14 @@ class PaneLine6(PropertyGroup):
         name="",
         description="Enable/Disable line",
         default=False,
-        update=line_on_cb,
+        update=line_on_up,
     )
     file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=file_name_update_cb,
+        update=file_name_up,
 
     )
     probable: StringProperty(
@@ -1031,14 +1023,14 @@ class PaneLine7(PropertyGroup):
         name="",
         description="Enable/Disable line",
         default=False,
-        update=line_on_cb,
+        update=line_on_up,
     )
     file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=file_name_update_cb,
+        update=file_name_up,
 
     )
     probable: StringProperty(
@@ -1099,14 +1091,14 @@ class PaneLine8(PropertyGroup):
         name="",
         description="Enable/Disable line",
         default=False,
-        update=line_on_cb,
+        update=line_on_up,
     )
     file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=file_name_update_cb,
+        update=file_name_up,
 
     )
     probable: StringProperty(
@@ -1166,14 +1158,14 @@ class PaneLine9(PropertyGroup):
         name="",
         description="Enable/Disable line",
         default=False,
-        update=line_on_cb,
+        update=line_on_up,
     )
     file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
         default="Select a file",
-        update=file_name_update_cb,
+        update=file_name_up,
     )
     probable: StringProperty(
         subtype='FILE_PATH',
