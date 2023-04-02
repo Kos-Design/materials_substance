@@ -124,10 +124,9 @@ def enum_sockets_up(self, context):
  
     return
 
-def map_label_cb(self, context):
+def map_label_up(self, context):
     if not self.manual:
         bpy.ops.bsm.name_maker(line_num=self.ID)
-        bpy.ops.bsm.find_ext(line_number=self.ID, keepat=True, called=True)
     return
 
 def map_ext_cb(self, context):
@@ -178,21 +177,22 @@ def advanced_mode_up(self, context):
         self.apply_to_all = False
     return
 
-def usr_dir_cb(self, context):
+def usr_dir_up(self, context):
     propper = ph()
     if not Path(self.usr_dir).is_dir():
-        self.usr_dir = str(Path.home())
+        self.usr_dir = str(Path(self.usr_dir).parent)
+        if not Path(self.usr_dir).is_dir():
+            self.usr_dir = str(Path.home())
     scene = context.scene
-    directory = self.usr_dir
-    dir_content = [x.name for x in Path(directory).glob('*.*') ]
+    dir_content = [x.name for x in Path(self.usr_dir).glob('*.*') ]
     bpy.context.scene.bsmprops.dir_content = ";;;".join(str(x) for x in dir_content)
     lematname = propper.mat_name_cleaner(context)[1]
     separator = self.separator
-    relatedfiles = (filez for filez in dir_content if lematname in list((Path(filez).stem).split(separator)))
+    relatedfiles = (filez for filez in dir_content if lematname in list(str(Path(filez).stem).split(separator)))
 
     for filez in relatedfiles:
         try:
-            active_file = directory + filez
+            active_file = str(Path(self.usr_dir).joinpath(filez))
 
             rate = propper.pattern_weight(context, active_file)
 
@@ -201,6 +201,9 @@ def usr_dir_cb(self, context):
         except IOError:
             continue
     propper.make_names(context)
+
+def line_dir_up(self, context):
+    pass
 
 def skip_normals_up(self, context):  #
     if len(context.scene.shader_links) == 0:
@@ -454,7 +457,7 @@ class BSMprops(PropertyGroup):
         description="Folder containing the Textures Images to be imported",
         subtype='DIR_PATH',
         default=str(Path.home()),
-        update=usr_dir_cb
+        update=usr_dir_up
     )
     bsm_all: StringProperty(
         name="allsettings",
@@ -538,7 +541,7 @@ class PaneLine0(PropertyGroup):
         name="Map name",
         description="Keyword identifier of the Texture map to be imported",
         default="BaseColor",
-        update=map_label_cb
+        update=map_label_up
     )
     input_sockets: EnumProperty(
         name="Sockets",
@@ -581,6 +584,13 @@ class PaneLine0(PropertyGroup):
         description="Associated file detected in that folder",
         default=False,
     )
+    line_dir: StringProperty(
+        name="",
+        description="Folder containing the Textures for this panel line",
+        subtype='DIR_PATH',
+        default=str(Path.home()),
+        update=line_dir_up
+    )
 
     is_in_dir: BoolProperty(
         name="",
@@ -603,7 +613,7 @@ class PaneLine1(PropertyGroup):
         name="Map name",
         description="Keyword identifier of the Texture map to be imported",
         default="Roughness",
-        update=map_label_cb
+        update=map_label_up
     )
     input_sockets: EnumProperty(
         name="Sockets",
@@ -647,6 +657,13 @@ class PaneLine1(PropertyGroup):
         name="",
         description="Associated file detected in that folder",
         default=False,
+    )
+    line_dir: StringProperty(
+        name="",
+        description="Folder containing the Textures for this panel line",
+        subtype='DIR_PATH',
+        default=str(Path.home()),
+        update=line_dir_up
     )
 
 
@@ -664,7 +681,7 @@ class PaneLine2(PropertyGroup):
         name="Map name",
         description="Keyword identifier of the Texture map to be imported",
         default="Metallic",
-        update=map_label_cb
+        update=map_label_up
     )
     input_sockets: EnumProperty(
         name="Sockets",
@@ -708,6 +725,13 @@ class PaneLine2(PropertyGroup):
         name="",
         description="Associated file detected in that folder",
         default=False,
+    )
+    line_dir: StringProperty(
+        name="",
+        description="Folder containing the Textures for this panel line",
+        subtype='DIR_PATH',
+        default=str(Path.home()),
+        update=line_dir_up
     )
 
 
@@ -725,7 +749,7 @@ class PaneLine3(PropertyGroup):
         name="Map name",
         description="Keyword identifier of the Texture map to be imported",
         default="Normal",
-        update=map_label_cb
+        update=map_label_up
     )
     input_sockets: EnumProperty(
         name="Sockets",
@@ -769,6 +793,13 @@ class PaneLine3(PropertyGroup):
         name="",
         description="Associated file detected in that folder",
         default=False,
+    )
+    line_dir: StringProperty(
+        name="",
+        description="Folder containing the Textures for this panel line",
+        subtype='DIR_PATH',
+        default=str(Path.home()),
+        update=line_dir_up
     )
 
 
@@ -786,7 +817,7 @@ class PaneLine4(PropertyGroup):
         name="Map name",
         description="Keyword identifier of the Texture map to be imported",
         default="Height",
-        update=map_label_cb
+        update=map_label_up
     )
     input_sockets: EnumProperty(
         name="Sockets",
@@ -829,6 +860,13 @@ class PaneLine4(PropertyGroup):
         name="",
         description="Associated file detected in that folder",
         default=False,
+    )
+    line_dir: StringProperty(
+        name="",
+        description="Folder containing the Textures for this panel line",
+        subtype='DIR_PATH',
+        default=str(Path.home()),
+        update=line_dir_up
     )
 
 
@@ -846,7 +884,7 @@ class PaneLine5(PropertyGroup):
         name="Map name",
         description="Keyword identifier of the Texture map to be imported",
         default="Specular",
-        update=map_label_cb
+        update=map_label_up
     )
     input_sockets: EnumProperty(
         name="Sockets",
@@ -889,6 +927,13 @@ class PaneLine5(PropertyGroup):
         name="",
         description="Associated file detected in that folder",
         default=False,
+    )
+    line_dir: StringProperty(
+        name="",
+        description="Folder containing the Textures for this panel line",
+        subtype='DIR_PATH',
+        default=str(Path.home()),
+        update=line_dir_up
     )
 
 
@@ -906,7 +951,7 @@ class PaneLine6(PropertyGroup):
         name="Map name",
         description="Keyword identifier of the Texture map to be imported",
         default="Glossy",
-        update=map_label_cb
+        update=map_label_up
     )
     input_sockets: EnumProperty(
         name="Sockets",
@@ -950,6 +995,13 @@ class PaneLine6(PropertyGroup):
         name="",
         description="Associated file detected in that folder",
         default=False,
+    )
+    line_dir: StringProperty(
+        name="",
+        description="Folder containing the Textures for this panel line",
+        subtype='DIR_PATH',
+        default=str(Path.home()),
+        update=line_dir_up
     )
 
 
@@ -967,7 +1019,7 @@ class PaneLine7(PropertyGroup):
         name="Map name",
         description="Keyword identifier of the Texture map to be imported",
         default="Emission",
-        update=map_label_cb
+        update=map_label_up
     )
     input_sockets: EnumProperty(
         name="Sockets",
@@ -1011,6 +1063,13 @@ class PaneLine7(PropertyGroup):
         name="",
         description="Associated file detected in that folder",
         default=False,
+    )
+    line_dir: StringProperty(
+        name="",
+        description="Folder containing the Textures for this panel line",
+        subtype='DIR_PATH',
+        default=str(Path.home()),
+        update=line_dir_up
     )
 
 
@@ -1028,7 +1087,7 @@ class PaneLine8(PropertyGroup):
         name="Map name",
         description="Keyword identifier of the Texture map to be imported",
         default="Transparency",
-        update=map_label_cb
+        update=map_label_up
     )
     input_sockets: EnumProperty(
         name="Sockets",
@@ -1071,6 +1130,13 @@ class PaneLine8(PropertyGroup):
         name="",
         description="Associated file detected in that folder",
         default=False,
+    )
+    line_dir: StringProperty(
+        name="",
+        description="Folder containing the Textures for this panel line",
+        subtype='DIR_PATH',
+        default=str(Path.home()),
+        update=line_dir_up
     )
 
 
@@ -1088,7 +1154,7 @@ class PaneLine9(PropertyGroup):
         name="Map name",
         description="Keyword identifier of the Texture map to be imported",
         default="Anisotropic",
-        update=map_label_cb
+        update=map_label_up
     )
     input_sockets: EnumProperty(
         name="Sockets",
@@ -1131,4 +1197,11 @@ class PaneLine9(PropertyGroup):
         name="",
         description="Associated file detected in that folder",
         default=False,
+    )
+    line_dir: StringProperty(
+        name="",
+        description="Folder containing the Textures for this panel line",
+        subtype='DIR_PATH',
+        default=str(Path.home()),
+        update=line_dir_up
     )

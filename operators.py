@@ -71,20 +71,18 @@ class BSM_OT_make_nodes(sub_poll,Operator):
         scene = context.scene
         if len(scene.shader_links) == 0:
             bpy.ops.bsm.make_nodetree()
-        matsdone = []
-
         og_selection = list(context.view_layer.objects.selected)
         activeobj = context.view_layer.objects.active
         lecleanselect = selector(self, context)
-        #TODO why matsdone ?
+        already_done = []
         for obj in og_selection:
             obj.select_set(False)
         for leselected in lecleanselect:
             leselected.select_set(True)
             context.view_layer.objects.active = leselected
-            mat_params = {'ops':self, 'context':context, 'selection':leselected, 'already_done':matsdone, 'caller':"dothem"}
-            matsdone = ndh.process_materials(**mat_params)
-            
+            mat_params = {'ops':self, 'context':context, 'selection':leselected, 'already_done':already_done, 'caller':"dothem"}
+            already_done = ndh.process_materials(**mat_params)
+           
             leselected.select_set(False)
 
         for obj in og_selection:
@@ -103,7 +101,7 @@ class BSM_OT_name_maker(sub_poll,Operator):
     bl_description = "Assume a probable filename "
 
     line_num: bpy.props.IntProperty(default=0)
-    #TODO: override sub_poll type ?
+
     @classmethod
     def poll(cls, context):
         # return (context.object is not None)
@@ -118,64 +116,16 @@ class BSM_OT_name_maker(sub_poll,Operator):
         prefix = bsmprops.prefix
         fullext = panel_line.map_ext
         mapname = panel_line.map_label
-        separator = bsmprops.separator
-        patternselected = int(bsmprops.patterns)
-        allexts = [fullext.capitalize(), fullext.upper(), fullext, ]
         propper = ph()
         matname = propper.mat_name_cleaner(context)[1]
-        for ext in allexts:
-            params = {'prefix':prefix, 'map_name':mapname, 'ext':ext, 'mat_name':matname}
-            patterns_list = propper.get_variations(context, **params)
-            supposed = patterns_list[patternselected][1]
+        
+        params = {'prefix':prefix, 'map_name':mapname, 'ext':fullext, 'mat_name':matname}
+        file_name = propper.find_file(context,**params)
+        if file_name is not None :
+            panel_line.file_name = panel_line.probable = file_name
+               
+        propper.update_file_is_real(context=panel_line)
 
-            panel_line.probable = str(Path(lefolder).joinpath(supposed))
-
-            propper.update_file_is_real(context=panel_line)
-            if Path(panel_line.probable).is_file():
-                break
-
-        return {'FINISHED'}
-
-
-class BSM_OT_find_ext(sub_poll,Operator):
-    bl_idname = "bsm.find_ext"
-    bl_label = ""
-    bl_description = "set panel_line{line_number}.map_ext according to dir content"
-
-    keepat: bpy.props.BoolProperty(default=False)
-    line_number: bpy.props.IntProperty()
-    called: bpy.props.BoolProperty(default=True)
-
-    def execute(self, context):
-        keepat = self.keepat
-        line_number = self.line_number
-        scene = context.scene
-        panel_line = eval(f"scene.panel_line{line_number}")
-        manual = panel_line.manual
-        propper = ph()
-        ft_params = {'context': context, 'props':panel_line, 'keep_pattern':keepat}
-        currentext = panel_line.map_ext
-        is_in_dir = propper.file_tester(**ft_params)
-
-        if not is_in_dir and not manual:
-
-            filetypesraw = propper.get_extensions(context)
-            filetypes = []
-            for i in range(len(filetypesraw)):
-                filetypes.append(filetypesraw[i][0])
-            originalext = panel_line.map_ext
-            for ext in filetypes:
-                panel_line.map_ext = ext
-
-                is_in_dir = propper.file_tester(**ft_params)
-
-                if is_in_dir:
-                    break
-            if not is_in_dir:
-                if not self.called:
-                    toreport = "Could not guess file extension, File not found"
-                    self.report({'INFO'}, toreport)
-                panel_line.map_ext = originalext
         return {'FINISHED'}
 
 
@@ -187,62 +137,52 @@ class BSM_OT_name_checker(sub_poll,Operator):
     line_number: bpy.props.IntProperty(default=0)
     lorigin: bpy.props.StringProperty(default="Not Set")
     called: bpy.props.BoolProperty(default=True)
-    notfromext: bpy.props.BoolProperty(default=True)
-    keepat: bpy.props.BoolProperty(default=False)
 
     def execute(self, context):
-        keepat = self.keepat
+        
         scene = context.scene
         bsmprops = scene.bsmprops
         line_number = self.line_number
-        notfromext = self.notfromext
-
+        propper = ph()
         panel_line = eval(f"scene.panel_line{line_number}")
         manual = panel_line.manual
         advanced_mode = bsmprops.advanced_mode
-        prefix = bsmprops.prefix
+        args = {'prefix':bsmprops.prefix}
         sel = context.object
         mat = sel.active_material
         mat.use_nodes = True
-        propper = ph()
-        #propper.get_map_permutations(context=panel_line)
-        propper.compare_lower(context=panel_line)
-        ft_params = {'context':context, 'props':panel_line, 'keep_pattern':keepat}
-        if self.lorigin == "plug" and not manual:
-            panel_line.probable = "reseted"
+        args['map_name'] = panel_line.map_label
+        args['ext'] = panel_line.map_ext
+        args['mat_name'] = propper.mat_name_cleaner(context)[1]
 
-        isafile = Path(panel_line.probable).is_file()
-
-        if not manual:
-
-            gotafile = propper.file_tester(**ft_params)
-
-            if not gotafile:
-                bpy.ops.bsm.find_ext(line_number=line_number)
-            isafile = propper.file_tester(**ft_params)
-
-            if not isafile and self.called :
-                toreport = panel_line.probable + " not found "
+        file_name = propper.find_file(context,**args)
+        if file_name is not None and propper.file_tester(panel_line):
+            panel_line.file_name = panel_line.probable = file_name
+              
+        if not propper.file_tester(panel_line) and self.called :
+            toreport = panel_line.probable + " not found "
+            self.report({'INFO'}, toreport)
+            __class__.bl_description = f"No Image containing the keyword {panel_line.map_label} found , verify the Prefix, the Map name and/or the Maps Folder"
+            """
+            if not prefix.isalnum():
+                toreport = "Prefix is empty"
                 self.report({'INFO'}, toreport)
-                __class__.bl_description = "No Image containing the keyword " + panel_line.map_label + " found , verify the Prefix, the Map name and/or the Maps Folder"
+            """
+            __class__.bl_description = "Set a non-empty Prefix in the Preferences (of this Addon Tab)"
+        # necessary in order to update description
+        unregister_class(__class__)
+        register_class(__class__)
 
-                if not prefix.isalnum():
-                    toreport = "Prefix is empty"
-                    self.report({'INFO'}, toreport)
-
-                __class__.bl_description = "Set a non-empty Prefix in the Preferences (of this Addon Tab)"
-            # necessary in order to update description
-            unregister_class(__class__)
-            register_class(__class__)
-
-        if isafile:
+        if propper.file_tester(panel_line):
+            panel_line.file_is_real = True
             if self.called:
                 toreport = panel_line.probable + " detected in Maps Folder"
                 self.report({'INFO'}, toreport)
 
             return {'FINISHED'}
-        return {'CANCELLED'}
-
+        #return {'CANCELLED'}
+        
+        return {'FINISHED'}
 
 class BSM_OT_assign_nodes(sub_poll,Operator):
     bl_idname = "bsm.assign_nodes"
@@ -259,14 +199,15 @@ class BSM_OT_assign_nodes(sub_poll,Operator):
         og_selection = list(context.view_layer.objects.selected)
         activeobj = context.view_layer.objects.active
         lecleanselect = selector(self, context)
-        matsdone = []
+        already_done = []
         for obj in og_selection:
             obj.select_set(False)
         for leselected in lecleanselect:
             leselected.select_set(True)
             context.view_layer.objects.active = leselected
-            mat_params = {'ops':self, 'context':context, 'selection':leselected, 'already_done':matsdone, 'caller':"plug"}
-            matsdone = ndh.process_materials(**mat_params)
+            mat_params = {'ops':self, 'context':context, 'selection':leselected, 'already_done':already_done, 'caller':"plug"}
+            already_done = ndh.process_materials(**mat_params)
+            print("mat preocessed - make_nodes")
             leselected.select_set(False)
 
         for obj in og_selection:

@@ -91,6 +91,7 @@ class NodeHandler():
 
         leselected.active_material_index = idx
         return already_done
+        
     
     def create_nodes(self, **params):
         context = params['context']
@@ -340,7 +341,7 @@ class NodeHandler():
         if lematerial.node_tree.nodes.find(lamap) > 0:
 
             if Path(active_filepath).is_file():
-                print(f"opening{active_filepath}")
+               
                 file_path = Path(active_filepath).name
                 bpy.ops.image.open(filepath=active_filepath,show_multiview=False)
                 nodestofill = (nod for nod in lematerial.node_tree.nodes if nod.label == lamap)

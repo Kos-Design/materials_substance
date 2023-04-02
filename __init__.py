@@ -31,7 +31,7 @@ from . operators import ( BSM_MT_presetsmenu, BSM_OT_execute_preset,
                           BSM_OT_save_all, BSM_OT_load_all,
                           BSM_OT_import_textures, BSM_OT_del_map_line,
                           BSM_OT_add_preset,
-                          BSM_OT_add_map_line, BSM_OT_find_ext,
+                          BSM_OT_add_map_line,
                           )
 
 from . panels import (  BSM_PT_presets, BSM_PT_importpanel, BSM_PT_panel_line,
@@ -55,7 +55,6 @@ classesp = (
     BSM_OT_add_map_line,
     BSM_OT_execute_preset,
     BSM_OT_make_nodetree,
-    BSM_OT_find_ext,
     BSM_OT_name_maker,
     BSM_OT_name_checker,
     BSM_OT_make_nodes,

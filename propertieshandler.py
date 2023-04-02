@@ -278,7 +278,7 @@ class PropertiesHandler():
 
             self.map_ext = ext_tryout
             if patternof3detected and containsmatname:
-
+                
                 if guessed[2] > 50:
                     positions = self.positions_order(context, active_file)
                     mat_pos = positions[1]
@@ -351,63 +351,37 @@ class PropertiesHandler():
         ]
         return items
 
-    def file_tester(self, **params):
-            context = params['context']
-            scene = context.scene
-            panel_line = params['props']
-            keepat = params['keep_pattern']
-            bsmprops = scene.bsmprops
-            prefix = bsmprops.prefix
-            is_in_dir = Path(panel_line.file_name).name in str(Path(panel_line.file_name).parent)
-            # almost always True but better safe than sorry
-            fullext = panel_line.map_ext
-            allexts = [fullext, fullext.upper(), fullext.capitalize()]
-            manual = panel_line.manual
-            mapname = panel_line.map_label
-            
-            matname = self.mat_name_cleaner(context)[1]
-            is_in_dir = False
-            patternselected = int(bsmprops.patterns)
-            if not manual:
+    def file_in_dir(self,context):
+        props = bpy.context.scene.bsmprops
+        dir_content = self.list_from_string(props.dir_content)
+        lower_dir_content = props.dir_content.lower().split(";;;")
+        #get material
+        args = {'prefix':props.prefix, 'map_name':context.map_label, 'mat_name':"material", 'ext':context.map_ext}
+        
+        for i in range(len(self.get_patterns())):
+            if self.get_variations(context,**args)[i][1].lower() in lower_dir_content :
+                return True
+        return False
 
-                for ext in allexts:
-
-                    if is_in_dir:
-                        break
-                    params = {'prefix':prefix, 'map_name':mapname, 'ext':ext, 'mat_name':matname}
-                    patterns = self.get_variations(context, **params)
-                    supposed = patterns[patternselected][1]
-                    panel_line.probable = str(Path(bsmprops.usr_dir).joinpath(supposed))
-                    if Path(panel_line.probable).is_file():
-                        panel_line.file_name = panel_line.probable
-
-                        panel_line.probable = panel_line.file_name
-                        is_in_dir = True
-                        break
-
-                    if not keepat:
-                        for liner in patterns:
-                            tentative = liner[1]
-                            panel_line.probable = str(Path(bsmprops.usr_dir).joinpath(tentative))
-
-                            if Path(panel_line.probable).is_file():
-                                panel_line.file_name = panel_line.probable
-                                bsmprops.patterns = liner[0]  # TODO pattern_weight maybe
-                                panel_line.probable = panel_line.file_name
-                                is_in_dir = True
-
-                                break
-
-            return is_in_dir
+    def file_tester(self, context):
+    
+        panel_line = context
+        bsmprops = bpy.context.scene.bsmprops
+        dir_content = self.list_from_string(bsmprops.dir_content)
+        if panel_line.file_name in dir_content:
+            return True
+        return False
 
     def update_file_is_real(self, context):
-        try:
-            exists = Path(context.probable).resolve(strict=True)
-        except FileNotFoundError:
-            context.file_is_real = False
-        else:
+        bsmprops = bpy.context.scene.bsmprops
+        dir_content = self.list_from_string(bsmprops.dir_content)
+        lower_dir_content = bsmprops.dir_content.lower().split(";;;")
+        context.file_is_real = False
+        if context.probable.lower() in lower_dir_content or context.file_name.lower() in lower_dir_content :
             context.file_is_real = True
-    
+        if not context.file_is_real :
+            pass
+            
     def guess_prefix_light(self,context):
         print("guessing prefix")
         dir_content = self.list_from_string(string=bpy.context.scene.bsmprops.dir_content)
@@ -434,60 +408,40 @@ class PropertiesHandler():
         extensions = [x[0] for x in all_ext]
         for files in dir_content :
             try :
-                print(files)
+                
                 ext = Path(files).suffix
                 if ext in extensions :
                     #print(f"found {ext}")
                     return ext
             except IOError:
+                print(f"error with {files}")
                 continue
     
         return ".exr"
 
-    def get_combination(self, combinable):
-        return map(''.join, itertools.product(*zip(combinable.upper(), combinable.lower())))
-
-    def get_map_permutations (self,context):
-        props = bpy.context.scene.bsmprops
-        map_combinations = self.get_combination(context.map_label)
-        all_patterns = []
-        enum_index = []
-        maps = []
-        patterns_list = []
-        #TODO: get material
-        for map in map_combinations:
-                
-            args = {'prefix':props.prefix, 'map_name':map, 'mat_name':"material", 'ext':context.map_ext}
-            for i in range(len(self.get_variations(context,**args))):
-                all_patterns.append(self.get_variations(context,**args)[i][1])
-                enum_index.append(i)
-                maps.append(map)
-        return [enum_index,all_patterns,map]           
-        
-    def reverse_pattern(self,context):
-        patterns_list = self.get_map_permutations(self,context)
-        dir_content = (self.list_from_string(string=props.dir_content))        
-        for map_file in dir_content:
-            if(map_file in patterns_list[1]):
-                idx = patterns_list[1].index(map_file)
-                pattern = patterns_list[0][idx]
-                #print(map_file)
-                #print(all_patterns[idx])
-                #print(f"{idx} is pattern {pattern}")
-                #print (f"Pattern is of type {self.get_patterns()[pattern][1]}")
-                return
-
     def compare_lower(self,context):
+        #unused
         props = bpy.context.scene.bsmprops
         dir_content = self.list_from_string(props.dir_content)
         lower_dir_content = props.dir_content.lower().split(";;;")
         #get material
-        args = {'prefix':props.prefix, 'map_name':context.map_label.lower(), 'mat_name':"material", 'ext':context.map_ext}
+        args = {'prefix':props.prefix, 'map_name':context.map_label, 'mat_name':"material", 'ext':context.map_ext}
         
         for i in range(len(self.get_patterns())):
             if self.get_variations(context,**args)[i][1].lower() in lower_dir_content :
                 idx = lower_dir_content.index(self.get_variations(context,**args)[i][1].lower())
                 #print(f"{i} for {self.get_variations(context,**args)[i][1]}")
                 context.file_name = context.probable = str(Path(props.usr_dir).joinpath(Path(dir_content[idx])))
-                print(context.file_name)
+                #print(context.file_name)
                 break
+
+    def find_file(self,context,**args):
+        props = bpy.context.scene.bsmprops
+        dir_content = self.list_from_string(props.dir_content)
+        lower_dir_content = props.dir_content.lower().split(";;;")
+        for i in range(len(self.get_patterns())):
+            if self.get_variations(context,**args)[i][1].lower() in lower_dir_content :
+                idx = lower_dir_content.index(self.get_variations(context,**args)[i][1].lower())
+                #print(f"{i} for {self.get_variations(context,**args)[i][1]}")
+                return str(Path(props.usr_dir).joinpath(Path(dir_content[idx])))
+                         
