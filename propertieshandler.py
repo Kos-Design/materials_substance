@@ -383,6 +383,7 @@ class PropertiesHandler():
             pass
             
     def guess_prefix_light(self,context):
+        #prefix could be the object name or the blend file name depending on the Surfacing software.
         print("guessing prefix")
         context.scene.bsmprops.prefix = context.view_layer.objects.active.name
 
@@ -428,9 +429,16 @@ class PropertiesHandler():
                 break
 
     def find_file(self,context,**args):
+        panel_line = args['line']
+        args['mat_name'] = self.mat_name_cleaner(context)[1]
         props = bpy.context.scene.bsmprops
         dir_content = self.list_from_string(props.dir_content)
         lower_dir_content = props.dir_content.lower().split(";;;")
+        self.guess_prefix_light(context)
+        args['prefix'] = props.prefix
+        args['map_name'] = panel_line.map_label
+        args['ext'] = panel_line.map_ext
+
         for i in range(len(self.get_patterns())):
             if self.get_variations(context,**args)[i][1].lower() in lower_dir_content :
                 idx = lower_dir_content.index(self.get_variations(context,**args)[i][1].lower())

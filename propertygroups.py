@@ -187,7 +187,7 @@ def usr_dir_up(self, context):
     lematname = propper.mat_name_cleaner(context)[1]
     separator = self.separator
     relatedfiles = (filez for filez in dir_content if lematname in list(str(Path(filez).stem).split(separator)))
-    propper.guess_prefix_light(context)
+    #propper.guess_prefix_light(context)
     # Delete me
     """
     for filez in relatedfiles:
@@ -212,9 +212,10 @@ def skip_normals_up(self, context):  #
     return
 
 def prefix_up(self, context):
-    propper = ph()
-    propper.make_names(context)
-    propper.check_names(context)
+    #propper = ph()
+    #infinite looping
+    #propper.make_names(context)
+    #propper.check_names(context)
     return
 
 def separator_up(self, context):
@@ -285,7 +286,6 @@ def only_active_obj_up(self, context):
 def dir_content_up(self,context):
     propper = ph()
     propper.set_all_ext()
-    propper.guess_prefix_light(context)
 
 class ShaderLinks(PropertyGroup):
     # shaders_links

@@ -49,6 +49,9 @@ class BSM_OT_make_nodes(sub_poll,Operator):
         ndh = nha()
         scene = context.scene
         props = scene.bsmprops
+        propper = ph()
+        propper.make_names(context)
+        propper.check_names(context)
         if len(scene.shader_links) == 0:
             bpy.ops.bsm.make_nodetree()
         og_selection = list(context.view_layer.objects.selected)
@@ -92,15 +95,10 @@ class BSM_OT_name_maker(sub_poll,Operator):
         k = self.line_num
         scene = context.scene
         panel_line = eval(f"scene.panel_line{k}")
-        bsmprops = scene.bsmprops
-        lefolder = bsmprops.usr_dir
-        prefix = bsmprops.prefix
-        fullext = panel_line.map_ext
-        mapname = panel_line.map_label
         propper = ph()
-        matname = propper.mat_name_cleaner(context)[1]
+       
         
-        args = {'prefix':prefix, 'map_name':mapname, 'ext':fullext, 'mat_name':matname}
+        args = {'line':panel_line}
         file_name = propper.find_file(context,**args)
         if file_name is not None :
             panel_line.file_name = panel_line.probable = file_name
@@ -120,22 +118,15 @@ class BSM_OT_name_checker(sub_poll,Operator):
     called: bpy.props.BoolProperty(default=True)
 
     def execute(self, context):
-        
         scene = context.scene
-        bsmprops = scene.bsmprops
         line_number = self.line_number
         propper = ph()
         panel_line = eval(f"scene.panel_line{line_number}")
-        manual = panel_line.manual
-        advanced_mode = bsmprops.advanced_mode
-        args = {'prefix':bsmprops.prefix}
+    
         sel = context.object
         mat = sel.active_material
         mat.use_nodes = True
-        args['map_name'] = panel_line.map_label
-        args['ext'] = panel_line.map_ext
-        args['mat_name'] = propper.mat_name_cleaner(context)[1]
-
+        args = {'line':panel_line}
         file_name = propper.find_file(context,**args)
         if file_name is not None and propper.file_tester(panel_line):
             panel_line.file_name = panel_line.probable = file_name
@@ -173,6 +164,9 @@ class BSM_OT_assign_nodes(sub_poll,Operator):
         ndh = nha()
         scene = context.scene
         props = scene.bsmprops
+        propper = ph()
+        propper.make_names(context)
+        propper.check_names(context)
         if len(scene.shader_links) == 0:
             bpy.ops.bsm.make_nodetree()
         og_selection = list(context.view_layer.objects.selected)
