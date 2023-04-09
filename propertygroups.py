@@ -22,10 +22,6 @@ def line_on_up(self, context):
     if len(scene.shader_links) == 0:
         bpy.ops.bsm.make_nodetree()
 
-    bsmprops.manual_on = manual_on_cb(bsmprops, context)
-    if not self.manual:
-        bpy.ops.bsm.name_maker(line_num=self.ID)
-        bpy.ops.bsm.name_checker(line_number=self.ID, lorigin="line_on_up", called=False)
     return
 
 def apply_to_all_up(self, context):
@@ -55,8 +51,6 @@ def apply_to_all_up(self, context):
 def file_name_up(self, context):
     props = bpy.context.scene.bsmprops
     propper = ph()
-    #if self.manual:
-    #    propper.pattern_weight(context, self.file_name)
     self.is_in_dir = self.file_name in propper.list_from_string(props.usr_dir)
     if self.is_in_dir:
         self.probable = self.file_name
@@ -113,7 +107,7 @@ def enum_sockets_up(self, context):
             panel_line = eval(f"scene.panel_line{i}")
             panel_line.input_sockets = '0'
         if state in disped:
-            disped = list(j for j in range(10) if (str(eval(f"bpy.context.scene.panel_line{j}").input_sockets) in disped))
+            disped = [j for j in range(10) if (str(eval(f"bpy.context.scene.panel_line{j}").input_sockets) in disped)]
 
             # if already a kind of Disp in list then clear
             for j in disped:
@@ -126,24 +120,25 @@ def enum_sockets_up(self, context):
 
 def map_label_up(self, context):
     if not self.manual:
-        bpy.ops.bsm.name_maker(line_num=self.ID)
+        #TODO: maybe name_checker
+        pass
+
     return
 
 def map_ext_cb(self, context):
     propper = ph()
-    filetypes = propper.get_extensions(context)
-
-    return filetypes
+    return propper.get_extensions(context)
 
 def map_ext_up(self, context):
     if not self.manual:
-        bpy.ops.bsm.name_maker(line_num=self.ID)
+        #TODO: maybe name_checker
+        pass
+ 
     return
 
 def shaders_list_cb(self, context):
     propper = ph()
-    shaders_list = propper.get_shaders_list(context)
-    return shaders_list
+    return propper.get_shaders_list(context)
 
 def shaders_list_up(self, context):
     propper = ph()
@@ -154,12 +149,11 @@ def shaders_list_up(self, context):
     return
 
 def manual_up(self, context):
-    bsmprops = context.scene.bsmprops
-    if not self.manual:
-        bpy.ops.bsm.name_maker(line_num=self.ID)
-    #TODO: why ? this could loop ?    
-    bsmprops.manual_on = manual_on_cb(bsmprops, context)
-
+    if self.manual:
+        bsmprops = context.scene.bsmprops
+        bsmprops.only_active_mat = True
+        bsmprops.apply_to_all = False
+        bsmprops.only_active_obj = True
     return
 
 def advanced_mode_up(self, context):
@@ -184,63 +178,14 @@ def usr_dir_up(self, context):
     scene = context.scene
     dir_content = [x.name for x in Path(self.usr_dir).glob('*.*') ]
     bpy.context.scene.bsmprops.dir_content = ";;;".join(str(x) for x in dir_content)
-    lematname = propper.mat_name_cleaner(context)[1]
-    separator = self.separator
-    relatedfiles = (filez for filez in dir_content if lematname in list(str(Path(filez).stem).split(separator)))
-    #propper.guess_prefix_light(context)
-    # Delete me
-    """
-    for filez in relatedfiles:
-        try:
-            active_file = str(Path(self.usr_dir).joinpath(filez))
-
-            rate = propper.pattern_weight(context, active_file)
-
-            if rate > 50:
-                break
-        except IOError:
-            continue
-    """    
-    propper.make_names(context)
-
+    #TODO: maybe remove ( we get mat names in node setup & node create)
+   
 def line_dir_up(self, context):
     pass
 
 def skip_normals_up(self, context):  #
     if len(context.scene.shader_links) == 0:
         bpy.ops.bsm.make_nodetree()
-    return
-
-def prefix_up(self, context):
-    #propper = ph()
-    #infinite looping
-    #propper.make_names(context)
-    #propper.check_names(context)
-    return
-
-def separator_up(self, context):
-    if self.separator.isspace() or len(self.separator) == 0:
-        self.separator = "_"
-    propper = ph()
-    propper.make_names(context)
-    propper.check_names(context)
-    return
-
-def patterns_cb(self, context):
-    mapname = "Map Name"
-    Extension = ".Ext"
-    Prefix = self.prefix
-    propper = ph()
-    matname = propper.mat_name_cleaner(context)[1]
-    args = {'prefix':Prefix, 'map_name':mapname, 'ext':Extension, 'mat_name':matname}
-    items = propper.get_variations(context, **args)
-    items.reverse()
-
-    return items
-
-def patterns_up(self, context):
-    #propper = ph()    
-    #propper.make_names(context)
     return
 
 def clear_nodes_up(self, context):
@@ -261,18 +206,7 @@ def fix_name_up(self, context):
         bpy.ops.bsm.make_nodetree()
 
     return
-
-def manual_on_cb(self, context):
-    manual_enabled = (i for i in range(self.panel_rows) if
-                     eval(f"bpy.context.scene.panel_line{i}.line_on") and eval(f"bpy.context.scene.panel_line{i}.manual"))
-
-    manual_on = bool(len(list(manual_enabled)))
-    if manual_on:
-        self.only_active_mat = True
-        self.apply_to_all = False
-        self.only_active_obj = True
-    return manual_on
-
+  
 def replace_shader_up(self, context):
     scene = bpy.context.scene
     propper = ph()
@@ -385,14 +319,7 @@ class BSMprops(PropertyGroup):
         default=False,
         update=only_active_obj_up
     )
-    separator: StringProperty(
-        name="",
-        description=" Separator used in the pattern selector \
-                    \n for the Texture Map File name auto-detection.  \
-                    \n (In most cases you want to leave it as it is)",
-        default="_",
-        update=separator_up,
-    )
+    
     clear_nodes: BoolProperty(
         name="Enable or Disable",
         description=" Clear existing nodes \
@@ -425,25 +352,13 @@ class BSMprops(PropertyGroup):
         default="noneYet",
         update=dir_content_up
     )
-    prefix: StringProperty(
-        name="",
-        description=" Prefix of the file names used in the pattern selector below \
-                     \n for the Texture Map file name auto-detection. (Usually the object name)",
-        default="PrefixNotSet",
-        update=prefix_up,
-    )
+
     enum_placeholder: EnumProperty(
         name="Enable row to select input socket.",
         description="placeholder",
         items=[('0', '', '')]
     )
-    patterns: EnumProperty(
-        name="Patterns",
-        description="Pattern for the Texture file name ",
-        items=patterns_cb,
-        # default = '1',
-        update=patterns_up,
-    )
+
     usr_dir: StringProperty(
         name="",
         description="Folder containing the Textures Images to be imported",
@@ -511,11 +426,6 @@ class BSMprops(PropertyGroup):
                          \n  which got a '.00x' suffix appended. Warning: Experimental !!!) ",
         default=False,
         update=fix_name_up
-    )
-    manual_on: BoolProperty(
-        name="",
-        description="Internal ",
-        default=False
     )
 
 

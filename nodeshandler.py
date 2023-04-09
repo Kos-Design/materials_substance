@@ -1,5 +1,7 @@
 import bpy
 from pathlib import Path
+from . propertieshandler import PropertiesHandler as ph
+ 
 
 class NodeHandler():
  
@@ -34,8 +36,7 @@ class NodeHandler():
                 maps.append(str(Path(panel_line.file_name).name))    
             else:
                 maps.append(panel_line.map_label)
-        line = {"maps":maps, "chans":chans, "indexer":indexer}
-        return line
+        return {"maps":maps, "chans":chans, "indexer":indexer}
 
     def process_materials(self, **params):
         """helper function used to manipulate nodes
@@ -57,19 +58,19 @@ class NodeHandler():
         """
         context = params['context']
         already_done = params['already_done']
-        leselected = params['selection']
+        obj = params['selection']
         lafunction = params['caller']
         caller = params['ops']
-        maslots = leselected.material_slots
+        mat_slots = obj.material_slots
         bsmprops = context.scene.bsmprops
-        idx = leselected.active_material_index
+        idx = obj.active_material_index
         params = self.get_mat_params(context)
         if bsmprops.only_active_mat:
-            maslots = [leselected.material_slots[idx]]
-        for i in range(len(maslots)):
-            leselected.active_material_index = i
-            mat_active = leselected.active_material
-            if mat_active != None:
+            mat_slots = [obj.material_slots[idx]]
+        for i in range(len(mat_slots)):
+            obj.active_material_index = i
+            mat_active = obj.active_material
+            if mat_active is not None:
                 if mat_active.name not in already_done:
                     mat_active.use_nodes = True
                     enabled = params['indexer']
@@ -81,15 +82,17 @@ class NodeHandler():
                         cn_params = {'context':context, 'maps':params['maps'], 'chans':params['chans'], 'mat':mat_active}
                         self.create_nodes(**cn_params)
                     already_done.append(mat_active.name)
-        leselected.active_material_index = idx
+        obj.active_material_index = idx
         return already_done
         
     def create_nodes(self, **params):
+        #TODO : refresh flenames (with this current material)
         context = params['context']
         maps = params['maps']
         chans = params['chans']
         mat_active = params['mat']
         leoldshader = None
+        propper = ph()
         scene = context.scene
         bsmprops = scene.bsmprops
         nodes_links = scene.node_links
@@ -168,6 +171,10 @@ class NodeHandler():
             lines = [i for i in range(bsmprops.panel_rows) if eval(f"bpy.context.scene.panel_line{i}.line_on")]
             for i in lines:
                 panel_line = eval(f"scene.panel_line{i}")
+                args = {'line':panel_line, 'mat_name':mat_active.name}
+                file_name = propper.find_file(context,**args)
+                if file_name is not None :
+                    panel_line.file_name = panel_line.probable = file_name
                 lamap = panel_line.map_label
                 lechan = panel_line.input_sockets
                 manual = panel_line.manual
@@ -273,7 +280,7 @@ class NodeHandler():
 
                 lanewnode.location = ((base_x + offsetter_x * (int(addextras) + int(isnormal or isheight) + 1)),
                                     (base_y + offsetter_y * mapnumbr))
-                #todo: why ?
+                #TODO: why ?
                 if addextras:  # again to be sure
                     extranode.location = (
                         (base_x + offsetter_x * (int(isnormal or isheight) + 1)), (base_y + offsetter_y * mapnumbr))
@@ -302,21 +309,12 @@ class NodeHandler():
         bsmprops = context.scene.bsmprops
         panel_line = eval(f"context.scene.panel_line{index}")
         manual = panel_line.manual
-        """
-        gofile = True
-        if not manual:
-            # bpy.ops.bsm.name_maker(line_num = index)
-            gofile = (bpy.ops.bsm.name_checker(line_number=index, lorigin="assign_nodes", called=True) == {'FINISHED'})
-        """
-        
-        active_filepath = panel_line.file_name
-
+        propper = ph()
+        args = {'line':panel_line,'mat_name':lematerial.name}
+        active_filepath = propper.find_file(context,**args)
+  
         imagename = lamap = Path(active_filepath).name
        
-        #lamap = panel_line.map_label
-        #if manual:
-        #    lamap = Path(active_filepath).name
-
         if lematerial.node_tree.nodes.find(lamap) > 0:
 
             if Path(active_filepath).is_file():

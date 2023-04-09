@@ -143,37 +143,27 @@ class BSM_PT_panel_line(TexImporterPanel, Panel):
 class BSM_PT_prefs(TexImporterPanel,Panel):
 
     bl_idname = "BSM_PT_prefs"
-    bl_label = "Preferences"
+    bl_label = ""
     bl_parent_id = "BSM_PT_importpanel"
-    bl_options = {'DEFAULT_CLOSED',}
-
-    def draw_header_preset(self, _context):
-        layout = self.layout
-        row = layout.row()
-        row = row.split(factor=.95)
-        row.operator("BSM_OT_del_map_line", icon="REMOVE",)
-
-
+    bl_options = {'HIDE_HEADER'}
+  
     def draw(self, context):
         layout = self.layout
         scene = bpy.context.scene
         bsmprops = scene.bsmprops
+
+        row = layout.row()
+        col = row.column()
+        col.alignment = 'RIGHT'
+        row = col.row()
+        row.alignment = 'RIGHT'
+        row.operator("BSM_OT_del_map_line", icon="REMOVE",)
+        row.separator()
         row = layout.row()
         row.alignment = 'LEFT'
-        row.split(factor=1, align = True)
-        row.prop(bsmprops, "prefix", text="Prefix")
-        row.split(factor=.1)
-        row.split(factor=.1)
-        row.prop(bsmprops, "separator", text="Separator")
-        box = layout.box()
-        row = box.row()
-        row.label(text="Pattern of the files in the Maps Folder : ")
-        row = box.row()
-        row.prop(bsmprops, "patterns", text="")
-        row = layout.row()
-        row.prop(bsmprops, "advanced_mode", text="Advanced Mode ", )
-
-
+        row.prop(bsmprops, "advanced_mode", text="Manual Mode ", )
+      
+      
 class BSM_PT_buttons(TexImporterPanel, Panel):
 
     bl_idname = "BSM_PT_buttons"
@@ -213,10 +203,10 @@ class BSM_PT_options(TexImporterPanel, Panel):
         row.prop(bsmprops, "shaders_list", text="")
         row = layout.row()
         row = layout.row()
-        row.enabled = not bsmprops.manual_on
+        #row.enabled = not bsmprops.manual_on
         row.prop(bsmprops, "apply_to_all", text="Apply to all visible objects", )
         row = layout.row()
-        row.enabled = not bsmprops.manual_on
+        #row.enabled = not bsmprops.manual_on
         row.prop(bsmprops, "only_active_obj", text="Apply to active object only", )
         row = layout.row()
         row.prop(bsmprops, "skip_normals", )
@@ -227,7 +217,7 @@ class BSM_PT_options(TexImporterPanel, Panel):
         row = layout.row()
         row.prop(bsmprops, "tweak_levels", text="Attach Curves and Ramps ", )
         row = layout.row()
-        row.enabled = not bsmprops.manual_on
+        #row.enabled = not bsmprops.manual_on
         row.prop(bsmprops, "only_active_mat", text="Only active Material",)
         row = layout.row()
         row.prop(bsmprops, "fix_name", text="Fix copied Material name",)

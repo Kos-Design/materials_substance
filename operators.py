@@ -50,8 +50,8 @@ class BSM_OT_make_nodes(sub_poll,Operator):
         scene = context.scene
         props = scene.bsmprops
         propper = ph()
-        propper.make_names(context)
-        propper.check_names(context)
+        #
+        #propper.check_names(context)
         if len(scene.shader_links) == 0:
             bpy.ops.bsm.make_nodetree()
         og_selection = list(context.view_layer.objects.selected)
@@ -63,7 +63,6 @@ class BSM_OT_make_nodes(sub_poll,Operator):
         for obj in selected:
             obj.select_set(True)
             context.view_layer.objects.active = obj
-            props.prefix = obj.name
             mat_params = {'ops':self, 'context':context, 'selection':obj, 'already_done':already_done, 'caller':"make_nodes"}
             already_done = ndh.process_materials(**mat_params)
            
@@ -79,39 +78,52 @@ class BSM_OT_make_nodes(sub_poll,Operator):
         return {'FINISHED'}
 
 
-class BSM_OT_name_maker(sub_poll,Operator):
-    bl_idname = "bsm.name_maker"
-    bl_label = ""
-    bl_description = "Assume a probable filename "
+class BSM_OT_assign_nodes(sub_poll,Operator):
+    bl_idname = "bsm.assign_nodes"
+    bl_label = "Only Assign Images"
+    bl_description = "import maps for all selected objects"
 
-    line_num: bpy.props.IntProperty(default=0)
-
-    @classmethod
-    def poll(cls, context):
-        # return (context.object is not None)
-        return True
+    fromimportbutton: bpy.props.BoolProperty(default=False)
 
     def execute(self, context):
-        k = self.line_num
+        ndh = nha()
         scene = context.scene
-        panel_line = eval(f"scene.panel_line{k}")
+        props = scene.bsmprops
         propper = ph()
-       
-        
-        args = {'line':panel_line}
-        file_name = propper.find_file(context,**args)
-        if file_name is not None :
-            panel_line.file_name = panel_line.probable = file_name
-               
-        propper.update_file_is_real(context=panel_line)
 
+        if len(context.scene.shader_links) == 0:
+            bpy.ops.bsm.make_nodetree()
+
+        propper.check_names(context)
+        if len(scene.shader_links) == 0:
+            bpy.ops.bsm.make_nodetree()
+        og_selection = list(context.view_layer.objects.selected)
+        activeobj = context.view_layer.objects.active
+        selected = ndh.selector(context)
+        already_done = []
+        for obj in og_selection:
+            obj.select_set(False)
+        for obj in selected:
+            obj.select_set(True)
+            context.view_layer.objects.active = obj
+            mat_params = {'ops':self, 'context':context, 'selection':obj, 'already_done':already_done, 'caller':"assign_nodes"}
+            already_done = ndh.process_materials(**mat_params)
+            print("mat preocessed - make_nodes")
+            obj.select_set(False)
+
+        for obj in og_selection:
+            obj.select_set(True)
+        context.view_layer.objects.active = activeobj
+        if not self.fromimportbutton:
+            pass
+            # ShowMessageBox("All images loaded sucessfully", "Image Textures assigned", 'FAKE_USER_ON')
         return {'FINISHED'}
 
 
 class BSM_OT_name_checker(sub_poll,Operator):
     bl_idname = "bsm.name_checker"
     bl_label = ""
-    bl_description = "Check if a file containing the Map Name keyword matches the Pattern"
+    bl_description = "Check if a file containing the Map Name exists in the texture folder selected"
 
     line_number: bpy.props.IntProperty(default=0)
     lorigin: bpy.props.StringProperty(default="Not Set")
@@ -126,21 +138,15 @@ class BSM_OT_name_checker(sub_poll,Operator):
         sel = context.object
         mat = sel.active_material
         mat.use_nodes = True
-        args = {'line':panel_line}
-        file_name = propper.find_file(context,**args)
-        if file_name is not None and propper.file_tester(panel_line):
-            panel_line.file_name = panel_line.probable = file_name
+        args = {'line':panel_line, 'mat_name':mat}
+        #file_name = propper.find_file(context,**args)
+        #if file_name is not None and propper.file_tester(panel_line):
+        #    panel_line.file_name = panel_line.probable = file_name
               
         if not propper.file_tester(panel_line) and self.called :
             toreport = panel_line.probable + " not found "
             self.report({'INFO'}, toreport)
-            __class__.bl_description = f"No Image containing the keyword {panel_line.map_label} found , verify the Prefix, the Map name and/or the Maps Folder"
-            """
-            if not prefix.isalnum():
-                toreport = "Prefix is empty"
-                self.report({'INFO'}, toreport)
-            """
-            __class__.bl_description = "Set a non-empty Prefix in the Preferences (of this Addon Tab)"
+            __class__.bl_description = f"No Image containing the keyword {panel_line.map_label} found , verify the Map name and/or the Maps Folder"
         # necessary in order to update description
         unregister_class(__class__)
         register_class(__class__)
@@ -151,45 +157,6 @@ class BSM_OT_name_checker(sub_poll,Operator):
                 toreport = panel_line.probable + " detected in Maps Folder"
                 self.report({'INFO'}, toreport)
 
-        return {'FINISHED'}
-
-class BSM_OT_assign_nodes(sub_poll,Operator):
-    bl_idname = "bsm.assign_nodes"
-    bl_label = "Only Assign Images"
-    bl_description = "import maps for all selected objects"
-
-    fromimportbutton: bpy.props.BoolProperty(default=False)
-
-    def execute(self, context):
-        ndh = nha()
-        scene = context.scene
-        props = scene.bsmprops
-        propper = ph()
-        propper.make_names(context)
-        propper.check_names(context)
-        if len(scene.shader_links) == 0:
-            bpy.ops.bsm.make_nodetree()
-        og_selection = list(context.view_layer.objects.selected)
-        activeobj = context.view_layer.objects.active
-        selected = ndh.selector(context)
-        already_done = []
-        for obj in og_selection:
-            obj.select_set(False)
-        for obj in selected:
-            obj.select_set(True)
-            context.view_layer.objects.active = obj
-            props.prefix = obj.name
-            mat_params = {'ops':self, 'context':context, 'selection':obj, 'already_done':already_done, 'caller':"assign_nodes"}
-            already_done = ndh.process_materials(**mat_params)
-            print("mat preocessed - make_nodes")
-            obj.select_set(False)
-
-        for obj in og_selection:
-            obj.select_set(True)
-        context.view_layer.objects.active = activeobj
-        if not self.fromimportbutton:
-            pass
-            # ShowMessageBox("All images loaded sucessfully", "Image Textures assigned", 'FAKE_USER_ON')
         return {'FINISHED'}
 
 
@@ -423,15 +390,13 @@ class BSM_OT_add_preset(BSM_presetbase, Operator):
     preset_values = [
                      'bsmprops.advanced_mode',
                      'bsmprops.bsm_all',
-                     'bsmprops.usr_dir', 'bsmprops.separator',
+                     'bsmprops.usr_dir',
                      'bsmprops.panel_rows',
                      'bsmprops.apply_to_all', 'bsmprops.clear_nodes',
                      'bsmprops.tweak_levels',
                      'bsmprops.only_active_obj', 'bsmprops.skip_normals',
                      'bsmprops.only_active_mat',
-                     'bsmprops.fix_name',
-                     'bsmprops.prefix',
-                     'bsmprops.patterns'
+                     'bsmprops.fix_name'
 
                      ]
     # Directory to store the presets
@@ -566,17 +531,17 @@ class BSM_OT_load_all(sub_poll, Operator):
             zob = allitems.split("@\_/@")
             allin.append(zob)
         for i in range(10):
-            PaneLine = eval(f"scene.panel_line{i}")
-            PaneLine.map_label = allin[i][1]
+            panel_line = eval(f"scene.panel_line{i}")
+            panel_line.map_label = allin[i][1]
             try :
-                PaneLine.input_sockets = allin[i][2]
+                panel_line.input_sockets = allin[i][2]
             except TypeError :
-                PaneLine.input_sockets = '0'
-            PaneLine.line_on = bool(int(eval(allin[i][3])))
-            PaneLine.map_ext = allin[i][4]
-            PaneLine.file_name = allin[i][5]
-            PaneLine.probable = allin[i][6]
-            PaneLine.manual = bool(int(eval(allin[i][7])))
+                panel_line.input_sockets = '0'
+            panel_line.line_on = bool(int(eval(allin[i][3])))
+            panel_line.map_ext = allin[i][4]
+            panel_line.file_name = allin[i][5]
+            panel_line.probable = allin[i][6]
+            panel_line.manual = bool(int(eval(allin[i][7])))
 
         return {'FINISHED'}
 
