@@ -1,6 +1,8 @@
 Blender Substance Texture Importer
 ------------------------------------
 
+Doc and screenshots outdated !!!
+
 .. figure:: http://kos-design.com/images/plugthum.cropped.png
    :scale: 100 %
    :align: center
