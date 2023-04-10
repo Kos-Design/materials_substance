@@ -52,10 +52,9 @@ class BSM_OT_make_nodes(sub_poll,Operator):
         propper = ph()
         #
         #propper.check_names(context)
-        if len(scene.shader_links) == 0:
-            bpy.ops.bsm.make_nodetree()
+        ndh.refresh_shader_links(context)
         og_selection = list(context.view_layer.objects.selected)
-        activeobj = context.view_layer.objects.active
+        initial_obj = context.view_layer.objects.active
         selected = ndh.selector(context)
         already_done = []
         for obj in og_selection:
@@ -70,7 +69,7 @@ class BSM_OT_make_nodes(sub_poll,Operator):
 
         for obj in og_selection:
             obj.select_set(True)
-        context.view_layer.objects.active = activeobj
+        context.view_layer.objects.active = initial_obj
 
         if not self.fromimportbutton:
             ShowMessageBox("Check Shader nodes panel", "Nodes created", 'FAKE_USER_ON')
@@ -90,15 +89,11 @@ class BSM_OT_assign_nodes(sub_poll,Operator):
         scene = context.scene
         props = scene.bsmprops
         propper = ph()
-
-        if len(context.scene.shader_links) == 0:
-            bpy.ops.bsm.make_nodetree()
-
-        propper.check_names(context)
-        if len(scene.shader_links) == 0:
-            bpy.ops.bsm.make_nodetree()
+        ndh.refresh_shader_links(context)
+        #propper.check_names(context)
+        #ndh.refresh_shader_links(context)
         og_selection = list(context.view_layer.objects.selected)
-        activeobj = context.view_layer.objects.active
+        initial_obj = context.view_layer.objects.active
         selected = ndh.selector(context)
         already_done = []
         for obj in og_selection:
@@ -108,12 +103,11 @@ class BSM_OT_assign_nodes(sub_poll,Operator):
             context.view_layer.objects.active = obj
             mat_params = {'ops':self, 'context':context, 'selection':obj, 'already_done':already_done, 'caller':"assign_nodes"}
             already_done = ndh.process_materials(**mat_params)
-            print("mat preocessed - make_nodes")
             obj.select_set(False)
 
         for obj in og_selection:
             obj.select_set(True)
-        context.view_layer.objects.active = activeobj
+        context.view_layer.objects.active = initial_obj
         if not self.fromimportbutton:
             pass
             # ShowMessageBox("All images loaded sucessfully", "Image Textures assigned", 'FAKE_USER_ON')
@@ -134,29 +128,26 @@ class BSM_OT_name_checker(sub_poll,Operator):
         line_number = self.line_number
         propper = ph()
         panel_line = eval(f"scene.panel_line{line_number}")
-    
+        propper.default_sockets(context, panel_line)
         sel = context.object
         mat = sel.active_material
         mat.use_nodes = True
         args = {'line':panel_line, 'mat_name':mat}
-        #file_name = propper.find_file(context,**args)
-        #if file_name is not None and propper.file_tester(panel_line):
-        #    panel_line.file_name = panel_line.probable = file_name
-              
+
+        """
         if not propper.file_tester(panel_line) and self.called :
-            toreport = panel_line.probable + " not found "
+            toreport = f"{panel_line.probable} not found "
             self.report({'INFO'}, toreport)
             __class__.bl_description = f"No Image containing the keyword {panel_line.map_label} found , verify the Map name and/or the Maps Folder"
-        # necessary in order to update description
         unregister_class(__class__)
         register_class(__class__)
 
         if propper.file_tester(panel_line):
             panel_line.file_is_real = True
             if self.called:
-                toreport = panel_line.probable + " detected in Maps Folder"
+                toreport = f"{panel_line.probable} detected in Maps Folder"
                 self.report({'INFO'}, toreport)
-
+        """
         return {'FINISHED'}
 
 
@@ -179,8 +170,8 @@ class BSM_OT_add_map_line(sub_poll, Operator):
     line_number: IntProperty(default=0)
 
     def execute(self, context):
-        if len(context.scene.shader_links) == 0:
-            bpy.ops.bsm.make_nodetree()
+        ndh = nha()
+        ndh.refresh_shader_links(context)
         context.scene.bsmprops.panel_rows += 1
 
         return {'FINISHED'}
@@ -194,8 +185,8 @@ class BSM_OT_del_map_line(sub_poll, Operator):
     marked: StringProperty(name="line n", default="BSM_PT_PaneLine1")
 
     def execute(self, context):
-        if len(context.scene.shader_links) == 0:
-            bpy.ops.bsm.make_nodetree()
+        ndh = nha()
+        ndh.refresh_shader_links(context)
         scene = context.scene
         context.scene.bsmprops.panel_rows -= 1
         panel_line = eval(f"scene.panel_line{scene.bsmprops.panel_rows}")
@@ -411,81 +402,59 @@ class BSM_OT_make_nodetree(sub_poll, Operator):
     def execute(self, context):
         context.scene.shader_links.clear()
 
-        fetchedOutputs = []  #
-        fetchedInputs = []  #
-        fetchedShaders = []  #
-        fetchedNodes = []  #
-        fetchedObjects = []  #
-        scene = context.scene
-        scenename = str(scene.name_full)
-        bsmprops = scene.bsmprops
+        tmp_outputs = []  #
+        tmp_inputs = []  #
+        tmp_objs = []  #
         propper = ph()
         shaders_list = propper.get_shaders_list(context)
         for obj in context.view_layer.objects.selected:
-            fetchedObjects.append(obj)
+            tmp_objs.append(obj)
         bpy.ops.object.select_all(action='DESELECT')
-        activeobj = context.view_layer.objects.active
-
+        initial_obj = context.view_layer.objects.active
         view_layer = context.view_layer
         mesh = bpy.data.meshes.new("mesh")
-        lecubetmp = bpy.data.objects.new(mesh.name, mesh)
-        collecto = bpy.data.collections.new("latmpcollect")
-        collecto.objects.link(lecubetmp)
-        vieww = view_layer.active_layer_collection
-        vieww.collection.children.link(collecto)
-        lecubetmp.select_set(True)
-        view_layer.objects.active = lecubetmp
-        lematcree = bpy.data.materials.new(name="MaterialName")
-        lecubetmp.data.materials.append(lematcree)
-        mattemp = lecubetmp.material_slots[-1].material
-        mattemp.use_nodes = True
+        tmp_cube = bpy.data.objects.new(mesh.name, mesh)
+        tmp_coll = bpy.data.collections.new("latmpcollect")
+        tmp_coll.objects.link(tmp_cube)
+        active_col = view_layer.active_layer_collection
+        active_col.collection.children.link(tmp_coll)
+        tmp_cube.select_set(True)
+        view_layer.objects.active = tmp_cube
+        new_mat = bpy.data.materials.new(name="MaterialName")
+        tmp_cube.data.materials.append(new_mat)
+        mat_tmp = tmp_cube.material_slots[-1].material
+        mat_tmp.use_nodes = True
         shaders_list_raw = []
-
-        leshaderoutputnodes = []
-        allshaderstnodes = []
         # only create nodes for the initial shaders_list populated by ph.get_shaders_list
         lenghtlist = 11  
-        for lesnods in range(lenghtlist):
-            laligne = shaders_list[lesnods]
-            lID = int(lesnods)
-            letyp = str(laligne[0])
-            lename = str(laligne[1])
-            fetchedShaders.append((lename, letyp), )
-            shaders_list_raw.append(laligne)
-            lanewnode = mattemp.node_tree.nodes.new(type=letyp)
-            lanewnode.name = lename
-            lanewnode.label = lanewnode.name
-            leszinputs = mattemp.node_tree.nodes[lanewnode.name].inputs
-            leszoutputs = mattemp.node_tree.nodes[lanewnode.name].outputs
-            lalistsizeI = len(leszinputs)
-            lalistsizeO = len(leszoutputs)
-            fetchedInputs = []
-            fetchedOutputs = []
-            for inp in range(0, lalistsizeI):
-                leyley = leszinputs[inp].name
-                leinpname = (leyley, leyley, "",)
-                leshaderoutputnodes.append(leinpname)
-                fetchedInputs.append(leyley)
-            for inp in range(0, lalistsizeO):
-                loyloy = leszoutputs[inp].name
-                leoutname = (loyloy, loyloy, "",)
-                fetchedOutputs.append(loyloy)
+        for i in range(lenghtlist):
+            line_items = shaders_list[i]
+            node_type = str(line_items[0])
+            shaders_list_raw.append(line_items)
+            new_node = mat_tmp.node_tree.nodes.new(type=node_type)
+            new_node.name = str(line_items[1])
+            new_node.label = new_node.name
+            new_inputs = mat_tmp.node_tree.nodes[new_node.name].inputs
+            new_outputs = mat_tmp.node_tree.nodes[new_node.name].outputs
+            tmp_inputs = []
+            tmp_outputs = []
+            for j in range(0, len(new_inputs)):
+                tmp_inputs.append(new_inputs[j].name)
+            for k in range(0,len(new_outputs)):
+                tmp_outputs.append(new_outputs[k].name)
+            new_shader_link = context.scene.shader_links.add()
+            new_shader_link.name = str(line_items[1])
+            new_shader_link.shadertype = node_type
+            new_shader_link.input_sockets = ";;;".join(str(x) for x in tmp_inputs)
+            new_shader_link.outputsockets = ";;;".join(str(x) for x in tmp_outputs)
 
-            newentry = context.scene.shader_links.add()
-            newentry.name = lename
-            newentry.shadertype = letyp
-            newentry.input_sockets = "@-¯\(°_o)/¯-@".join(str(x) for x in fetchedInputs)
-            newentry.outputsockets = "@-¯\(°_o)/¯-@".join(str(x) for x in fetchedOutputs)
+        bpy.data.materials.remove(new_mat)
+        bpy.data.objects.remove(tmp_cube)
+        bpy.data.collections.remove(tmp_coll)
 
-            allshaderstnodes.append(leshaderoutputnodes)
-
-        bpy.data.materials.remove(lematcree)
-        bpy.data.objects.remove(lecubetmp)
-        bpy.data.collections.remove(collecto)
-
-        for obj in fetchedObjects:
-            bpy.data.scenes[scenename].objects[obj.name].select_set(True)
-        context.view_layer.objects.active = activeobj
+        for obj in tmp_objs:
+            bpy.data.scenes[str(context.scene.name_full)].objects[obj.name].select_set(True)
+        context.view_layer.objects.active = initial_obj
         return {'FINISHED'}
 
 
@@ -502,16 +471,15 @@ class BSM_OT_save_all(sub_poll, Operator):
             map_label = eval(f"scene.panel_line{i}").map_label
             lechan = eval(f"scene.panel_line{i}").input_sockets
             enabled = str(eval(f"scene.panel_line{i}").line_on)
-            exts = eval(f"scene.panel_line{i}").map_ext
             lesfilenames = eval(f"scene.panel_line{i}").file_name
             probables = eval(f"scene.panel_line{i}").probable
             manuals = str(eval(f"scene.panel_line{i}").manual)
 
-            lineitems = [str(eval(f"scene.panel_line{i}").name), map_label, lechan, enabled, exts, lesfilenames, probables, manuals ]
+            lineitems = [str(eval(f"scene.panel_line{i}").name), map_label, lechan, enabled, lesfilenames, probables, manuals ]
             lineraw = "@\_/@".join(str(lx) for lx in lineitems)
             arey.append(lineraw)
 
-        bsmprops.bsm_all = "@-¯\(°_o)/¯-@".join(str(lx) for lx in arey)
+        bsmprops.bsm_all = "@/-\@".join(str(lx) for lx in arey)
 
         return {'FINISHED'}
 
@@ -525,7 +493,7 @@ class BSM_OT_load_all(sub_poll, Operator):
 
         scene = context.scene
         bsmprops = scene.bsmprops
-        allraw = bsmprops.bsm_all.split("@-¯\(°_o)/¯-@")
+        allraw = bsmprops.bsm_all.split("@/-\@")
         allin = []
         for allitems in allraw:
             zob = allitems.split("@\_/@")
@@ -538,10 +506,9 @@ class BSM_OT_load_all(sub_poll, Operator):
             except TypeError :
                 panel_line.input_sockets = '0'
             panel_line.line_on = bool(int(eval(allin[i][3])))
-            panel_line.map_ext = allin[i][4]
-            panel_line.file_name = allin[i][5]
-            panel_line.probable = allin[i][6]
-            panel_line.manual = bool(int(eval(allin[i][7])))
+            panel_line.file_name = allin[i][4]
+            panel_line.probable = allin[i][5]
+            panel_line.manual = bool(int(eval(allin[i][6])))
 
         return {'FINISHED'}
 

@@ -5,7 +5,6 @@ import itertools
 class PropertiesHandler():
 
     def get_shaders_list(self,context):
-
         nodes_links = context.scene.node_links
 
         shaders_list = [
@@ -26,90 +25,117 @@ class PropertiesHandler():
             for i in range(len(nodes_links)):
                 item = nodes_links[i].nodetype
                 shaders_list.append((item, item, ''), )
-
         shaders_list.reverse()
-
         return shaders_list
     
     def mat_name_cleaner(self,context):
             bsmprops = context.scene.bsmprops
-
-            leobject = context.view_layer.objects.active
-
-            material = leobject.active_material
-            lematname = material.name
-            if (".0" in lematname) and bsmprops.fix_name:
-                lematname = lematname[:-4]
-            matline = (material, lematname)
-            return matline
+            obj = context.view_layer.objects.active
+            material = obj.active_material
+            mat_name = material.name
+            if (".0" in mat_name) and bsmprops.fix_name:
+                mat_name = mat_name[:-4]
+            return (material, mat_name)
 
     def set_nodes_groups(self,context):
         ng = bpy.data.node_groups
         nodes_links = context.scene.node_links
         nodes_links.clear()
-        for nodez in range(len(list(ng))):
-            conectable = len(ng[nodez].inputs) > 0 and len(ng[nodez].outputs) > 0
-            if conectable:
-                newentry = context.scene.node_links.add()
-                newentry.name = ng[nodez].name
-                newentry.nodetype = ng[nodez].name
-
-                outputz = (i for i in ng[nodez].outputs if conectable)
+        for nd in range(len(list(ng))):
+            if conectable := len(ng[nd].inputs) > 0 and len(ng[nd].outputs) > 0:
+                new_link = context.scene.node_links.add()
+                new_link.name = ng[nd].name
+                new_link.nodetype = ng[nd].name
+                outputz = (i for i in ng[nd].outputs if conectable)
                 for socket in outputz:
                     validoutput = socket.type == "SHADER"
                     if validoutput:
-                        newentry.outputsockets = socket.name
+                        new_link.outputsockets = socket.name
                         break
-                        # only the first shaderoutput will be considered
-
-                inputz = (i for i in ng[nodez].inputs if conectable)
+                input_sockets = (i for i in ng[nd].inputs if conectable)
                 inplist = []
-                for socket in inputz:
+                for socket in input_sockets:
                     validinput = socket.type != "SHADER"
                     if validinput:
                         inplist.append(socket.name)
+                new_link.input_sockets = ";;;".join(str(x) for x in inplist)
+    
+    def get_sockets_enum_items(self,context):
+        scene = context.scene
+        shaders_links = scene.shader_links
+        nodes_links = scene.node_links
+        bsmprops = scene.bsmprops
+        selectedshader = scene.bsmprops.shaders_list
+        rawdata = []
+        for i in range(len(shaders_links)):
+            if selectedshader in shaders_links[i].shadertype:
+                rawdata = shaders_links[i].input_sockets.split(";;;")
+        for i in range(len(nodes_links)):
+            if selectedshader in nodes_links[i].nodetype:
+                rawdata = nodes_links[i].input_sockets.split(";;;")
+        if not bsmprops.replace_shader:  # and valid mat
+            mat_used = self.mat_name_cleaner(context)[0]
+            rawdata = self.get_shader_inputs(context,mat_used) 
+        return self.format_enum(context, rawdata)
+    
+    def default_sockets(self,context,panel_line):
+        bsmprops = context.scene.bsmprops
+        sockets_list = self.get_sockets_enum_items(context)
+        for socket in sockets_list:
+            if socket[0].replace(" ", "").lower() in panel_line.map_label.replace(" ", "").lower():
+                panel_line.input_sockets = socket[0]
+                break
+    
+    def guess_sockets(self,context):
+        props = context.scene.bsmprops
+        for i in range(props.panel_rows):
+            panel_line = eval(f"bpy.context.scene.panel_line{i}")
+            self.default_sockets(context,panel_line) 
 
-                newentry.input_sockets = "@-¯\(°_o)/¯-@".join(str(x) for x in inplist)
+    def detect_relevant_maps(self,context):
+        props = context.scene.bsmprops
+        for i in range(props.panel_rows):
+            panel_line = eval(f"bpy.context.scene.panel_line{i}")
+            args = {'line':panel_line,'mat_name':self.mat_name_cleaner(context)[1]}
+            map_found = self.find_file(context,**args)
+            if map_found is not None:
+                panel_line.line_on = True
+                panel_line.file_is_real = True
 
     def clean_input_sockets(self,context):
-        for i in range(10):
-            panel_line = eval(f"context.scene.panel_line{i}")
-            inputs = panel_line.input_sockets
-            if not inputs.isalnum() :
-                panel_line.input_sockets = '0'
+        for i in range(context.scene.bsmprops.panel_rows):
+            input_sockets = eval(f"context.scene.panel_line{i}.input_sockets")
+            #inputs = panel_line.input_sockets
+            #if not inputs.isalnum() :
+            input_sockets = '0'
+                
         return
 
     def check_names(self,context):
-        allpanel_rows = 10
-        panel_lines = list(k for k in range(allpanel_rows) if not eval(f"bpy.context.scene.panel_line{k}.manual"))
+        panel_lines = [k for k in range(context.scene.bsmprops.panel_rows) if not eval(f"bpy.context.scene.panel_line{k}.manual")]
         for ks in panel_lines:
             bpy.ops.bsm.name_checker(line_number=ks, called=False, lorigin="bsmprops")
         return
 
     def get_shader_inputs(self,context,mat_used):
-        #lematerial = __self__.mat_name_cleaner(context)[0]
         if mat_used != None:
-            for lesnodes in mat_used.node_tree.nodes:
-                validoutput = lesnodes.type == "OUTPUT_MATERIAL" and lesnodes.is_active_output and lesnodes.inputs['Surface'].is_linked
+            for nd in mat_used.node_tree.nodes:
+                validoutput = nd.type == "OUTPUT_MATERIAL" and nd.is_active_output and nd.inputs['Surface'].is_linked
                 if validoutput:
-                    currentshader = lesnodes.inputs['Surface'].links[0].from_node
-                    inputz = mat_used.node_tree.nodes[currentshader.name].inputs
-                    if len(inputz) != 0:
-                        keyz = inputz.keys()
-                        return keyz
+                    shd = nd.inputs['Surface'].links[0].from_node
+                    input_sockets = mat_used.node_tree.nodes[shd.name].inputs
+                    if len(input_sockets) != 0:
+                        return input_sockets.keys()
         return []
 
     def format_enum(self,context,rawdata):
         dispitem = [('Disp Vector', 'Disp Vector', ''), ('Displacement', 'Displacement', '')]
         default = ('0', '', '')
-        items = []
-        for item in rawdata:
-            items.append((item, item, ''))
+        items = [(item, item, '') for item in rawdata]    
         items.extend(dispitem)
         items.reverse()
         items.append(default)
         items.reverse()
-
         return items
 
     def get_extensions(self,context):
@@ -130,7 +156,6 @@ class PropertiesHandler():
             # ('.cineon', 'CINEON', ''),
             # ('', 'JPEG2000', ''),
         ]
-
         return filetypes
     
     def list_from_string(self,string="",sep=";;;"):
@@ -144,55 +169,15 @@ class PropertiesHandler():
         if panel_line.file_name in dir_content:
             return True
         return False
-
-    def update_file_is_real(self, context):
-        bsmprops = bpy.context.scene.bsmprops
-        dir_content = self.list_from_string(bsmprops.dir_content)
-        lower_dir_content = bsmprops.dir_content.lower().split(";;;")
-        context.file_is_real = False
-        if context.probable.lower() in lower_dir_content or context.file_name.lower() in lower_dir_content :
-            context.file_is_real = True
-        #TODO: check that
-        if not context.file_is_real :
-            pass
             
-    def set_all_ext(self):
-        print("setting ext")
-        for i in range(bpy.context.scene.bsmprops.panel_rows):
-            panel_line = eval(f"bpy.context.scene.panel_line{i}")
-            extension_detected = self.get_first_valid_ext()
-            panel_line.extension = extension_detected
-            panel_line.map_ext = extension_detected
-    
-    def get_first_valid_ext(self):
-        dir_content = self.list_from_string(string=bpy.context.scene.bsmprops.dir_content)
-        all_ext = self.get_extensions(None)
-        extensions = [x[0] for x in all_ext]
-        for files in dir_content :
-            try :
-                
-                ext = Path(files).suffix
-                if ext in extensions :
-                    #print(f"found {ext}")
-                    return ext
-            except IOError:
-                print(f"error with {files}")
-                continue
-    
-        return ".exr"
-
     def find_file(self,context,**args):
         panel_line = args['line']
-        #mat_name = self.mat_name_cleaner(context)[1]
         mat_name = args['mat_name']
         props = bpy.context.scene.bsmprops
         dir_content = self.list_from_string(props.dir_content)
         lower_dir_content = props.dir_content.lower().split(";;;")
-       
         map_name = panel_line.map_label
-
-        args['ext'] = panel_line.map_ext
-
+        
         for map_file in lower_dir_content:
             if mat_name.lower() in map_file and map_name.lower() in map_file:
                 return str(Path(props.usr_dir).joinpath(Path(dir_content[lower_dir_content.index(map_file)])))

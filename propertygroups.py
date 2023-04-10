@@ -16,12 +16,15 @@ from bpy.utils import (register_class,
                        )
 from . propertieshandler import PropertiesHandler as ph
 
+from . nodeshandler import NodeHandler as nha
+
 def line_on_up(self, context):
     scene = context.scene
+    propper = ph()
+    ndh = nha()
+    propper.default_sockets(context, self)
     bsmprops = scene.bsmprops
-    if len(scene.shader_links) == 0:
-        bpy.ops.bsm.make_nodetree()
-
+    ndh.refresh_shader_links(context)
     return
 
 def apply_to_all_up(self, context):
@@ -45,7 +48,6 @@ def apply_to_all_up(self, context):
         laclasse = cls
         unregister_class(cls)
         register_class(laclasse)
-
     return
 
 def file_name_up(self, context):
@@ -62,36 +64,20 @@ def include_ngroups_up(self, context):
         propper.set_nodes_groups(context)
     else:
         context.scene.node_links.clear()
-    propper.clean_input_sockets(context)
+    #propper.clean_input_sockets(context)    
+    ndh = nha()
+    ndh.refresh_shader_links(context)
+    propper.guess_sockets(context)
     return
   
 def enum_sockets_cb(self, context):
-    # callback for the enumlist of the dynamic enums
-    scene = context.scene
-    shaders_links = scene.shader_links
-    nodes_links = scene.node_links
-    bsmprops = scene.bsmprops
-    selectedshader = scene.bsmprops.shaders_list
-    items = []
-    rawdata = []
+    # generated in PropertiesHandler
     propper = ph()
-    for i in range(len(shaders_links)):
-        if selectedshader in shaders_links[i].shadertype:
-            rawdata = shaders_links[i].input_sockets.split("@-¯\(°_o)/¯-@")
-
-    for i in range(len(nodes_links)):
-        if selectedshader in nodes_links[i].nodetype:
-            rawdata = nodes_links[i].input_sockets.split("@-¯\(°_o)/¯-@")
-
-    if not bsmprops.replace_shader:  # and valid mat
-        mat_used = propper.mat_name_cleaner(context)[0]
-        rawdata = propper.get_shader_inputs(context,mat_used)
-
-    items = propper.format_enum(context, rawdata)
-    # if len(items)
-    return items
-
+    return propper.get_sockets_enum_items(context)
+    
 def enum_sockets_up(self, context):
+    pass
+    """
     # update for the enumlist
     scene = context.scene
     state = self.input_sockets
@@ -117,23 +103,12 @@ def enum_sockets_up(self, context):
                     panel_line.input_sockets = '0'
  
     return
+    """
 
 def map_label_up(self, context):
     if not self.manual:
-        #TODO: maybe name_checker
-        pass
-
-    return
-
-def map_ext_cb(self, context):
-    propper = ph()
-    return propper.get_extensions(context)
-
-def map_ext_up(self, context):
-    if not self.manual:
-        #TODO: maybe name_checker
-        pass
- 
+        propper = ph()
+        propper.default_sockets(context, self)
     return
 
 def shaders_list_cb(self, context):
@@ -142,10 +117,14 @@ def shaders_list_cb(self, context):
 
 def shaders_list_up(self, context):
     propper = ph()
-    scene = context.scene
-    if len(scene.shader_links) == 0:
-        bpy.ops.bsm.make_nodetree()
-    propper.clean_input_sockets(context)
+    propper.guess_sockets(context)
+    """
+    if self.replace_shader :
+        propper.clean_input_sockets(context)
+    ndh = nha()
+    ndh.refresh_shader_links(context)
+    propper.guess_sockets(context)
+    """
     return
 
 def manual_up(self, context):
@@ -157,8 +136,8 @@ def manual_up(self, context):
     return
 
 def advanced_mode_up(self, context):
-    if len(context.scene.shader_links) == 0:
-        bpy.ops.bsm.make_nodetree()
+    ndh = nha()
+    ndh.refresh_shader_links(context)
     if not self.advanced_mode:
         for i in range(self.panel_rows):
             panel_line = eval(f"context.scene.panel_line{i}")
@@ -178,48 +157,42 @@ def usr_dir_up(self, context):
     scene = context.scene
     dir_content = [x.name for x in Path(self.usr_dir).glob('*.*') ]
     bpy.context.scene.bsmprops.dir_content = ";;;".join(str(x) for x in dir_content)
-    #TODO: maybe remove ( we get mat names in node setup & node create)
-   
-def line_dir_up(self, context):
-    pass
+    propper.detect_relevant_maps(context)
 
 def skip_normals_up(self, context):  #
-    if len(context.scene.shader_links) == 0:
-        bpy.ops.bsm.make_nodetree()
+    ndh = nha()
+    ndh.refresh_shader_links(context)
     return
 
 def clear_nodes_up(self, context):
-    if len(context.scene.shader_links) == 0:
-        bpy.ops.bsm.make_nodetree()
+    ndh = nha()
+    ndh.refresh_shader_links(context)
     if self.clear_nodes:
         self.replace_shader = True
     return
 
 def only_active_mat_up(self, context):
-    if len(context.scene.shader_links) == 0:
-        bpy.ops.bsm.make_nodetree()
-
+    ndh = nha()
+    ndh.refresh_shader_links(context)
     return
 
 def fix_name_up(self, context):
-    if len(context.scene.shader_links) == 0:
-        bpy.ops.bsm.make_nodetree()
-
+    ndh = nha()
+    ndh.refresh_shader_links(context)
     return
   
 def replace_shader_up(self, context):
     scene = bpy.context.scene
     propper = ph()
     propper.clean_input_sockets(context)
+    #ndh = nha()
+    #ndh.refresh_shader_links(context)
+    propper.guess_sockets(context)
 
 def only_active_obj_up(self, context):
     if self.only_active_obj:
         self.apply_to_all = False
     return
-
-def dir_content_up(self,context):
-    propper = ph()
-    propper.set_all_ext()
 
 class ShaderLinks(PropertyGroup):
     # shaders_links
@@ -349,8 +322,7 @@ class BSMprops(PropertyGroup):
     dir_content: StringProperty(
         name="Setavalue",
         description="content of selected texture folder",
-        default="noneYet",
-        update=dir_content_up
+        default="noneYet"
     )
 
     enum_placeholder: EnumProperty(
@@ -402,7 +374,7 @@ class BSMprops(PropertyGroup):
     advanced_mode: BoolProperty(
         name="",
         description=" Allows Manual setup of the Maps filenames, \
-                    \n  (Tick the checkbox between Map Name and Ext. to enable Manual)\
+                    \n  (Tick the checkbox between Map Name and Sockets to enable Manual)\
                     \n Allows Skipping Normal map detection,\
                     \n  (Tick 'Skip Normals' for Direct nodes connection)\
                     \n Disables 'Apply to All' in the Options tab",
@@ -469,12 +441,7 @@ class PaneLine0(PropertyGroup):
         description="probable filename",
         default="nope",
     )
-    map_ext: EnumProperty(
-        name="Texture file type",
-        description="Extension of the texture map file",
-        items=map_ext_cb,
-        update=map_ext_up
-    )
+    
     manual: BoolProperty(
         name="",
         description="Manual Mode (Enable to select the Map File directly)",
@@ -485,13 +452,6 @@ class PaneLine0(PropertyGroup):
         name="",
         description="Associated file detected in that folder",
         default=False,
-    )
-    line_dir: StringProperty(
-        name="",
-        description="Folder containing the Textures for this panel line",
-        subtype='DIR_PATH',
-        default=str(Path.home()),
-        update=line_dir_up
     )
 
     is_in_dir: BoolProperty(
@@ -543,12 +503,7 @@ class PaneLine1(PropertyGroup):
         default="nope",
     )
 
-    map_ext: EnumProperty(
-        name="Texture file type",
-        description="Extension of the texture map file",
-        items=map_ext_cb,
-        update=map_ext_up
-    )
+    
     manual: BoolProperty(
         name="",
         description="Manual Mode (Enable to select the Map File directly)",
@@ -559,13 +514,6 @@ class PaneLine1(PropertyGroup):
         name="",
         description="Associated file detected in that folder",
         default=False,
-    )
-    line_dir: StringProperty(
-        name="",
-        description="Folder containing the Textures for this panel line",
-        subtype='DIR_PATH',
-        default=str(Path.home()),
-        update=line_dir_up
     )
 
 
@@ -611,12 +559,7 @@ class PaneLine2(PropertyGroup):
         default="nope",
     )
 
-    map_ext: EnumProperty(
-        name="Texture file type",
-        description="Extension of the texture map file",
-        items=map_ext_cb,
-        update=map_ext_up
-    )
+    
     manual: BoolProperty(
         name="",
         description="Manual Mode (Enable to select the Map File directly)",
@@ -627,13 +570,6 @@ class PaneLine2(PropertyGroup):
         name="",
         description="Associated file detected in that folder",
         default=False,
-    )
-    line_dir: StringProperty(
-        name="",
-        description="Folder containing the Textures for this panel line",
-        subtype='DIR_PATH',
-        default=str(Path.home()),
-        update=line_dir_up
     )
 
 
@@ -679,12 +615,7 @@ class PaneLine3(PropertyGroup):
         default="nope",
     )
 
-    map_ext: EnumProperty(
-        name="Texture file type",
-        description="Extension of the texture map file",
-        items=map_ext_cb,
-        update=map_ext_up
-    )
+    
     manual: BoolProperty(
         name="",
         description="Manual Mode (Enable to select the Map File directly)",
@@ -695,13 +626,6 @@ class PaneLine3(PropertyGroup):
         name="",
         description="Associated file detected in that folder",
         default=False,
-    )
-    line_dir: StringProperty(
-        name="",
-        description="Folder containing the Textures for this panel line",
-        subtype='DIR_PATH',
-        default=str(Path.home()),
-        update=line_dir_up
     )
 
 
@@ -746,12 +670,7 @@ class PaneLine4(PropertyGroup):
         description="probable filename",
         default="nope",
     )
-    map_ext: EnumProperty(
-        name="Texture file type",
-        description="Extension of the texture map file",
-        items=map_ext_cb,
-        update=map_ext_up
-    )
+    
     manual: BoolProperty(
         name="",
         description="Manual Mode (Enable to select the Map File directly)",
@@ -762,13 +681,6 @@ class PaneLine4(PropertyGroup):
         name="",
         description="Associated file detected in that folder",
         default=False,
-    )
-    line_dir: StringProperty(
-        name="",
-        description="Folder containing the Textures for this panel line",
-        subtype='DIR_PATH',
-        default=str(Path.home()),
-        update=line_dir_up
     )
 
 
@@ -813,12 +725,7 @@ class PaneLine5(PropertyGroup):
         description="probable filename",
         default="nope",
     )
-    map_ext: EnumProperty(
-        name="Texture file type",
-        description="Extension of the texture map file",
-        items=map_ext_cb,
-        update=map_ext_up
-    )
+    
     manual: BoolProperty(
         name="",
         description="Manual Mode (Enable to select the Map File directly)",
@@ -829,13 +736,6 @@ class PaneLine5(PropertyGroup):
         name="",
         description="Associated file detected in that folder",
         default=False,
-    )
-    line_dir: StringProperty(
-        name="",
-        description="Folder containing the Textures for this panel line",
-        subtype='DIR_PATH',
-        default=str(Path.home()),
-        update=line_dir_up
     )
 
 
@@ -881,12 +781,7 @@ class PaneLine6(PropertyGroup):
         default="nope",
     )
 
-    map_ext: EnumProperty(
-        name="Texture file type",
-        description="Extension of the texture map file",
-        items=map_ext_cb,
-        update=map_ext_up
-    )
+    
     manual: BoolProperty(
         name="",
         description="Manual Mode (Enable to select the Map File directly)",
@@ -897,13 +792,6 @@ class PaneLine6(PropertyGroup):
         name="",
         description="Associated file detected in that folder",
         default=False,
-    )
-    line_dir: StringProperty(
-        name="",
-        description="Folder containing the Textures for this panel line",
-        subtype='DIR_PATH',
-        default=str(Path.home()),
-        update=line_dir_up
     )
 
 
@@ -949,12 +837,7 @@ class PaneLine7(PropertyGroup):
         default="nope",
     )
 
-    map_ext: EnumProperty(
-        name="Texture file type",
-        description="Extension of the texture map file",
-        items=map_ext_cb,
-        update=map_ext_up
-    )
+    
     manual: BoolProperty(
         name="",
         description="Manual Mode (Enable to select the Map File directly)",
@@ -965,13 +848,6 @@ class PaneLine7(PropertyGroup):
         name="",
         description="Associated file detected in that folder",
         default=False,
-    )
-    line_dir: StringProperty(
-        name="",
-        description="Folder containing the Textures for this panel line",
-        subtype='DIR_PATH',
-        default=str(Path.home()),
-        update=line_dir_up
     )
 
 
@@ -1016,12 +892,7 @@ class PaneLine8(PropertyGroup):
         description="probable filename",
         default="nope",
     )
-    map_ext: EnumProperty(
-        name="Texture file type",
-        description="Extension of the texture map file",
-        items=map_ext_cb,
-        update=map_ext_up
-    )
+    
     manual: BoolProperty(
         name="",
         description="Manual Mode (Enable to select the Map File directly)",
@@ -1032,13 +903,6 @@ class PaneLine8(PropertyGroup):
         name="",
         description="Associated file detected in that folder",
         default=False,
-    )
-    line_dir: StringProperty(
-        name="",
-        description="Folder containing the Textures for this panel line",
-        subtype='DIR_PATH',
-        default=str(Path.home()),
-        update=line_dir_up
     )
 
 
@@ -1083,12 +947,7 @@ class PaneLine9(PropertyGroup):
         default="nope",
     )
 
-    map_ext: EnumProperty(
-        name="Texture file type",
-        description="Extension of the texture map file",
-        items=map_ext_cb,
-        update=map_ext_up
-    )
+    
     manual: BoolProperty(
         name="",
         description="Manual Mode (Enable to select the Map File directly)",
@@ -1099,11 +958,4 @@ class PaneLine9(PropertyGroup):
         name="",
         description="Associated file detected in that folder",
         default=False,
-    )
-    line_dir: StringProperty(
-        name="",
-        description="Folder containing the Textures for this panel line",
-        subtype='DIR_PATH',
-        default=str(Path.home()),
-        update=line_dir_up
     )

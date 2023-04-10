@@ -37,6 +37,10 @@ class NodeHandler():
             else:
                 maps.append(panel_line.map_label)
         return {"maps":maps, "chans":chans, "indexer":indexer}
+    
+    def refresh_shader_links(self,context):
+        if len(context.scene.shader_links) == 0:
+            bpy.ops.bsm.make_nodetree()   
 
     def process_materials(self, **params):
         """helper function used to manipulate nodes
@@ -83,6 +87,7 @@ class NodeHandler():
                         self.create_nodes(**cn_params)
                     already_done.append(mat_active.name)
         obj.active_material_index = idx
+        
         return already_done
         
     def create_nodes(self, **params):
@@ -376,7 +381,7 @@ class NodeHandler():
                 obj.select_set(False)
 
         return selected
-
+    
     def move_nodes(self, **params):
         context = params['context']
         scene = context.scene

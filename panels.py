@@ -60,7 +60,7 @@ class BSM_PT_panel_line(TexImporterPanel, Panel):
         layout = self.layout
         scene = bpy.context.scene
         bsmprops = scene.bsmprops
-        advanced_modemode = bsmprops.advanced_mode
+        advanced_mode = bsmprops.advanced_mode
         panel_rows = bsmprops.panel_rows
         row = layout.row()
         col = row.column()
@@ -79,15 +79,12 @@ class BSM_PT_panel_line(TexImporterPanel, Panel):
         col.label(text="Map name")
         row = row.split(factor=.15)
         col = row.column(align=True)
-        if not advanced_modemode:
-            col.label(text=" " )
-        else :
-
-            col.label(text=" " )
-
+        col.label(text=" " )
+        """
         row = row.split(factor=.33)
         col = row.column(align=True)
         col.label(text="Ext.")
+        """        
         row = row.split(factor=.97)
         col = row.column()
         col.label(text="Sockets")
@@ -115,7 +112,7 @@ class BSM_PT_panel_line(TexImporterPanel, Panel):
             row.alignment = 'EXPAND'
             col = row.column(align = True)
             col.alignment = 'EXPAND'
-            if not advanced_modemode:
+            if not advanced_mode:
                 if panel_line.file_is_real:
                     col.operator('BSM_OT_name_checker', icon='CHECKMARK').line_number = k
                 else:
@@ -123,12 +120,15 @@ class BSM_PT_panel_line(TexImporterPanel, Panel):
             else :
 
                 col.prop(panel_line, "manual", text="", toggle=1, icon='FILE_TICK')
+            """
             row = row.split(factor=.33)
+            
             row.alignment = 'LEFT'
             col = row.column(align=True)
             col.alignment = 'LEFT'
             col.enabled = not manual
             col.prop(panel_line, "map_ext", text="")
+            """
             row = row.split(factor=.97)
             col = row.column()
             col.enabled = panel_line.line_on
