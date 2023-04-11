@@ -26,6 +26,33 @@ def ShowMessageBox(message="", title="Message", icon='INFO'):
     bpy.context.window_manager.popup_menu(draw, title=title, icon=icon)
 
 
+class SelectionSet():
+    """
+    Selection saved and restored after script execution
+    
+    """
+
+    def __init__(self):
+        """Stores selection safely"""
+        bpy.context.view_layer.update()
+        self.selection = [obj.name for obj in bpy.context.selected_objects]
+        self.active = bpy.context.active_object
+        
+    def __enter__(self):
+        """Clears original selection"""
+        for obj in self.selection:
+            bpy.context.view_layer.objects[obj].select_set(False)
+       
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        """Restoring selection"""
+        bpy.context.view_layer.objects.active = self.active
+        for obj in self.selection :
+            bpy.context.view_layer.objects[obj].select_set(True)
+        self.active.select_set(True)
+
+
 class sub_poll():
     bl_options = {'INTERNAL', 'UNDO'}
 
@@ -37,7 +64,17 @@ class sub_poll():
                 return True
         return False
 
+class BSM_OT_reporter(Operator):
+    bl_idname = "bsm.reporter"
+    bl_label = "Displays reports"
+    bl_description = "Prints message in Info Window"
+    bl_options = {'INTERNAL'}
+    
+    reporting: bpy.props.StringProperty(default="")
 
+    def execute(self, context):
+        self.report({'INFO'}, self.reporting)
+        return {'FINISHED'}
 class BSM_OT_make_nodes(sub_poll,Operator):
     bl_idname = "bsm.make_nodes"
     bl_label = "Only Setup Nodes"
@@ -53,23 +90,15 @@ class BSM_OT_make_nodes(sub_poll,Operator):
         #
         #propper.check_names(context)
         ndh.refresh_shader_links(context)
-        og_selection = list(context.view_layer.objects.selected)
-        initial_obj = context.view_layer.objects.active
         selected = ndh.selector(context)
         already_done = []
-        for obj in og_selection:
-            obj.select_set(False)
-        for obj in selected:
-            obj.select_set(True)
-            context.view_layer.objects.active = obj
-            mat_params = {'ops':self, 'context':context, 'selection':obj, 'already_done':already_done, 'caller':"make_nodes"}
-            already_done = ndh.process_materials(**mat_params)
-           
-            obj.select_set(False)
-
-        for obj in og_selection:
-            obj.select_set(True)
-        context.view_layer.objects.active = initial_obj
+        with SelectionSet():    
+            for obj in selected:
+                obj.select_set(True)
+                context.view_layer.objects.active = obj
+                mat_params = {'ops':self,'executable':ndh.create_nodes,'selection':obj,'already_done':already_done}
+                already_done = ndh.process_materials(context,**mat_params)
+                obj.select_set(False)
 
         if not self.fromimportbutton:
             ShowMessageBox("Check Shader nodes panel", "Nodes created", 'FAKE_USER_ON')
@@ -90,24 +119,16 @@ class BSM_OT_assign_nodes(sub_poll,Operator):
         props = scene.bsmprops
         propper = ph()
         ndh.refresh_shader_links(context)
-        #propper.check_names(context)
-        #ndh.refresh_shader_links(context)
-        og_selection = list(context.view_layer.objects.selected)
-        initial_obj = context.view_layer.objects.active
         selected = ndh.selector(context)
         already_done = []
-        for obj in og_selection:
-            obj.select_set(False)
-        for obj in selected:
-            obj.select_set(True)
-            context.view_layer.objects.active = obj
-            mat_params = {'ops':self, 'context':context, 'selection':obj, 'already_done':already_done, 'caller':"assign_nodes"}
-            already_done = ndh.process_materials(**mat_params)
-            obj.select_set(False)
+        with SelectionSet():
+            for obj in selected:
+                obj.select_set(True)
+                context.view_layer.objects.active = obj
+                mat_params = {'ops':self,'executable':ndh.setup_nodes, 'selection':obj, 'already_done':already_done}
+                already_done = ndh.process_materials(context,**mat_params)
+                obj.select_set(False)
 
-        for obj in og_selection:
-            obj.select_set(True)
-        context.view_layer.objects.active = initial_obj
         if not self.fromimportbutton:
             pass
             # ShowMessageBox("All images loaded sucessfully", "Image Textures assigned", 'FAKE_USER_ON')
@@ -392,70 +413,6 @@ class BSM_OT_add_preset(BSM_presetbase, Operator):
                      ]
     # Directory to store the presets
     preset_subdir = 'bsm_presets'
-
-
-class BSM_OT_make_nodetree(sub_poll, Operator):
-    bl_idname = "bsm.make_nodetree"
-    bl_label = "tree creator"
-    bl_description = "used to initialize some dynamic props"
-
-    def execute(self, context):
-        context.scene.shader_links.clear()
-
-        tmp_outputs = []  #
-        tmp_inputs = []  #
-        tmp_objs = []  #
-        propper = ph()
-        shaders_list = propper.get_shaders_list(context)
-        for obj in context.view_layer.objects.selected:
-            tmp_objs.append(obj)
-        bpy.ops.object.select_all(action='DESELECT')
-        initial_obj = context.view_layer.objects.active
-        view_layer = context.view_layer
-        mesh = bpy.data.meshes.new("mesh")
-        tmp_cube = bpy.data.objects.new(mesh.name, mesh)
-        tmp_coll = bpy.data.collections.new("latmpcollect")
-        tmp_coll.objects.link(tmp_cube)
-        active_col = view_layer.active_layer_collection
-        active_col.collection.children.link(tmp_coll)
-        tmp_cube.select_set(True)
-        view_layer.objects.active = tmp_cube
-        new_mat = bpy.data.materials.new(name="MaterialName")
-        tmp_cube.data.materials.append(new_mat)
-        mat_tmp = tmp_cube.material_slots[-1].material
-        mat_tmp.use_nodes = True
-        shaders_list_raw = []
-        # only create nodes for the initial shaders_list populated by ph.get_shaders_list
-        lenghtlist = 11  
-        for i in range(lenghtlist):
-            line_items = shaders_list[i]
-            node_type = str(line_items[0])
-            shaders_list_raw.append(line_items)
-            new_node = mat_tmp.node_tree.nodes.new(type=node_type)
-            new_node.name = str(line_items[1])
-            new_node.label = new_node.name
-            new_inputs = mat_tmp.node_tree.nodes[new_node.name].inputs
-            new_outputs = mat_tmp.node_tree.nodes[new_node.name].outputs
-            tmp_inputs = []
-            tmp_outputs = []
-            for j in range(0, len(new_inputs)):
-                tmp_inputs.append(new_inputs[j].name)
-            for k in range(0,len(new_outputs)):
-                tmp_outputs.append(new_outputs[k].name)
-            new_shader_link = context.scene.shader_links.add()
-            new_shader_link.name = str(line_items[1])
-            new_shader_link.shadertype = node_type
-            new_shader_link.input_sockets = ";;;".join(str(x) for x in tmp_inputs)
-            new_shader_link.outputsockets = ";;;".join(str(x) for x in tmp_outputs)
-
-        bpy.data.materials.remove(new_mat)
-        bpy.data.objects.remove(tmp_cube)
-        bpy.data.collections.remove(tmp_coll)
-
-        for obj in tmp_objs:
-            bpy.data.scenes[str(context.scene.name_full)].objects[obj.name].select_set(True)
-        context.view_layer.objects.active = initial_obj
-        return {'FINISHED'}
 
 
 class BSM_OT_save_all(sub_poll, Operator):

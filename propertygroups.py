@@ -193,6 +193,11 @@ def only_active_obj_up(self, context):
     if self.only_active_obj:
         self.apply_to_all = False
     return
+    
+def refreshing_nodes_up(self, context):
+    if self.refreshing_nodes:
+        propper = ph()
+        propper.clean_input_sockets(context)
 
 class ShaderLinks(PropertyGroup):
     # shaders_links
@@ -292,7 +297,12 @@ class BSMprops(PropertyGroup):
         default=False,
         update=only_active_obj_up
     )
-    
+    refreshing_nodes: BoolProperty(
+        name="Enable or Disable",
+        description="Nodes and sockets lists are being refreshed ",
+        default=False,
+        update=refreshing_nodes_up
+    )
     clear_nodes: BoolProperty(
         name="Enable or Disable",
         description=" Clear existing nodes \
