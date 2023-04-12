@@ -75,6 +75,8 @@ class BSM_OT_reporter(Operator):
     def execute(self, context):
         self.report({'INFO'}, self.reporting)
         return {'FINISHED'}
+
+
 class BSM_OT_make_nodes(sub_poll,Operator):
     bl_idname = "bsm.make_nodes"
     bl_label = "Only Setup Nodes"
@@ -96,7 +98,7 @@ class BSM_OT_make_nodes(sub_poll,Operator):
             for obj in selected:
                 obj.select_set(True)
                 context.view_layer.objects.active = obj
-                mat_params = {'ops':self,'executable':ndh.create_nodes,'selection':obj,'already_done':already_done}
+                mat_params = {'ops':self,'method':ndh.create_nodes,'selection':obj,'already_done':already_done}
                 already_done = ndh.process_materials(context,**mat_params)
                 obj.select_set(False)
 
@@ -125,7 +127,7 @@ class BSM_OT_assign_nodes(sub_poll,Operator):
             for obj in selected:
                 obj.select_set(True)
                 context.view_layer.objects.active = obj
-                mat_params = {'ops':self,'executable':ndh.setup_nodes, 'selection':obj, 'already_done':already_done}
+                mat_params = {'ops':self,'method':ndh.setup_nodes, 'selection':obj, 'already_done':already_done}
                 already_done = ndh.process_materials(context,**mat_params)
                 obj.select_set(False)
 
