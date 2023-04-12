@@ -3,8 +3,47 @@ from pathlib import Path
 from . propertieshandler import PropertiesHandler as ph
  
 
+class SelectionSet():
+    """
+    Selection saved and restored after script execution
+    
+    """
+
+    def __init__(self):
+        """Stores selection safely"""
+        bpy.context.view_layer.update()
+        self.selection = [obj.name for obj in bpy.context.selected_objects]
+        self.active = bpy.context.active_object
+        
+    def __enter__(self):
+        """Clears original selection"""
+        for obj in self.selection:
+            bpy.context.view_layer.objects[obj].select_set(False)
+       
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        """Restoring selection"""
+        bpy.context.view_layer.objects.active = self.active
+        for obj in self.selection :
+            bpy.context.view_layer.objects[obj].select_set(True)
+        self.active.select_set(True)
+
+
 class NodeHandler():
- 
+
+    def handle_nodes(self,context,**params):
+        method = eval(f"self.{params['method']}")
+        self.refresh_shader_links(context)
+        selected = self.selector(context)
+        already_done = []
+        with SelectionSet():    
+            for obj in selected:
+                obj.select_set(True)
+                context.view_layer.objects.active = obj
+                already_done = self.process_materials(context,**{'method':method,'selection':obj,'already_done':already_done})
+                obj.select_set(False)
+
     def get_mat_params(self,context):
         """dictionary generator {maps, channels, index}
 
@@ -86,22 +125,20 @@ class NodeHandler():
         already_done = params['already_done']
         method = params['method']
         obj = params['selection']
-        caller = params['ops']
         mat_slots = [mat.material for mat in obj.material_slots]
         props = context.scene.bsmprops
         og_mat = obj.active_material
         if props.only_active_mat:
             mat_slots = [obj.active_material]
-        for mat in mat_slots:
-            if mat is not None :
-                obj.active_material = mat
-                if mat.name not in already_done:
-                    mat.use_nodes = True
-                    params = {'mat':mat}
+        for mat_active in mat_slots:
+            if mat_active is not None :
+                obj.active_material = mat_active
+                if mat_active.name not in already_done:
+                    mat_active.use_nodes = True
+                    params = {'mat_active':mat_active}
                     method(context,**params)
-                    already_done.append(mat.name)
+                    already_done.append(mat_active.name)
         obj.active_material = og_mat
-        
         return already_done
 
     def get_shader_node(self,context,**params):
@@ -159,7 +196,6 @@ class NodeHandler():
         tex_coord_node.label = f"{mat_active.name} Coordinates"
         if not tex_coord_node.outputs[0].is_linked:
                 tree_links.new(tex_coord_node.outputs['UV'], map_node.inputs['Vector'])
-            
         return map_node,tex_coord_node
 
     def make_new_image_node(self,context,**params):
@@ -191,7 +227,8 @@ class NodeHandler():
     
     def check_add_extras(self,context,**params):
         bools = params['bools']
-        tree_nodes = params['tree_nodes']
+        mat_active = params['mat_active']
+        tree_nodes = mat_active.node_tree.nodes
         if bools['add_extras']:
             if bools['add_curve']:
                 curve_ramp = tree_nodes.new('ShaderNodeRGBCurve')
@@ -226,7 +263,7 @@ class NodeHandler():
         base_y = params['base_y']
         offsetter_y = params['offsetter_y']
         
-        extra_node = self.check_add_extras(context,**{'bools':bools,'tree_nodes':tree_nodes})
+        extra_node = self.check_add_extras(context,**params)
         new_image_node.location = ((base_x + offsetter_x * (int(bools['add_extras']) + int(bools['has_normal'] or bools['has_height']) + 1)),(base_y + offsetter_y * iterator))
         
         if bools['has_normal'] and not bools['skip_normals']:
@@ -278,7 +315,6 @@ class NodeHandler():
                 # not sure it makes any sense
             if (not bools['has_normal'] or bools['skip_normals']) and not bools['add_extras']:
                 tree_links.new(new_image_node.outputs[0], disp_vec_node.inputs['Vector'])
-
         if bools['add_extras']:  # again to be sure
             extra_node.location = (
                 (base_x + offsetter_x * (int(bools['has_normal'] or bools['has_height']) + 1)), (base_y + offsetter_y * iterator))
@@ -326,68 +362,60 @@ class NodeHandler():
     
     def create_nodes(self,context,**params):
         m_params = self.get_mat_params(context)
-        maps = m_params['maps']
-        chans = m_params['chans']
-        idx = m_params['indexer']
-        mat_active = params['mat']
+        if len(m_params['maps']) == 0:
+            return
         propper = ph()
         scene = context.scene
         props = scene.bsmprops
-        tree_nodes = mat_active.node_tree.nodes
-        offsetter_x = -312
-        offsetter_y = -312
         if props.clear_nodes:
-            tree_nodes.clear()
-        args = {'offsetter_x':offsetter_x,'offsetter_y':offsetter_y,'mat_active':mat_active,'props':props,'maps':maps}
+            params['mat_active'].node_tree.nodes.clear()
+        args = {'offsetter_x':-312,'offsetter_y':-312,'mat_active':params['mat_active'],'props':props,'maps':m_params['maps']}
         args['mat_output'] = self.get_output_node(context,**args)
         first_node,invalid_shader = self.get_first_node(context,**args)
-        args['first_node'] = args['old_shader'] = first_node
+        args['first_node'] = first_node
         args['inv'] = invalid_shader
         args['shader_node'] = self.get_shader_node(context,**args)
         args['base_x'] = args['mat_output'].location[0] - 404 * 2
         args['base_y'] = args['mat_output'].location[1]
         self.move_nodes(context,**args)
-        if len(maps) > 0:
-            map_node,tex_coord_node = self.make_tex_mapping_nodes(context,**args)
-            args['map_node'] = map_node
-            args['tex_coord_node'] = tex_coord_node
-            iterator = 0
-            for i in idx:
-                args['line'] = eval(f"scene.panel_line{i}")
-                args['map_name'] = self.get_map_name(context,**args)
-                args['bools'] = self.set_bools_params(context,**args)
-                args['new_image_node'] = self.make_new_image_node(context,**args)
-                args['iterator'] = iterator
-                iterator = self.handle_bumps(context,**args)
-            self.arrange_last_nodes(context,**args)
+        map_node,tex_coord_node = self.make_tex_mapping_nodes(context,**args)
+        args['map_node'] = map_node
+        args['tex_coord_node'] = tex_coord_node
+        iterator = 0
+        for i in m_params['indexer']:
+            args['line'] = eval(f"scene.panel_line{i}")
+            args['map_name'] = self.get_map_name(context,**args)
+            args['bools'] = self.set_bools_params(context,**args)
+            args['new_image_node'] = self.make_new_image_node(context,**args)
+            args['iterator'] = iterator
+            iterator = self.handle_bumps(context,**args)
+        self.arrange_last_nodes(context,**args)
         
     def setup_nodes(self,context,**params):
-        mat = params['mat']
+        mat_active = params['mat_active']
         props = context.scene.bsmprops
         propper = ph()
         #TODO: for indexed in enabled
         panel_lines = [eval(f"bpy.context.scene.panel_line{i}") for i in range(props.panel_rows) if eval(f"bpy.context.scene.panel_line{i}.line_on")]
         for panel_line in panel_lines:
-            args = {'line':panel_line,'mat_name':mat.name}
+            args = {'line':panel_line,'mat_name':mat_active.name}
             active_filepath = propper.find_file(context,**args)
-            imagename = imagename = Path(active_filepath).name
-            if mat.node_tree.nodes.find(imagename) > 0:
+            image_name = Path(active_filepath).name
+            if mat_active.node_tree.nodes.find(image_name) > 0:
                 if Path(active_filepath).is_file():
                     file_path = Path(active_filepath).name
                     bpy.ops.image.open(filepath=active_filepath,show_multiview=False)
-                    nodestofill = [nod for nod in mat.node_tree.nodes if nod.name == imagename]
-                    for node in nodestofill:
-                        node.image = bpy.data.images[imagename]
-                        if imagename.lower() in ["normal", "nor", "norm", "normale", "normals"]:
+                    nodes_to_fill = [nod for nod in mat_active.node_tree.nodes if nod.name == image_name]
+                    for node in nodes_to_fill:
+                        node.image = bpy.data.images[image_name]
+                        if image_name.lower() in ["normal", "nor", "norm", "normale", "normals"]:
                             node.image.colorspace_settings.name = 'Non-Color'
-
-                    bpy.ops.bsm.reporter(reporting=f"Texture file {imagename} assigned in {mat.name}")
+                    bpy.ops.bsm.reporter(reporting=f"Texture file {image_name} assigned in {mat_active.name}")
                 else:
-                    bpy.ops.bsm.reporter(reporting=f"Texture {imagename} not found")
+                    bpy.ops.bsm.reporter(reporting=f"Texture {image_name} not found")
             else:
-                bpy.ops.bsm.reporter(reporting=f"node label {imagename} not found")   
-        return
-
+                bpy.ops.bsm.reporter(reporting=f"node label {image_name} not found")   
+        
     def map_links(self,context,**params):
         map_node = params['map_node']
         mat_active = params['mat_active']
@@ -429,13 +457,10 @@ class NodeHandler():
         shader_node.location = (params['base_x'],params['base_y'])
         tree_nodes = mat_active.node_tree.nodes
         props = scene.bsmprops
-        #TODO: useless:
-        old_shader = params['old_shader']
         replace = props.replace_shader
         panel_rows = props.panel_rows
-        imgs = list(nod for nod in tree_nodes if nod.type == 'TEX_IMAGE')
-
-        enabled = list(k for k in range(panel_rows) if eval(f"bpy.context.scene.panel_line{k}.line_on"))
+        imgs = [nod for nod in tree_nodes if nod.type == 'TEX_IMAGE']
+        enabled = [k for k in range(panel_rows) if eval(f"bpy.context.scene.panel_line{k}.line_on")]
         adding = len(enabled)
         listofshadernodes = []  # TODO get a list of all shadernodes
         ylocsall = []
@@ -459,7 +484,7 @@ class NodeHandler():
             clustersize_y = (ylocsall[-1] - ylocsall[0])
 
         if bool(adding + int(replace)):
-            existing = (nod for nod in tree_nodes if nod.type != "OUTPUT_MATERIAL" and not nod == shader_node)
+            existing = [nod for nod in tree_nodes if nod.type != "OUTPUT_MATERIAL" and not nod == shader_node]
             newclustersize_y = 888 * (adding / 2)
             if not adding > 0 and replace:
                 newclustersize_y = 1024
@@ -467,8 +492,6 @@ class NodeHandler():
 
             for nodez in existing:
                 nodez.location = (nodez.location[0] - 512, nodez.location[1] + offsetter_y)
-
-        return
 
     def get_sockets_center(self,context,**params):
         shader_node = params['shader_node']

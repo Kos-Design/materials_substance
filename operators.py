@@ -2,7 +2,7 @@ import bpy
 from pathlib import Path
 
 from . nodeshandler import NodeHandler as nha
-
+from . nodeshandler import SelectionSet
 from bpy.types import (
     Operator, PropertyGroup, UIList, WindowManager,
     Scene, Menu,
@@ -24,33 +24,6 @@ def ShowMessageBox(message="", title="Message", icon='INFO'):
         self.layout.label(text=message)
 
     bpy.context.window_manager.popup_menu(draw, title=title, icon=icon)
-
-
-class SelectionSet():
-    """
-    Selection saved and restored after script execution
-    
-    """
-
-    def __init__(self):
-        """Stores selection safely"""
-        bpy.context.view_layer.update()
-        self.selection = [obj.name for obj in bpy.context.selected_objects]
-        self.active = bpy.context.active_object
-        
-    def __enter__(self):
-        """Clears original selection"""
-        for obj in self.selection:
-            bpy.context.view_layer.objects[obj].select_set(False)
-       
-        return self
-
-    def __exit__(self, exc_type, exc_value, exc_traceback):
-        """Restoring selection"""
-        bpy.context.view_layer.objects.active = self.active
-        for obj in self.selection :
-            bpy.context.view_layer.objects[obj].select_set(True)
-        self.active.select_set(True)
 
 
 class sub_poll():
@@ -82,29 +55,13 @@ class BSM_OT_make_nodes(sub_poll,Operator):
     bl_label = "Only Setup Nodes"
     bl_description = "Setup empty Texture Nodes"
 
-    fromimportbutton: bpy.props.BoolProperty(default=False)
+    solo: bpy.props.BoolProperty(default=True)
 
     def execute(self, context):
         ndh = nha()
-        scene = context.scene
-        props = scene.bsmprops
-        propper = ph()
-        #
-        #propper.check_names(context)
-        ndh.refresh_shader_links(context)
-        selected = ndh.selector(context)
-        already_done = []
-        with SelectionSet():    
-            for obj in selected:
-                obj.select_set(True)
-                context.view_layer.objects.active = obj
-                mat_params = {'ops':self,'method':ndh.create_nodes,'selection':obj,'already_done':already_done}
-                already_done = ndh.process_materials(context,**mat_params)
-                obj.select_set(False)
-
-        if not self.fromimportbutton:
+        ndh.handle_nodes(context,**{'method':'create_nodes'})
+        if self.solo:
             ShowMessageBox("Check Shader nodes panel", "Nodes created", 'FAKE_USER_ON')
-
         return {'FINISHED'}
 
 
@@ -113,27 +70,13 @@ class BSM_OT_assign_nodes(sub_poll,Operator):
     bl_label = "Only Assign Images"
     bl_description = "import maps for all selected objects"
 
-    fromimportbutton: bpy.props.BoolProperty(default=False)
+    solo: bpy.props.BoolProperty(default=True)
 
     def execute(self, context):
         ndh = nha()
-        scene = context.scene
-        props = scene.bsmprops
-        propper = ph()
-        ndh.refresh_shader_links(context)
-        selected = ndh.selector(context)
-        already_done = []
-        with SelectionSet():
-            for obj in selected:
-                obj.select_set(True)
-                context.view_layer.objects.active = obj
-                mat_params = {'ops':self,'method':ndh.setup_nodes, 'selection':obj, 'already_done':already_done}
-                already_done = ndh.process_materials(context,**mat_params)
-                obj.select_set(False)
-
-        if not self.fromimportbutton:
-            pass
-            # ShowMessageBox("All images loaded sucessfully", "Image Textures assigned", 'FAKE_USER_ON')
+        ndh.handle_nodes(context,**{'method':'setup_nodes'})
+        if self.solo:
+            ShowMessageBox("Matching images loaded", "Image Textures assigned", 'FAKE_USER_ON')
         return {'FINISHED'}
 
 
@@ -152,10 +95,6 @@ class BSM_OT_name_checker(sub_poll,Operator):
         propper = ph()
         panel_line = eval(f"scene.panel_line{line_number}")
         propper.default_sockets(context, panel_line)
-        sel = context.object
-        mat = sel.active_material
-        mat.use_nodes = True
-        args = {'line':panel_line, 'mat_name':mat}
 
         """
         if not propper.file_tester(panel_line) and self.called :
@@ -180,8 +119,8 @@ class BSM_OT_import_textures(sub_poll, Operator):
     bl_description = "Import Texture Maps for active object"
 
     def execute(self, context):
-        bpy.ops.bsm.make_nodes(fromimportbutton=True)
-        bpy.ops.bsm.assign_nodes(fromimportbutton=True)
+        bpy.ops.bsm.make_nodes(solo=False)
+        bpy.ops.bsm.assign_nodes(solo=False)
         return {'FINISHED'}
 
 
