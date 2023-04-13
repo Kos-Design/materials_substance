@@ -135,18 +135,15 @@ class NodeHandler():
                 obj.active_material = mat_active
                 if mat_active.name not in already_done:
                     mat_active.use_nodes = True
-                    params = {'mat_active':mat_active}
-                    method(context,**params)
+                    method(context,**{'mat_active':mat_active})
                     already_done.append(mat_active.name)
         obj.active_material = og_mat
         return already_done
 
     def get_shader_node(self,context,**params):
         props = context.scene.bsmprops
-        mat_active = params['mat_active']
-        mat_output =  params['mat_output']
-        tree_nodes = mat_active.node_tree.nodes
-        tree_links = mat_active.node_tree.links
+        tree_nodes = params['mat_active'].node_tree.nodes
+        tree_links = params['mat_active'].node_tree.links
         shader_node = params['first_node']
         if params['inv'] or props.replace_shader:
             substitute_shader = props.shaders_list
@@ -156,7 +153,7 @@ class NodeHandler():
                 new_node.node_tree = bpy.data.node_groups[substitute_shader]
             else:
                 new_node = tree_nodes.new(substitute_shader)
-            tree_links.new(new_node.outputs[0], mat_output.inputs[0])
+            tree_links.new(new_node.outputs[0], params['mat_output'].inputs[0])
             shader_node = new_node
         if shader_node.type == 'BSDF_PRINCIPLED':
             shader_node.inputs['Specular'].default_value = 0
@@ -164,8 +161,7 @@ class NodeHandler():
         return shader_node
 
     def get_output_node(self,context,**params):
-        mat_active = params['mat_active']
-        tree_nodes = mat_active.node_tree.nodes
+        tree_nodes = params['mat_active'].node_tree.nodes
         out_nodes = [n for n in tree_nodes if n.type == "OUTPUT_MATERIAL"]
         for node in out_nodes:
             if node.is_active_output:
@@ -173,8 +169,7 @@ class NodeHandler():
         return tree_nodes.new("ShaderNodeOutputMaterial")
         
     def get_first_node(self,context,**params):
-        mat_output = params['mat_output']
-        sur_node = mat_output.inputs['Surface']
+        sur_node = params['mat_output'].inputs['Surface']
         invalid_shader = False
         first_node = None
         if sur_node.is_linked:
@@ -187,28 +182,25 @@ class NodeHandler():
         return first_node,invalid_shader
     
     def make_tex_mapping_nodes(self,context,**params):
-        mat_active = params['mat_active']
-        tree_nodes = mat_active.node_tree.nodes
-        tree_links = mat_active.node_tree.links
+        tree_nodes = params['mat_active'].node_tree.nodes
+        tree_links = params['mat_active'].node_tree.links
         map_node = tree_nodes.new('ShaderNodeMapping')
-        map_node.label = f"{mat_active.name} Mapping"
+        map_node.label = f"{params['mat_active'].name} Mapping"
         tex_coord_node = tree_nodes.new('ShaderNodeTexCoord')
-        tex_coord_node.label = f"{mat_active.name} Coordinates"
+        tex_coord_node.label = f"{params['mat_active'].name} Coordinates"
         if not tex_coord_node.outputs[0].is_linked:
                 tree_links.new(tex_coord_node.outputs['UV'], map_node.inputs['Vector'])
         return map_node,tex_coord_node
 
     def make_new_image_node(self,context,**params):
         panel_line = params['line']
-        mat_active = params['mat_active']
         map_name = params['map_name']
-        map_node = params['map_node'] 
-        tree_links = mat_active.node_tree.links
-        tree_nodes = mat_active.node_tree.nodes
+        tree_links = params['mat_active'].node_tree.links
+        tree_nodes = params['mat_active'].node_tree.nodes
         new_image_node = tree_nodes.new(type="ShaderNodeTexImage")
         new_image_node.name = Path(panel_line.file_name).name
         new_image_node.label = map_name
-        tree_links.new(map_node.outputs[0], new_image_node.inputs['Vector'])
+        tree_links.new(params['map_node'].outputs[0], new_image_node.inputs['Vector'])
         return new_image_node
 
     def set_bools_params(self,context,**params):
@@ -227,8 +219,7 @@ class NodeHandler():
     
     def check_add_extras(self,context,**params):
         bools = params['bools']
-        mat_active = params['mat_active']
-        tree_nodes = mat_active.node_tree.nodes
+        tree_nodes = params['mat_active'].node_tree.nodes
         if bools['add_extras']:
             if bools['add_curve']:
                 curve_ramp = tree_nodes.new('ShaderNodeRGBCurve')
@@ -240,8 +231,6 @@ class NodeHandler():
                 ramp = tree_nodes.new('ShaderNodeValToRGB')
                 extra_node = ramp
                 tree_links.new(new_image_node.outputs[0], ramp.inputs[0])
-
-                # tree_links.new(curve_ramp.outputs[0] , mat_output.inputs[2])
             if bools['add_ramp'] or bools['add_curve']:
                 extra_node.label = extra_node.name + map_name
             return extra_node
@@ -249,23 +238,17 @@ class NodeHandler():
 
     def handle_bumps(self,context,**params):
         bools = params['bools']
-        mat_active = params['mat_active']
-        tree_links = mat_active.node_tree.links
-        tree_nodes = mat_active.node_tree.nodes
+        tree_links = params['mat_active'].node_tree.links
+        tree_nodes = params['mat_active'].node_tree.nodes
         new_image_node = params['new_image_node']
         iterator = int(params['iterator'])
         panel_line = params['line'] 
         socket = panel_line.input_sockets
-        mat_output = params['mat_output']
-        shader_node = params['shader_node']
-        base_x = params['base_x']
-        offsetter_x = params['offsetter_x']
-        base_y = params['base_y']
-        offsetter_y = params['offsetter_y']
-        
         extra_node = self.check_add_extras(context,**params)
-        new_image_node.location = ((base_x + offsetter_x * (int(bools['add_extras']) + int(bools['has_normal'] or bools['has_height']) + 1)),(base_y + offsetter_y * iterator))
-        
+        new_image_node.location = (
+                                  (params['base_x'] + params['offsetter_x'] * (int(bools['add_extras']) + int(bools['has_normal'] or bools['has_height']) + 1)),
+                                  (params['base_y'] + params['offsetter_y'] * iterator)
+                                  )
         if bools['has_normal'] and not bools['skip_normals']:
             normal_map_node = tree_nodes.new('ShaderNodeNormalMap')
             tree_links.new(new_image_node.outputs[0], normal_map_node.inputs[1])
@@ -278,23 +261,23 @@ class NodeHandler():
         if socket != "0" and not bools['displaced'] and not ('Disp Vector' in socket):
             if bools['has_normal'] and not bools['skip_normals']:
                 if bools['displaced']:
-                    tree_links.new(normal_map_node.outputs[0], mat_output.inputs[2])
+                    tree_links.new(normal_map_node.outputs[0], params['mat_output'].inputs[2])
                 else:
-                    tree_links.new(normal_map_node.outputs[0], shader_node.inputs[socket])
+                    tree_links.new(normal_map_node.outputs[0], params['shader_node'].inputs[socket])
             if bools['has_height'] and not bools['skip_normals']:
                 if bools['displaced']:
-                    tree_links.new(bump_map_node.outputs[0], mat_output.inputs[2])
+                    tree_links.new(bump_map_node.outputs[0], params['mat_output'].inputs[2])
                 else:
-                    tree_links.new(bump_map_node.outputs[0], shader_node.inputs[socket])
+                    tree_links.new(bump_map_node.outputs[0], params['shader_node'].inputs[socket])
             if not (bools['has_height'] or bools['has_normal']) or bools['skip_normals']:
                 if bools['add_extras']:
-                    tree_links.new(extra_node.outputs[0], shader_node.inputs[socket])
+                    tree_links.new(extra_node.outputs[0], params['shader_node'].inputs[socket])
                 else:
-                    tree_links.new(new_image_node.outputs[0], shader_node.inputs[socket])
+                    tree_links.new(new_image_node.outputs[0], params['shader_node'].inputs[socket])
         if bools['displaced']:
             disp_map_node = tree_nodes.new('ShaderNodeDisplacement')
-            disp_map_node.location = (mat_output.location[0] - 256, mat_output.location[1])
-            tree_links.new(disp_map_node.outputs[0], mat_output.inputs['Displacement'])
+            disp_map_node.location = (params['mat_output'].location[0] - 256, params['mat_output'].location[1])
+            tree_links.new(disp_map_node.outputs[0], params['mat_output'].inputs['Displacement'])
             if bools['add_extras']:
                 tree_links.new(extra_node.outputs[0], disp_map_node.inputs['Height'])
             if bools['has_height'] and not bools['skip_normals']:
@@ -306,8 +289,8 @@ class NodeHandler():
         # TODO implement link sanity check
         if ('Disp Vector' in socket):  
             disp_vec_node = tree_nodes.new('ShaderNodeVectorDisplacement')
-            disp_vec_node.location = (mat_output.location[0] - 256, mat_output.location[1])
-            tree_links.new(disp_vec_node.outputs[0], mat_output.inputs['Displacement'])
+            disp_vec_node.location = (params['mat_output'].location[0] - 256, params['mat_output'].location[1])
+            tree_links.new(disp_vec_node.outputs[0], params['mat_output'].inputs['Displacement'])
             if bools['add_extras']:
                 tree_links.new(extra_node.outputs[0], disp_vec_node.inputs['Vector'])
             if bools['has_normal'] and not bools['skip_normals']:
@@ -317,41 +300,29 @@ class NodeHandler():
                 tree_links.new(new_image_node.outputs[0], disp_vec_node.inputs['Vector'])
         if bools['add_extras']:  # again to be sure
             extra_node.location = (
-                (base_x + offsetter_x * (int(bools['has_normal'] or bools['has_height']) + 1)), (base_y + offsetter_y * iterator))
+                (params['base_x'] + params['offsetter_x'] * (int(bools['has_normal'] or bools['has_height']) + 1)), (params['base_y'] + params['offsetter_y'] * iterator))
         if bools['has_height'] and not bools['skip_normals']:
-            bump_map_node.location = (base_x + offsetter_x, base_y + offsetter_y * iterator)
+            bump_map_node.location = (params['base_x'] + params['offsetter_x'], params['base_y'] + params['offsetter_y'] * iterator)
         if bools['has_normal'] and not bools['skip_normals']:
-            normal_map_node.location = (base_x + offsetter_x, base_y + offsetter_y * iterator)
+            normal_map_node.location = (params['base_x'] + params['offsetter_x'], params['base_y'] + params['offsetter_y'] * iterator)
         iterator += 1
         return iterator
             
     def arrange_last_nodes(self,context,**params):
-        shader_node = params['shader_node']
-        mat_output =  params['mat_output']
-        maps =  params['maps']
-        map_node =  params['map_node']
-        tex_coord_node =  params['tex_coord_node']
-        mat_active = params['mat_active']
-        tree_nodes = mat_active.node_tree.nodes
-        base_x = params['base_x']
-        base_y = params['base_y']
         bools = params['bools']
-        offsetter_x = params['offsetter_x']
-        offsetter_y = params['offsetter_y']
-        shader_node.location[1] = self.get_sockets_center(context,**params) + 128  
-        shader_node.location[0] += 128
-        mat_output.location[1] = shader_node.location[1]
-        bumped = int(len([x for x in maps if "height" in x.lower()]) + len([y for y in maps if "normal" in y.lower()]) > 0)
-        map_node.location = (base_x + offsetter_x * (int(bools['add_extras']) + bumped + 2) + offsetter_x, base_y)
-        tex_coord_node.location = (map_node.location[0] + offsetter_x, map_node.location[1])
-        map_node.location[1] = self.map_links(context,**params)
-        tex_coord_node.location[1] = map_node.location[1]
+        params['shader_node'].location[1] = self.get_sockets_center(context,**params) + 128  
+        params['shader_node'].location[0] += 128
+        params['mat_output'].location[1] = params['shader_node'].location[1]
+        bumped = int(len([x for x in params['maps'] if "height" in x.lower()]) + len([y for y in params['maps'] if "normal" in y.lower()]) > 0)
+        params['map_node'].location = (params['base_x'] + params['offsetter_x'] * (int(bools['add_extras']) + bumped + 2) + params['offsetter_x'], params['base_y'])
+        params['tex_coord_node'].location = (params['map_node'].location[0] + params['offsetter_x'], params['map_node'].location[1])
+        params['map_node'].location[1] = self.map_links(context,**params)
+        params['tex_coord_node'].location[1] = params['map_node'].location[1]
     
     def get_map_name(self,context,**params):
         panel_line = params['line']
-        mat_active = params['mat_active']
         propper = ph()
-        file_name = propper.find_file(context,**{'line':panel_line, 'mat_name':mat_active.name})
+        file_name = propper.find_file(context,**{'line':panel_line, 'mat_name':params['mat_active'].name})
         if file_name is not None :
             panel_line.file_name = panel_line.probable = file_name
         manual = panel_line.manual
@@ -392,36 +363,34 @@ class NodeHandler():
         self.arrange_last_nodes(context,**args)
         
     def setup_nodes(self,context,**params):
-        mat_active = params['mat_active']
         props = context.scene.bsmprops
         propper = ph()
         #TODO: for indexed in enabled
         panel_lines = [eval(f"bpy.context.scene.panel_line{i}") for i in range(props.panel_rows) if eval(f"bpy.context.scene.panel_line{i}.line_on")]
         for panel_line in panel_lines:
-            args = {'line':panel_line,'mat_name':mat_active.name}
+            args = {'line':panel_line,'mat_name':params['mat_active'].name}
             active_filepath = propper.find_file(context,**args)
             image_name = Path(active_filepath).name
-            if mat_active.node_tree.nodes.find(image_name) > 0:
+            if params['mat_active'].node_tree.nodes.find(image_name) > 0:
                 if Path(active_filepath).is_file():
                     file_path = Path(active_filepath).name
                     bpy.ops.image.open(filepath=active_filepath,show_multiview=False)
-                    nodes_to_fill = [nod for nod in mat_active.node_tree.nodes if nod.name == image_name]
+                    nodes_to_fill = [nod for nod in params['mat_active'].node_tree.nodes if nod.name == image_name]
                     for node in nodes_to_fill:
                         node.image = bpy.data.images[image_name]
                         if image_name.lower() in ["normal", "nor", "norm", "normale", "normals"]:
                             node.image.colorspace_settings.name = 'Non-Color'
-                    bpy.ops.bsm.reporter(reporting=f"Texture file {image_name} assigned in {mat_active.name}")
+                    bpy.ops.bsm.reporter(reporting=f"Texture file {image_name} assigned in {params['mat_active'].name}")
                 else:
                     bpy.ops.bsm.reporter(reporting=f"Texture {image_name} not found")
             else:
                 bpy.ops.bsm.reporter(reporting=f"node label {image_name} not found")   
         
     def map_links(self,context,**params):
-        map_node = params['map_node']
-        mat_active = params['mat_active']
-        tree_nodes = mat_active.node_tree.nodes
+        
+        tree_nodes = params['mat_active'].node_tree.nodes
         ylocs = []
-        connected = list(linked for linked in map_node.outputs[0].links if linked.is_valid)
+        connected = list(linked for linked in params['map_node'].outputs[0].links if linked.is_valid)
         if len(connected) > 0:
             for linked in connected:
                 ylocs.append(linked.to_node.location[1])
@@ -452,59 +421,33 @@ class NodeHandler():
     
     def move_nodes(self,context,**params):
         scene = context.scene
-        mat_active = params['mat_active']
-        shader_node = params['shader_node']
-        shader_node.location = (params['base_x'],params['base_y'])
-        tree_nodes = mat_active.node_tree.nodes
+        params['shader_node'].location = (params['base_x'],params['base_y'])
+        tree_nodes = params['mat_active'].node_tree.nodes
         props = scene.bsmprops
         replace = props.replace_shader
         panel_rows = props.panel_rows
         imgs = [nod for nod in tree_nodes if nod.type == 'TEX_IMAGE']
-        enabled = [k for k in range(panel_rows) if eval(f"bpy.context.scene.panel_line{k}.line_on")]
-        adding = len(enabled)
-        listofshadernodes = []  # TODO get a list of all shadernodes
-        ylocsall = []
-        ylocsimg = []
-
-        for nod in tree_nodes:
-            replacedshader = replace and (nod != shader_node)
-            if (nod in imgs) or replacedshader:
-                ylocsimg.append(nod.location[1])
-            ylocsall.append(nod.location[1])
-
-        ylocsimg.sort()
-        ylocsall.sort()
-        distanceimgs = 0
-        clustersize_y = 0
-        newclustersize_y = 0
-        distancenodes = 0
-        if len(ylocsimg) > 1:
-            distanceimgs = (ylocsimg[-1] - ylocsimg[0])
-        if len(ylocsall) > 1:
-            clustersize_y = (ylocsall[-1] - ylocsall[0])
-
-        if bool(adding + int(replace)):
-            existing = [nod for nod in tree_nodes if nod.type != "OUTPUT_MATERIAL" and not nod == shader_node]
-            newclustersize_y = 888 * (adding / 2)
-            if not adding > 0 and replace:
-                newclustersize_y = 1024
-            offsetter_y = newclustersize_y
+        lines = len([k for k in range(panel_rows) if eval(f"bpy.context.scene.panel_line{k}.line_on")])
+        new_cluster_height = 0
+        if bool(lines + int(replace)):
+            existing = [nod for nod in tree_nodes if nod.type != "OUTPUT_MATERIAL" and not nod == params['shader_node']]
+            new_cluster_height = 888 * (lines / 2)
+            if not lines > 0 and replace:
+                new_cluster_height = 1024
+            params['offsetter_y'] = new_cluster_height
 
             for nodez in existing:
-                nodez.location = (nodez.location[0] - 512, nodez.location[1] + offsetter_y)
+                nodez.location = (nodez.location[0] - 512, nodez.location[1] + params['offsetter_y'])
 
     def get_sockets_center(self,context,**params):
-        shader_node = params['shader_node']
-        mat_active = params['mat_active']
-        shader_node.location = (params['base_x'],params['base_y'])
-        tree_nodes = mat_active.node_tree.nodes
+        params['shader_node'].location = (params['base_x'],params['base_y'])
         ylocs = []
-        connected = list(linked for linked in shader_node.inputs if linked.is_linked)
+        connected = list(linked for linked in params['shader_node'].inputs if linked.is_linked)
         if len(connected) > 0:
             for linked in connected:
                 ylocs.append(linked.links[0].from_node.location[1])
         else:
-            for node in tree_nodes:
+            for node in params['mat_active'].node_tree.nodes:
                 ylocs.append(node.location[1])
         ylocs.sort()
         center = (ylocs[0] + ylocs[-1]) / 2
