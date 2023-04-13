@@ -59,7 +59,8 @@ class BSM_OT_make_nodes(sub_poll,Operator):
 
     def execute(self, context):
         ndh = nha()
-        ndh.handle_nodes(context,**{'method':'create_nodes'})
+        report = ndh.handle_nodes(context,**{'method':'create_nodes'})
+        self.report({'INFO'}, " \n ".join(list(report)))
         if self.solo:
             ShowMessageBox("Check Shader nodes panel", "Nodes created", 'FAKE_USER_ON')
         return {'FINISHED'}
@@ -74,7 +75,8 @@ class BSM_OT_assign_nodes(sub_poll,Operator):
 
     def execute(self, context):
         ndh = nha()
-        ndh.handle_nodes(context,**{'method':'setup_nodes'})
+        report = ndh.handle_nodes(context,**{'method':'setup_nodes'})
+        self.report({'INFO'}, " \n ".join(list(report)))
         if self.solo:
             ShowMessageBox("Matching images loaded", "Image Textures assigned", 'FAKE_USER_ON')
         return {'FINISHED'}
@@ -348,8 +350,7 @@ class BSM_OT_add_preset(BSM_presetbase, Operator):
                      'bsmprops.apply_to_all', 'bsmprops.clear_nodes',
                      'bsmprops.tweak_levels',
                      'bsmprops.only_active_obj', 'bsmprops.skip_normals',
-                     'bsmprops.only_active_mat',
-                     'bsmprops.fix_name'
+                     'bsmprops.only_active_mat'
 
                      ]
     # Directory to store the presets
@@ -363,21 +364,20 @@ class BSM_OT_save_all(sub_poll, Operator):
 
     def execute(self, context):
         scene = context.scene
-        bsmprops = scene.bsmprops
-        arey = []
+        props = scene.bsmprops
+        params_to_save = []
         for i in range(10):
             map_label = eval(f"scene.panel_line{i}").map_label
             lechan = eval(f"scene.panel_line{i}").input_sockets
             enabled = str(eval(f"scene.panel_line{i}").line_on)
-            lesfilenames = eval(f"scene.panel_line{i}").file_name
-            probables = eval(f"scene.panel_line{i}").probable
-            manuals = str(eval(f"scene.panel_line{i}").manual)
+            file_name = eval(f"scene.panel_line{i}").file_name
+            probable = eval(f"scene.panel_line{i}").probable
+            manual = str(eval(f"scene.panel_line{i}").manual)
+            items = [str(eval(f"scene.panel_line{i}").name), map_label, lechan, enabled, file_name, probable, manual ]
+            line_raw = "@\_/@".join(str(lx) for lx in items)
+            params_to_save.append(line_raw)
 
-            lineitems = [str(eval(f"scene.panel_line{i}").name), map_label, lechan, enabled, lesfilenames, probables, manuals ]
-            lineraw = "@\_/@".join(str(lx) for lx in lineitems)
-            arey.append(lineraw)
-
-        bsmprops.bsm_all = "@/-\@".join(str(lx) for lx in arey)
+        props.bsm_all = "@/-\@".join(str(lx) for lx in params_to_save)
 
         return {'FINISHED'}
 
@@ -390,23 +390,23 @@ class BSM_OT_load_all(sub_poll, Operator):
     def execute(self, context):
 
         scene = context.scene
-        bsmprops = scene.bsmprops
-        allraw = bsmprops.bsm_all.split("@/-\@")
-        allin = []
-        for allitems in allraw:
-            zob = allitems.split("@\_/@")
-            allin.append(zob)
+        props = scene.bsmprops
+        all_params = props.bsm_all.split("@/-\@")
+        all_params_ready = []
+        for allitems in all_params:
+            item = allitems.split("@\_/@")
+            all_params_ready.append(item)
         for i in range(10):
             panel_line = eval(f"scene.panel_line{i}")
-            panel_line.map_label = allin[i][1]
+            panel_line.map_label = all_params_ready[i][1]
             try :
-                panel_line.input_sockets = allin[i][2]
+                panel_line.input_sockets = all_params_ready[i][2]
             except TypeError :
                 panel_line.input_sockets = '0'
-            panel_line.line_on = bool(int(eval(allin[i][3])))
-            panel_line.file_name = allin[i][4]
-            panel_line.probable = allin[i][5]
-            panel_line.manual = bool(int(eval(allin[i][6])))
+            panel_line.line_on = bool(int(eval(all_params_ready[i][3])))
+            panel_line.file_name = all_params_ready[i][4]
+            panel_line.probable = all_params_ready[i][5]
+            panel_line.manual = bool(int(eval(all_params_ready[i][6])))
 
         return {'FINISHED'}
 

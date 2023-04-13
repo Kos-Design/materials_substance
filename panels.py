@@ -220,4 +220,4 @@ class BSM_PT_options(TexImporterPanel, Panel):
         #row.enabled = not bsmprops.manual_on
         row.prop(bsmprops, "only_active_mat", text="Only active Material",)
         row = layout.row()
-        row.prop(bsmprops, "fix_name", text="Fix copied Material name",)
+        row.separator()

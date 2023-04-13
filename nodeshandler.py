@@ -37,12 +37,15 @@ class NodeHandler():
         self.refresh_shader_links(context)
         selected = self.selector(context)
         already_done = []
+        out_args = {}
         with SelectionSet():    
             for obj in selected:
                 obj.select_set(True)
                 context.view_layer.objects.active = obj
-                already_done = self.process_materials(context,**{'method':method,'selection':obj,'already_done':already_done})
+                out_args[f"{obj.name}"] = self.process_materials(context,**{'out_args':out_args,'method':method,'selection':obj,'already_done':already_done})
+                already_done = out_args['already_done'] 
                 obj.select_set(False)
+        return out_args
 
     def get_mat_params(self,context):
         """dictionary generator {maps, channels, index}
@@ -122,6 +125,7 @@ class NodeHandler():
             https://www.python.org/dev/peps/pep-0484/
 
         """
+        out_args = params['out_args']
         already_done = params['already_done']
         method = params['method']
         obj = params['selection']
@@ -135,10 +139,11 @@ class NodeHandler():
                 obj.active_material = mat_active
                 if mat_active.name not in already_done:
                     mat_active.use_nodes = True
-                    method(context,**{'mat_active':mat_active})
+                    out_args['mat_active.name'] = method(context,**{'out_args':out_args,'mat_active':mat_active})
                     already_done.append(mat_active.name)
         obj.active_material = og_mat
-        return already_done
+        out_args['already_done'] = already_done
+        return out_args
 
     def get_shader_node(self,context,**params):
         props = context.scene.bsmprops
@@ -157,7 +162,6 @@ class NodeHandler():
             shader_node = new_node
         if shader_node.type == 'BSDF_PRINCIPLED':
             shader_node.inputs['Specular'].default_value = 0
-
         return shader_node
 
     def get_output_node(self,context,**params):
@@ -194,12 +198,11 @@ class NodeHandler():
 
     def make_new_image_node(self,context,**params):
         panel_line = params['line']
-        map_name = params['map_name']
         tree_links = params['mat_active'].node_tree.links
         tree_nodes = params['mat_active'].node_tree.nodes
         new_image_node = tree_nodes.new(type="ShaderNodeTexImage")
         new_image_node.name = Path(panel_line.file_name).name
-        new_image_node.label = map_name
+        new_image_node.label = params['map_name']
         tree_links.new(params['map_node'].outputs[0], new_image_node.inputs['Vector'])
         return new_image_node
 
@@ -220,19 +223,20 @@ class NodeHandler():
     def check_add_extras(self,context,**params):
         bools = params['bools']
         tree_nodes = params['mat_active'].node_tree.nodes
+        tree_links = params['mat_active'].node_tree.links
         if bools['add_extras']:
             if bools['add_curve']:
                 curve_ramp = tree_nodes.new('ShaderNodeRGBCurve')
                 extra_node = curve_ramp
-                extra_node.label = f"{extra_node.name}{map_name}"
-                tree_links.new(new_image_node.outputs[0], curve_ramp.inputs[1])
+                extra_node.label = f"{extra_node.name}{params['map_name']}"
+                tree_links.new(params['new_image_node'].outputs[0], curve_ramp.inputs[1])
 
             if bools['add_ramp']:
                 ramp = tree_nodes.new('ShaderNodeValToRGB')
                 extra_node = ramp
-                tree_links.new(new_image_node.outputs[0], ramp.inputs[0])
+                tree_links.new(params['new_image_node'].outputs[0], ramp.inputs[0])
             if bools['add_ramp'] or bools['add_curve']:
-                extra_node.label = extra_node.name + map_name
+                extra_node.label = f"{extra_node.name}{params['map_name']}"
             return extra_node
         return None
 
@@ -319,19 +323,16 @@ class NodeHandler():
         params['map_node'].location[1] = self.map_links(context,**params)
         params['tex_coord_node'].location[1] = params['map_node'].location[1]
     
+
     def get_map_name(self,context,**params):
-        panel_line = params['line']
         propper = ph()
-        file_name = propper.find_file(context,**{'line':panel_line, 'mat_name':params['mat_active'].name})
-        if file_name is not None :
-            panel_line.file_name = panel_line.probable = file_name
-        manual = panel_line.manual
-        map_name = panel_line.map_label
-        if manual:
-            map_name = Path(panel_line.file_name).name
-        return map_name
+        propper.set_file_name(context,**params)
+        if params['line'].manual:
+            return Path(params['line'].file_name).name
+        return params['line'].map_label
     
     def create_nodes(self,context,**params):
+        out_args = params['out_args']
         m_params = self.get_mat_params(context)
         if len(m_params['maps']) == 0:
             return
@@ -360,45 +361,53 @@ class NodeHandler():
             args['new_image_node'] = self.make_new_image_node(context,**args)
             args['iterator'] = iterator
             iterator = self.handle_bumps(context,**args)
+            out_args[f"nodes_for_{args['mat_active'].name}_{args['line'].map_label}"] = True
         self.arrange_last_nodes(context,**args)
-        
+        return out_args
+
     def setup_nodes(self,context,**params):
         props = context.scene.bsmprops
         propper = ph()
-        #TODO: for indexed in enabled
+        out_args = params['out_args']
         panel_lines = [eval(f"bpy.context.scene.panel_line{i}") for i in range(props.panel_rows) if eval(f"bpy.context.scene.panel_line{i}.line_on")]
+        out_args['report'] = ""
         for panel_line in panel_lines:
             args = {'line':panel_line,'mat_name':params['mat_active'].name}
             active_filepath = propper.find_file(context,**args)
-            image_name = Path(active_filepath).name
-            if params['mat_active'].node_tree.nodes.find(image_name) > 0:
-                if Path(active_filepath).is_file():
-                    file_path = Path(active_filepath).name
-                    bpy.ops.image.open(filepath=active_filepath,show_multiview=False)
-                    nodes_to_fill = [nod for nod in params['mat_active'].node_tree.nodes if nod.name == image_name]
-                    for node in nodes_to_fill:
-                        node.image = bpy.data.images[image_name]
-                        if image_name.lower() in ["normal", "nor", "norm", "normale", "normals"]:
-                            node.image.colorspace_settings.name = 'Non-Color'
-                    bpy.ops.bsm.reporter(reporting=f"Texture file {image_name} assigned in {params['mat_active'].name}")
+            if active_filepath :
+                image_name = Path(active_filepath).name
+                if params['mat_active'].node_tree.nodes.find(image_name) > 0:
+                    if Path(active_filepath).is_file():
+                        file_path = Path(active_filepath).name
+                        bpy.ops.image.open(filepath=active_filepath,show_multiview=False)
+                        nodes_to_fill = [nod for nod in params['mat_active'].node_tree.nodes if nod.name == image_name]
+                        for node in nodes_to_fill:
+                            node.image = bpy.data.images[image_name]
+                            if image_name.lower() in ["normal", "nor", "norm", "normale", "normals"]:
+                                node.image.colorspace_settings.name = 'Non-Color'
+                        out_args[f"{params['mat_active'].name}_{panel_line.map_label}"] = file_path
+                        out_args['report'] = out_args['report'] + f"Texture file {image_name} assigned in {params['mat_active'].name} "
+                    else:
+                        out_args['report'] = out_args['report'] + f"Texture {image_name} not found "
                 else:
-                    bpy.ops.bsm.reporter(reporting=f"Texture {image_name} not found")
+                    out_args['report'] = out_args['report'] + f"node label {image_name} not found " 
             else:
-                bpy.ops.bsm.reporter(reporting=f"node label {image_name} not found")   
-        
+                out_args['report'] = out_args['report'] + f"No image found matching {panel_line.map_label} for material: {params['mat_active'].name} "
+        return out_args    
+
     def map_links(self,context,**params):
         
         tree_nodes = params['mat_active'].node_tree.nodes
-        ylocs = []
+        locs_y = []
         connected = list(linked for linked in params['map_node'].outputs[0].links if linked.is_valid)
         if len(connected) > 0:
             for linked in connected:
-                ylocs.append(linked.to_node.location[1])
+                locs_y.append(linked.to_node.location[1])
         else:
             for nod in tree_nodes:
-                ylocs.append(nod.location[1])
-        ylocs.sort()
-        center = (ylocs[0] + ylocs[-1]) / 2
+                locs_y.append(nod.location[1])
+        locs_y.sort()
+        center = (locs_y[0] + locs_y[-1]) / 2
         return center   
     
     def selector(self,context):
@@ -441,15 +450,15 @@ class NodeHandler():
 
     def get_sockets_center(self,context,**params):
         params['shader_node'].location = (params['base_x'],params['base_y'])
-        ylocs = []
+        locs_y = []
         connected = list(linked for linked in params['shader_node'].inputs if linked.is_linked)
         if len(connected) > 0:
             for linked in connected:
-                ylocs.append(linked.links[0].from_node.location[1])
+                locs_y.append(linked.links[0].from_node.location[1])
         else:
             for node in params['mat_active'].node_tree.nodes:
-                ylocs.append(node.location[1])
-        ylocs.sort()
-        center = (ylocs[0] + ylocs[-1]) / 2
+                locs_y.append(node.location[1])
+        locs_y.sort()
+        center = (locs_y[0] + locs_y[-1]) / 2
         return center
 

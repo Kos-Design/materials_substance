@@ -33,9 +33,13 @@ class PropertiesHandler():
             obj = context.view_layer.objects.active
             material = obj.active_material
             mat_name = material.name
-            if (".0" in mat_name) and bsmprops.fix_name:
-                mat_name = mat_name[:-4]
             return (material, mat_name)
+    
+    def set_file_name(self,context,**params):
+        panel_line = params['line']
+        file_name = self.find_file(context,**{'line':panel_line, 'mat_name':params['mat_active'].name})
+        if file_name is not None :
+            panel_line.file_name = panel_line.probable = file_name
 
     def set_nodes_groups(self,context):
         ng = bpy.data.node_groups
@@ -46,19 +50,13 @@ class PropertiesHandler():
                 new_link = context.scene.node_links.add()
                 new_link.name = ng[nd].name
                 new_link.nodetype = ng[nd].name
-                outputz = (i for i in ng[nd].outputs if conectable)
-                for socket in outputz:
+                for socket in [i for i in ng[nd].outputs if conectable]:
                     validoutput = socket.type == "SHADER"
                     if validoutput:
                         new_link.outputsockets = socket.name
                         break
                 input_sockets = (i for i in ng[nd].inputs if conectable)
-                inplist = []
-                for socket in input_sockets:
-                    validinput = socket.type != "SHADER"
-                    if validinput:
-                        inplist.append(socket.name)
-                new_link.input_sockets = ";;;".join(str(x) for x in inplist)
+                new_link.input_sockets = ";;;".join(str(socket.name) for socket in input_sockets if socket.type != "SHADER")
     
     def get_sockets_enum_items(self,context):
         scene = context.scene
@@ -107,8 +105,7 @@ class PropertiesHandler():
             input_sockets = eval(f"context.scene.panel_line{i}.input_sockets")
             #inputs = panel_line.input_sockets
             #if not inputs.isalnum() :
-            input_sockets = '0'
-                
+            input_sockets = '0'     
         return
 
     def check_names(self,context):

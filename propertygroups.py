@@ -175,11 +175,6 @@ def only_active_mat_up(self, context):
     ndh = nha()
     ndh.refresh_shader_links(context)
     return
-
-def fix_name_up(self, context):
-    ndh = nha()
-    ndh.refresh_shader_links(context)
-    return
   
 def replace_shader_up(self, context):
     scene = bpy.context.scene
@@ -399,15 +394,6 @@ class BSMprops(PropertyGroup):
                         \n Enable this to only use the active Material Slot.",
         default=False,
         update=only_active_mat_up
-    )
-    fix_name: BoolProperty(
-        name="",
-        description=" Remove the '.001', '.002', etc. suffixes from a duplicated Material name, \
-                         \n without changing the Material name itself. \
-                         \n  (Usefull for a copied object or duplicated Material\
-                         \n  which got a '.00x' suffix appended. Warning: Experimental !!!) ",
-        default=False,
-        update=fix_name_up
     )
 
 
