@@ -158,6 +158,7 @@ class BSM_PT_prefs(TexImporterPanel,Panel):
         row = col.row()
         row.alignment = 'RIGHT'
         row.operator("BSM_OT_del_map_line", icon="REMOVE",)
+        
         row.separator()
         row = layout.row()
         row.alignment = 'LEFT'
@@ -183,7 +184,7 @@ class BSM_PT_buttons(TexImporterPanel, Panel):
         row = col.row(align = True)
         row.operator("BSM_OT_assign_nodes")
         row.separator()
-        row.operator("BSM_OT_make_nodes")
+        ops = row.operator("BSM_OT_make_nodes")
 
 
 class BSM_PT_options(TexImporterPanel, Panel):

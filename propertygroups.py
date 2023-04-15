@@ -194,6 +194,10 @@ def refreshing_nodes_up(self, context):
         propper = ph()
         propper.clean_input_sockets(context)
 
+def tmp_dir_up(self,context):
+    pass
+    
+
 class ShaderLinks(PropertyGroup):
     # shaders_links
     ID: IntProperty(
@@ -342,6 +346,13 @@ class BSMprops(PropertyGroup):
         subtype='DIR_PATH',
         default=str(Path.home()),
         update=usr_dir_up
+    )
+    tmp_dir: StringProperty(
+        name="",
+        description="Folder containing the Textures Images to be imported",
+        subtype='DIR_PATH',
+        default=str(Path.home()),
+        update=tmp_dir_up
     )
     bsm_all: StringProperty(
         name="allsettings",

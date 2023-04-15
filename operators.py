@@ -56,11 +56,14 @@ class BSM_OT_make_nodes(sub_poll,Operator):
     bl_description = "Setup empty Texture Nodes"
 
     solo: bpy.props.BoolProperty(default=True)
-
+   
     def execute(self, context):
         ndh = nha()
         report = ndh.handle_nodes(context,**{'method':'create_nodes'})
-        self.report({'INFO'}, " \n ".join(list(report)))
+        reporting = ndh.print_dict(report)
+           
+        #)" \n ".join(list(report))
+        self.report({'INFO'}, reporting)
         if self.solo:
             ShowMessageBox("Check Shader nodes panel", "Nodes created", 'FAKE_USER_ON')
         return {'FINISHED'}
@@ -72,13 +75,16 @@ class BSM_OT_assign_nodes(sub_poll,Operator):
     bl_description = "import maps for all selected objects"
 
     solo: bpy.props.BoolProperty(default=True)
-
+    
     def execute(self, context):
         ndh = nha()
         report = ndh.handle_nodes(context,**{'method':'setup_nodes'})
-        self.report({'INFO'}, " \n ".join(list(report)))
+        report['img_loaded'] 
+        reporting = ndh.print_dict(report)
+        self.report({'INFO'}, reporting)
+        #self.report({'INFO'}, " \n ".join(list(report)))
         if self.solo:
-            ShowMessageBox("Matching images loaded", "Image Textures assigned", 'FAKE_USER_ON')
+            ShowMessageBox(f"{report['img_loaded']} matching images loaded", "Images assigned to respective nodes", 'FAKE_USER_ON')
         return {'FINISHED'}
 
 

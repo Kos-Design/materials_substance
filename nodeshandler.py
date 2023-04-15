@@ -36,14 +36,14 @@ class NodeHandler():
         method = eval(f"self.{params['method']}")
         self.refresh_shader_links(context)
         selected = self.selector(context)
-        already_done = []
-        out_args = {}
+        out_args = {'already_done':[],'report':""}
+        out_args2 = {'thing':"thing"}
         with SelectionSet():    
             for obj in selected:
                 obj.select_set(True)
                 context.view_layer.objects.active = obj
-                out_args[f"{obj.name}"] = self.process_materials(context,**{'out_args':out_args,'method':method,'selection':obj,'already_done':already_done})
-                already_done = out_args['already_done'] 
+                #out_args[f"{obj.name}"] = 
+                out_args = self.process_materials(context,**{'out_args':out_args,'method':params['method'],'selection':obj})
                 obj.select_set(False)
         return out_args
 
@@ -126,8 +126,9 @@ class NodeHandler():
 
         """
         out_args = params['out_args']
-        already_done = params['already_done']
-        method = params['method']
+        #out_args = {}
+        already_done = out_args['already_done']
+        method = eval(f"self.{params['method']}")
         obj = params['selection']
         mat_slots = [mat.material for mat in obj.material_slots]
         props = context.scene.bsmprops
@@ -137,12 +138,15 @@ class NodeHandler():
         for mat_active in mat_slots:
             if mat_active is not None :
                 obj.active_material = mat_active
-                if mat_active.name not in already_done:
+                if mat_active.name not in out_args['already_done']:
                     mat_active.use_nodes = True
-                    out_args['mat_active.name'] = method(context,**{'out_args':out_args,'mat_active':mat_active})
-                    already_done.append(mat_active.name)
+                    #out_args['mat_active.name'] = 
+                    out_args = method(context,**{'out_args':out_args,'mat_active':mat_active})
+                    out_args['already_done'].append(mat_active.name)
+                else :
+                    out_args['report'] = out_args['report'] + "\n" + f"skipping{mat_active.name} as it has already been processed during {params['method']}" 
+                    continue   
         obj.active_material = og_mat
-        out_args['already_done'] = already_done
         return out_args
 
     def get_shader_node(self,context,**params):
@@ -311,7 +315,18 @@ class NodeHandler():
             normal_map_node.location = (params['base_x'] + params['offsetter_x'], params['base_y'] + params['offsetter_y'] * iterator)
         iterator += 1
         return iterator
-            
+
+    def print_dict(self,args):
+        msg = ""
+        for k, v in args.items():
+            #msg = msg + "\n" + (f"{type(k)}:{type(v)}")
+            if k not in "already_done" and isinstance(v, dict):
+                msg = msg + "\n" + f"{k}:"
+                self.print_dict(v)
+            elif(k not in "already_done"):
+                msg = msg + "\n" + f"{k}:{v}"
+        return msg
+
     def arrange_last_nodes(self,context,**params):
         bools = params['bools']
         params['shader_node'].location[1] = self.get_sockets_center(context,**params) + 128  
@@ -361,7 +376,7 @@ class NodeHandler():
             args['new_image_node'] = self.make_new_image_node(context,**args)
             args['iterator'] = iterator
             iterator = self.handle_bumps(context,**args)
-            out_args[f"nodes_for_{args['mat_active'].name}_{args['line'].map_label}"] = True
+            out_args['report'] = f"{out_args['report']} \n image node for {args['line'].map_label} map created in {args['mat_active'].name}"
         self.arrange_last_nodes(context,**args)
         return out_args
 
@@ -370,7 +385,8 @@ class NodeHandler():
         propper = ph()
         out_args = params['out_args']
         panel_lines = [eval(f"bpy.context.scene.panel_line{i}") for i in range(props.panel_rows) if eval(f"bpy.context.scene.panel_line{i}.line_on")]
-        out_args['report'] = ""
+        out_args['img_loaded'] = 0
+
         for panel_line in panel_lines:
             args = {'line':panel_line,'mat_name':params['mat_active'].name}
             active_filepath = propper.find_file(context,**args)
@@ -385,14 +401,15 @@ class NodeHandler():
                             node.image = bpy.data.images[image_name]
                             if image_name.lower() in ["normal", "nor", "norm", "normale", "normals"]:
                                 node.image.colorspace_settings.name = 'Non-Color'
-                        out_args[f"{params['mat_active'].name}_{panel_line.map_label}"] = file_path
-                        out_args['report'] = out_args['report'] + f"Texture file {image_name} assigned in {params['mat_active'].name} "
+                            out_args['img_loaded'] += 1
+                        #out_args[f"{params['mat_active'].name}_{panel_line.map_label}"] = file_path
+                        out_args['report'] = f"{out_args['report']} \n Texture file {image_name} assigned to {panel_line.map_label} node in {params['mat_active'].name} "
                     else:
-                        out_args['report'] = out_args['report'] + f"Texture {image_name} not found "
+                        out_args['report'] = f"{out_args['report']} \n Texture {image_name} not found "
                 else:
-                    out_args['report'] = out_args['report'] + f"node label {image_name} not found " 
+                    out_args['report'] = f"{out_args['report']} \n node {image_name} not found, run Setup Nodes before " 
             else:
-                out_args['report'] = out_args['report'] + f"No image found matching {panel_line.map_label} for material: {params['mat_active'].name} "
+                out_args['report'] = f"{out_args['report']} \n No image found matching {panel_line.map_label} for material: {params['mat_active'].name} in folder {props.usr_dir}"
         return out_args    
 
     def map_links(self,context,**params):
