@@ -99,14 +99,13 @@ class BSM_OT_name_checker(sub_poll,Operator):
 
     def execute(self, context):
         scene = context.scene
-        line_number = self.line_number
         propper = ph()
-        panel_line = eval(f"scene.panel_line{line_number}")
+        panel_line = eval(f"scene.panel_line{self.line_number}")
         propper.default_sockets(context, panel_line)
-
+        propper.detect_a_map(context,self.line_number)
         """
         if not propper.file_tester(panel_line) and self.called :
-            toreport = f"{panel_line.probable} not found "
+            toreport = f"not found "
             self.report({'INFO'}, toreport)
             __class__.bl_description = f"No Image containing the keyword {panel_line.map_label} found , verify the Map name and/or the Maps Folder"
         unregister_class(__class__)
@@ -115,7 +114,7 @@ class BSM_OT_name_checker(sub_poll,Operator):
         if propper.file_tester(panel_line):
             panel_line.file_is_real = True
             if self.called:
-                toreport = f"{panel_line.probable} detected in Maps Folder"
+                toreport = f" detected in Maps Folder"
                 self.report({'INFO'}, toreport)
         """
         return {'FINISHED'}
@@ -377,9 +376,8 @@ class BSM_OT_save_all(sub_poll, Operator):
             lechan = eval(f"scene.panel_line{i}").input_sockets
             enabled = str(eval(f"scene.panel_line{i}").line_on)
             file_name = eval(f"scene.panel_line{i}").file_name
-            probable = eval(f"scene.panel_line{i}").probable
             manual = str(eval(f"scene.panel_line{i}").manual)
-            items = [str(eval(f"scene.panel_line{i}").name), map_label, lechan, enabled, file_name, probable, manual ]
+            items = [str(eval(f"scene.panel_line{i}").name), map_label, lechan, enabled, file_name, manual ]
             line_raw = "@\_/@".join(str(lx) for lx in items)
             params_to_save.append(line_raw)
 
@@ -411,8 +409,7 @@ class BSM_OT_load_all(sub_poll, Operator):
                 panel_line.input_sockets = '0'
             panel_line.line_on = bool(int(eval(all_params_ready[i][3])))
             panel_line.file_name = all_params_ready[i][4]
-            panel_line.probable = all_params_ready[i][5]
-            panel_line.manual = bool(int(eval(all_params_ready[i][6])))
+            panel_line.manual = bool(int(eval(all_params_ready[i][5])))
 
         return {'FINISHED'}
 

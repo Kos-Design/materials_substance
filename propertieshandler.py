@@ -34,12 +34,6 @@ class PropertiesHandler():
             material = obj.active_material
             mat_name = material.name
             return (material, mat_name)
-    
-    def set_file_name(self,context,**params):
-        panel_line = params['line']
-        file_name = self.find_file(context,**{'line':panel_line, 'mat_name':params['mat_active'].name})
-        if file_name is not None :
-            panel_line.file_name = panel_line.probable = file_name
 
     def set_nodes_groups(self,context):
         ng = bpy.data.node_groups
@@ -89,16 +83,22 @@ class PropertiesHandler():
         for i in range(props.panel_rows):
             panel_line = eval(f"bpy.context.scene.panel_line{i}")
             self.default_sockets(context,panel_line) 
+    
+    def detect_a_map(self,context,i):
+        props = context.scene.bsmprops
+        panel_line = eval(f"bpy.context.scene.panel_line{i}")
+        args = {'line':panel_line,'mat_name':self.mat_name_cleaner(context)[1]}
+        panel_line.file_name = self.find_file(context,**args)
+        panel_line.file_is_real = False
+        if panel_line.file_name != "" :
+            #print(f"file set to {panel_line.file_name} for map {panel_line.map_label}")
+            panel_line.line_on = True
+            panel_line.file_is_real = Path(panel_line.file_name).is_file()
 
     def detect_relevant_maps(self,context):
         props = context.scene.bsmprops
         for i in range(props.panel_rows):
-            panel_line = eval(f"bpy.context.scene.panel_line{i}")
-            args = {'line':panel_line,'mat_name':self.mat_name_cleaner(context)[1]}
-            map_found = self.find_file(context,**args)
-            if map_found is not None:
-                panel_line.line_on = True
-                panel_line.file_is_real = True
+            self.detect_a_map(context,i)
 
     def clean_input_sockets(self,context):
         for i in range(context.scene.bsmprops.panel_rows):
@@ -106,12 +106,6 @@ class PropertiesHandler():
             #inputs = panel_line.input_sockets
             #if not inputs.isalnum() :
             input_sockets = '0'     
-        return
-
-    def check_names(self,context):
-        panel_lines = [k for k in range(context.scene.bsmprops.panel_rows) if not eval(f"bpy.context.scene.panel_line{k}.manual")]
-        for ks in panel_lines:
-            bpy.ops.bsm.name_checker(line_number=ks, called=False, lorigin="bsmprops")
         return
 
     def get_shader_inputs(self,context,mat_used):
@@ -159,7 +153,6 @@ class PropertiesHandler():
         return string.split(sep)
 
     def file_tester(self, context):
-    
         panel_line = context
         bsmprops = bpy.context.scene.bsmprops
         dir_content = self.list_from_string(bsmprops.dir_content)
@@ -172,11 +165,11 @@ class PropertiesHandler():
         mat_name = args['mat_name']
         props = bpy.context.scene.bsmprops
         dir_content = self.list_from_string(props.dir_content)
-        lower_dir_content = props.dir_content.lower().split(";;;")
+        lower_dir_content = self.list_from_string(props.dir_content.lower())
         map_name = panel_line.map_label
-        
         for map_file in lower_dir_content:
             if mat_name.lower() in map_file and map_name.lower() in map_file:
                 return str(Path(props.usr_dir).joinpath(Path(dir_content[lower_dir_content.index(map_file)])))
-        return None
+        #print(f"None found for map {panel_line.map_label}")
+        return ""
                    

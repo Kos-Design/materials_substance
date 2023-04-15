@@ -50,14 +50,6 @@ def apply_to_all_up(self, context):
         register_class(laclasse)
     return
 
-def file_name_up(self, context):
-    props = bpy.context.scene.bsmprops
-    propper = ph()
-    self.is_in_dir = self.file_name in propper.list_from_string(props.usr_dir)
-    if self.is_in_dir:
-        self.probable = self.file_name
-    return
-
 def include_ngroups_up(self, context):
     propper = ph()
     if context.scene.bsmprops.include_ngroups:
@@ -77,37 +69,11 @@ def enum_sockets_cb(self, context):
     
 def enum_sockets_up(self, context):
     pass
-    """
-    # update for the enumlist
-    scene = context.scene
-    state = self.input_sockets
-    if state.isalnum == '' :
-        self.input_sockets = '0'
-    disped = ['Displacement', 'Disp Vector']
-
-    zid = self.ID
-    if state != '0':
-        same = (i for i in range(10) if state == eval(f"bpy.context.scene.panel_line{i}").input_sockets and i != zid)
-        # if same in another slot then clear
-        for i in same:
-            panel_line = eval(f"scene.panel_line{i}")
-            panel_line.input_sockets = '0'
-        if state in disped:
-            disped = [j for j in range(10) if (str(eval(f"bpy.context.scene.panel_line{j}").input_sockets) in disped)]
-
-            # if already a kind of Disp in list then clear
-            for j in disped:
-
-                if j != zid:
-                    panel_line = eval(f"scene.panel_line{j}")
-                    panel_line.input_sockets = '0'
- 
-    return
-    """
 
 def map_label_up(self, context):
     if not self.manual:
         propper = ph()
+        propper.detect_a_map(context,self.ID)
         propper.default_sockets(context, self)
     return
 
@@ -118,16 +84,11 @@ def shaders_list_cb(self, context):
 def shaders_list_up(self, context):
     propper = ph()
     propper.guess_sockets(context)
-    """
-    if self.replace_shader :
-        propper.clean_input_sockets(context)
-    ndh = nha()
-    ndh.refresh_shader_links(context)
-    propper.guess_sockets(context)
-    """
     return
 
 def manual_up(self, context):
+    propper = ph()
+    propper.detect_a_map(context,self.ID)
     if self.manual:
         bsmprops = context.scene.bsmprops
         bsmprops.only_active_mat = True
@@ -142,8 +103,8 @@ def advanced_mode_up(self, context):
         for i in range(self.panel_rows):
             panel_line = eval(f"context.scene.panel_line{i}")
             panel_line.manual = False
-            self.skip_normals = False
-        self.apply_to_all_up(context)
+            #self.skip_normals = False
+        apply_to_all_up(self,context)
     else:
         self.apply_to_all = False
     return
@@ -156,13 +117,8 @@ def usr_dir_up(self, context):
             self.usr_dir = str(Path.home())
     scene = context.scene
     dir_content = [x.name for x in Path(self.usr_dir).glob('*.*') ]
-    bpy.context.scene.bsmprops.dir_content = ";;;".join(str(x) for x in dir_content)
+    self.dir_content = ";;;".join(str(x) for x in dir_content)
     propper.detect_relevant_maps(context)
-
-def skip_normals_up(self, context):  #
-    ndh = nha()
-    ndh.refresh_shader_links(context)
-    return
 
 def clear_nodes_up(self, context):
     ndh = nha()
@@ -180,8 +136,6 @@ def replace_shader_up(self, context):
     scene = bpy.context.scene
     propper = ph()
     propper.clean_input_sockets(context)
-    #ndh = nha()
-    #ndh.refresh_shader_links(context)
     propper.guess_sockets(context)
 
 def only_active_obj_up(self, context):
@@ -189,15 +143,6 @@ def only_active_obj_up(self, context):
         self.apply_to_all = False
     return
     
-def refreshing_nodes_up(self, context):
-    if self.refreshing_nodes:
-        propper = ph()
-        propper.clean_input_sockets(context)
-
-def tmp_dir_up(self,context):
-    pass
-    
-
 class ShaderLinks(PropertyGroup):
     # shaders_links
     ID: IntProperty(
@@ -282,13 +227,13 @@ class BSMprops(PropertyGroup):
                     \n and at least one input socket to appear in the list \
                     \n (Experimental !!!)",
         default=False,
-        update=include_ngroups_up,
+        update=include_ngroups_up
     )
     apply_to_all: BoolProperty(
         name="Enable or Disable",
         description="Apply Operations to all visible objects ",
         default=False,
-        update=apply_to_all_up,
+        update=apply_to_all_up
     )
     only_active_obj: BoolProperty(
         name="Enable or Disable",
@@ -296,19 +241,12 @@ class BSMprops(PropertyGroup):
         default=False,
         update=only_active_obj_up
     )
-    refreshing_nodes: BoolProperty(
-        name="Enable or Disable",
-        description="Nodes and sockets lists are being refreshed ",
-        default=False,
-        update=refreshing_nodes_up
-    )
     clear_nodes: BoolProperty(
         name="Enable or Disable",
         description=" Clear existing nodes \
                      \n Removes all nodes from the material shader \
                      \n before setting up the nodes trees",
-        default=False,
-        #TODO:why ? Check behaviour 
+        default=False, 
         update=clear_nodes_up
     )
     tweak_levels: BoolProperty(
@@ -319,45 +257,36 @@ class BSMprops(PropertyGroup):
                         \n or a Color ramp if the Texture Map type is Black & White\
                         \n between the Image texture node and the Shader Input Socket\
                         \n during Nodes Trees setup",
-        default=False,
+        default=False
     )
     panel_rows: IntProperty(
         name="Set a value",
-        description="A integer property",
+        description="Number of map rows displayed in the UI",
         default=5,
         min=1,
-        max=10,
+        max=10
     )
     dir_content: StringProperty(
         name="Setavalue",
         description="content of selected texture folder",
-        default="noneYet"
+        default="Cube_Material_BaseColor.exr;;;Cube_Material_roughness.exr"
     )
-
     enum_placeholder: EnumProperty(
         name="Enable row to select input socket.",
         description="placeholder",
         items=[('0', '', '')]
     )
-
     usr_dir: StringProperty(
         name="",
         description="Folder containing the Textures Images to be imported",
         subtype='DIR_PATH',
-        default=str(Path.home()),
+        default=str(Path(__file__).parent.joinpath("maps_example")),
         update=usr_dir_up
-    )
-    tmp_dir: StringProperty(
-        name="",
-        description="Folder containing the Textures Images to be imported",
-        subtype='DIR_PATH',
-        default=str(Path.home()),
-        update=tmp_dir_up
     )
     bsm_all: StringProperty(
         name="allsettings",
         description="concatenated string of all settings used for preset saving",
-        default="None",
+        default="None"
     )
     skip_normals: BoolProperty(
         name="Skip normal map detection",
@@ -366,8 +295,7 @@ class BSMprops(PropertyGroup):
                             \n Usually the script inserts a Normal map converter node \
                             \n or a Bump map converter node according to the Texture Maps name\
                             \n Tick to bypass detection and link the Texture Maps directly ",
-        default=False,
-        update=skip_normals_up
+        default=False
     )
     replace_shader: BoolProperty(
         name="",
@@ -385,7 +313,7 @@ class BSMprops(PropertyGroup):
                         \n ",
 
         items=shaders_list_cb,
-        update=shaders_list_up,
+        update=shaders_list_up
     )
     advanced_mode: BoolProperty(
         name="",
@@ -433,22 +361,15 @@ class PaneLine0(PropertyGroup):
     line_on: BoolProperty(
         name="",
         description="Enable/Disable line",
-        default=False,
+        default=True,
         update=line_on_up
     )
     file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
-        default="Select a file",
-        update=file_name_up,
+        default="maps_example/Cube_Material_BaseColor.exr"
     )
-    probable: StringProperty(
-        subtype='FILE_PATH',
-        description="probable filename",
-        default="nope",
-    )
-    
     manual: BoolProperty(
         name="",
         description="Manual Mode (Enable to select the Map File directly)",
@@ -457,14 +378,8 @@ class PaneLine0(PropertyGroup):
     )
     file_is_real: BoolProperty(
         name="",
-        description="Associated file detected in that folder",
-        default=False,
-    )
-
-    is_in_dir: BoolProperty(
-        name="",
-        description="Is 'probable' a file ?",
-        default=False
+        description="File detected in selected folder",
+        default=True
     )
 
 
@@ -487,30 +402,21 @@ class PaneLine1(PropertyGroup):
     input_sockets: EnumProperty(
         name="Sockets",
         description="Shader input sockets in which to plug the Texture Nodes",
-
         items=enum_sockets_cb,
         update=enum_sockets_up
     )
     line_on: BoolProperty(
         name="",
         description="Enable/Disable line",
-        default=False,
-        update=line_on_up,
+        default=True,
+        update=line_on_up
     )
     file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
-        default="Select a file",
-        update=file_name_up,
+        default="maps_example/Cube_Material_roughness.exr"
     )
-    probable: StringProperty(
-        subtype='FILE_PATH',
-        description="probable filename",
-        default="nope",
-    )
-
-    
     manual: BoolProperty(
         name="",
         description="Manual Mode (Enable to select the Map File directly)",
@@ -520,7 +426,7 @@ class PaneLine1(PropertyGroup):
     file_is_real: BoolProperty(
         name="",
         description="Associated file detected in that folder",
-        default=False,
+        default=True
     )
 
 
@@ -550,23 +456,14 @@ class PaneLine2(PropertyGroup):
         name="",
         description="Enable/Disable line",
         default=False,
-        update=line_on_up,
+        update=line_on_up
     )
     file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
-        default="Select a file",
-        update=file_name_up,
-
+        default="Select a file"
     )
-    probable: StringProperty(
-        subtype='FILE_PATH',
-        description="probable filename",
-        default="nope",
-    )
-
-    
     manual: BoolProperty(
         name="",
         description="Manual Mode (Enable to select the Map File directly)",
@@ -576,7 +473,7 @@ class PaneLine2(PropertyGroup):
     file_is_real: BoolProperty(
         name="",
         description="Associated file detected in that folder",
-        default=False,
+        default=False
     )
 
 
@@ -606,23 +503,14 @@ class PaneLine3(PropertyGroup):
         name="",
         description="Enable/Disable line",
         default=False,
-        update=line_on_up,
+        update=line_on_up
     )
     file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
-        default="Select a file",
-        update=file_name_up,
-
+        default="Select a file"
     )
-    probable: StringProperty(
-        subtype='FILE_PATH',
-        description="probable filename",
-        default="nope",
-    )
-
-    
     manual: BoolProperty(
         name="",
         description="Manual Mode (Enable to select the Map File directly)",
@@ -632,7 +520,7 @@ class PaneLine3(PropertyGroup):
     file_is_real: BoolProperty(
         name="",
         description="Associated file detected in that folder",
-        default=False,
+        default=False
     )
 
 
@@ -662,22 +550,14 @@ class PaneLine4(PropertyGroup):
         name="",
         description="Enable/Disable line",
         default=False,
-        update=line_on_up,
+        update=line_on_up
     )
     file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
-        default="Select a file",
-        update=file_name_up,
-
+        default="Select a file"
     )
-    probable: StringProperty(
-        subtype='FILE_PATH',
-        description="probable filename",
-        default="nope",
-    )
-    
     manual: BoolProperty(
         name="",
         description="Manual Mode (Enable to select the Map File directly)",
@@ -687,7 +567,7 @@ class PaneLine4(PropertyGroup):
     file_is_real: BoolProperty(
         name="",
         description="Associated file detected in that folder",
-        default=False,
+        default=False
     )
 
 
@@ -717,22 +597,14 @@ class PaneLine5(PropertyGroup):
         name="",
         description="Enable/Disable line",
         default=False,
-        update=line_on_up,
+        update=line_on_up
     )
     file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
-        default="Select a file",
-        update=file_name_up,
-
+        default="Select a file"
     )
-    probable: StringProperty(
-        subtype='FILE_PATH',
-        description="probable filename",
-        default="nope",
-    )
-    
     manual: BoolProperty(
         name="",
         description="Manual Mode (Enable to select the Map File directly)",
@@ -742,7 +614,7 @@ class PaneLine5(PropertyGroup):
     file_is_real: BoolProperty(
         name="",
         description="Associated file detected in that folder",
-        default=False,
+        default=False
     )
 
 
@@ -772,23 +644,14 @@ class PaneLine6(PropertyGroup):
         name="",
         description="Enable/Disable line",
         default=False,
-        update=line_on_up,
+        update=line_on_up
     )
     file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
-        default="Select a file",
-        update=file_name_up,
-
+        default="Select a file"
     )
-    probable: StringProperty(
-        subtype='FILE_PATH',
-        description="probable filename",
-        default="nope",
-    )
-
-    
     manual: BoolProperty(
         name="",
         description="Manual Mode (Enable to select the Map File directly)",
@@ -798,7 +661,7 @@ class PaneLine6(PropertyGroup):
     file_is_real: BoolProperty(
         name="",
         description="Associated file detected in that folder",
-        default=False,
+        default=False
     )
 
 
@@ -828,23 +691,14 @@ class PaneLine7(PropertyGroup):
         name="",
         description="Enable/Disable line",
         default=False,
-        update=line_on_up,
+        update=line_on_up
     )
     file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
-        default="Select a file",
-        update=file_name_up,
-
+        default="Select a file"
     )
-    probable: StringProperty(
-        subtype='FILE_PATH',
-        description="probable filename",
-        default="nope",
-    )
-
-    
     manual: BoolProperty(
         name="",
         description="Manual Mode (Enable to select the Map File directly)",
@@ -854,7 +708,7 @@ class PaneLine7(PropertyGroup):
     file_is_real: BoolProperty(
         name="",
         description="Associated file detected in that folder",
-        default=False,
+        default=False
     )
 
 
@@ -884,22 +738,14 @@ class PaneLine8(PropertyGroup):
         name="",
         description="Enable/Disable line",
         default=False,
-        update=line_on_up,
+        update=line_on_up
     )
     file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
-        default="Select a file",
-        update=file_name_up,
-
+        default="Select a file"
     )
-    probable: StringProperty(
-        subtype='FILE_PATH',
-        description="probable filename",
-        default="nope",
-    )
-    
     manual: BoolProperty(
         name="",
         description="Manual Mode (Enable to select the Map File directly)",
@@ -909,7 +755,7 @@ class PaneLine8(PropertyGroup):
     file_is_real: BoolProperty(
         name="",
         description="Associated file detected in that folder",
-        default=False,
+        default=False
     )
 
 
@@ -939,22 +785,14 @@ class PaneLine9(PropertyGroup):
         name="",
         description="Enable/Disable line",
         default=False,
-        update=line_on_up,
+        update=line_on_up
     )
     file_name: StringProperty(
         name="File name",
         subtype='FILE_PATH',
         description="Complete filepath of the Texture Map ",
-        default="Select a file",
-        update=file_name_up,
+        default="Select a file"
     )
-    probable: StringProperty(
-        subtype='FILE_PATH',
-        description="probable filename",
-        default="nope",
-    )
-
-    
     manual: BoolProperty(
         name="",
         description="Manual Mode (Enable to select the Map File directly)",
@@ -964,5 +802,5 @@ class PaneLine9(PropertyGroup):
     file_is_real: BoolProperty(
         name="",
         description="Associated file detected in that folder",
-        default=False,
+        default=False
     )
