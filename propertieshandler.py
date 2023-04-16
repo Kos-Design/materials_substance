@@ -1,6 +1,6 @@
 import bpy
 from pathlib import Path
-import itertools
+import json
 
 class PropertiesHandler():
 
@@ -48,10 +48,13 @@ class PropertiesHandler():
                     validoutput = socket.type == "SHADER"
                     if validoutput:
                         new_link.outputsockets = socket.name
-                        break
-                input_sockets = (i for i in ng[nd].inputs if conectable)
-                new_link.input_sockets = ";;;".join(str(socket.name) for socket in input_sockets if socket.type != "SHADER")
-    
+                        break    
+                socks = [str(socket.name) for socket in [n for n in ng[nd].inputs if conectable] if socket.type != "SHADER"]
+                if len(socks) == 0:
+                    new_link.input_sockets = '{"0":"0"}'
+                else:
+                    new_link.input_sockets = json.dumps((dict(zip(range(len(socks)), socks))))
+                
     def get_sockets_enum_items(self,context):
         scene = context.scene
         shaders_links = scene.shader_links
@@ -61,10 +64,10 @@ class PropertiesHandler():
         rawdata = []
         for i in range(len(shaders_links)):
             if selectedshader in shaders_links[i].shadertype:
-                rawdata = shaders_links[i].input_sockets.split(";;;")
+                rawdata = [v for (k,v) in json.loads(shaders_links[i].input_sockets).items()]
         for i in range(len(nodes_links)):
             if selectedshader in nodes_links[i].nodetype:
-                rawdata = nodes_links[i].input_sockets.split(";;;")
+                rawdata = [v for (k,v) in json.loads(nodes_links[i].input_sockets).items()]
         if not bsmprops.replace_shader:  # and valid mat
             mat_used = self.mat_name_cleaner(context)[0]
             rawdata = self.get_shader_inputs(context,mat_used) 
@@ -91,9 +94,17 @@ class PropertiesHandler():
         panel_line.file_name = self.find_file(context,**args)
         panel_line.file_is_real = False
         if panel_line.file_name != "" :
-            #print(f"file set to {panel_line.file_name} for map {panel_line.map_label}")
             panel_line.line_on = True
             panel_line.file_is_real = Path(panel_line.file_name).is_file()
+    
+    def check_name_from_map(self,context):
+        #scene = context.scene
+        #propper = ph()
+        #panel_line = eval(f"scene.panel_line{self.line_number}")
+        panel_line = self
+        self.default_sockets(context, panel_line)
+        self.detect_relevant_maps(context)
+        #propper.detect_a_map(context,self.line_number)
 
     def detect_relevant_maps(self,context):
         props = context.scene.bsmprops
@@ -103,8 +114,6 @@ class PropertiesHandler():
     def clean_input_sockets(self,context):
         for i in range(context.scene.bsmprops.panel_rows):
             input_sockets = eval(f"context.scene.panel_line{i}.input_sockets")
-            #inputs = panel_line.input_sockets
-            #if not inputs.isalnum() :
             input_sockets = '0'     
         return
 
@@ -149,27 +158,15 @@ class PropertiesHandler():
         ]
         return filetypes
     
-    def list_from_string(self,string="",sep=";;;"):
-        return string.split(sep)
-
-    def file_tester(self, context):
-        panel_line = context
-        bsmprops = bpy.context.scene.bsmprops
-        dir_content = self.list_from_string(bsmprops.dir_content)
-        if panel_line.file_name in dir_content:
-            return True
-        return False
-            
     def find_file(self,context,**args):
         panel_line = args['line']
         mat_name = args['mat_name']
         props = bpy.context.scene.bsmprops
-        dir_content = self.list_from_string(props.dir_content)
-        lower_dir_content = self.list_from_string(props.dir_content.lower())
+        dir_content = [v for (k,v) in json.loads(props.dir_content).items()]
+        lower_dir_content = [v.lower() for v in dir_content]
         map_name = panel_line.map_label
         for map_file in lower_dir_content:
             if mat_name.lower() in map_file and map_name.lower() in map_file:
                 return str(Path(props.usr_dir).joinpath(Path(dir_content[lower_dir_content.index(map_file)])))
-        #print(f"None found for map {panel_line.map_label}")
         return ""
                    

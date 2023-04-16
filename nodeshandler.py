@@ -1,7 +1,7 @@
 import bpy
 from pathlib import Path
 from . propertieshandler import PropertiesHandler as ph
- 
+import json 
 
 class SelectionSet():
     """
@@ -98,8 +98,9 @@ class NodeHandler():
                 new_shader_link = context.scene.shader_links.add()
                 new_shader_link.name = str(shader_enum[1])
                 new_shader_link.shadertype = node_type
-                new_shader_link.input_sockets = ";;;".join(inputs.name for inputs in new_node.inputs)
-                new_shader_link.outputsockets = ";;;".join(outputs.name for outputs in new_node.outputs)
+                new_shader_link.input_sockets = json.dumps((dict(zip(range(len(new_node.inputs)), [inputs.name for inputs in new_node.inputs]))))
+                new_shader_link.outputsockets = json.dumps((dict(zip(range(len(new_node.outputs)), [outputs.name for outputs in new_node.outputs]))))
+
         mat_tmp.node_tree.nodes.clear()
         bpy.data.materials.remove(mat_tmp)
 
@@ -159,9 +160,7 @@ class NodeHandler():
             else:
                 new_node = params['tree_nodes'].new(substitute_shader)
             params['tree_links'].new(new_node.outputs[0], params['mat_output'].inputs[0])
-            shader_node = new_node
-        if shader_node.type == 'BSDF_PRINCIPLED':
-            shader_node.inputs['Specular'].default_value = 0
+            return new_node
         return shader_node
 
     def get_output_node(self,context,**params):
@@ -259,6 +258,7 @@ class NodeHandler():
             if bools['add_extras']:
                 params['tree_links'].new(params['extra_node'].outputs[0], params['shader_node'].inputs[socket])
             else:
+                #if params['shader_node'] != "" :
                 params['tree_links'].new(params['new_image_node'].outputs[0], params['shader_node'].inputs[socket])
     
     def handle_disp_nodes_3(self,context,**params):
@@ -276,7 +276,6 @@ class NodeHandler():
             params['tree_links'].new(params['new_image_node'].outputs[0], disp_map_node.inputs['Height'])
     
     def handle_disp_nodes_4(self,context,**params):
-        # TODO implement link sanity check
         bools = params['bools']
         disp_vec_node = params['tree_nodes'].new('ShaderNodeVectorDisplacement')
         disp_vec_node.location = (params['mat_output'].location[0] - 256, params['mat_output'].location[1])
@@ -285,7 +284,6 @@ class NodeHandler():
             params['tree_links'].new(params['extra_node'].outputs[0], disp_vec_node.inputs['Vector'])
         if bools['has_normal'] and not bools['skip_normals']:
             params['tree_links'].new(params['normal_map_node'].outputs[0], disp_vec_node.inputs['Vector'])
-            # not sure it makes any sense
         if (not bools['has_normal'] or bools['skip_normals']) and not bools['add_extras']:
             params['tree_links'].new(params['new_image_node'].outputs[0], disp_vec_node.inputs['Vector'])
     
@@ -367,6 +365,8 @@ class NodeHandler():
         args['first_node'] = first_node
         args['inv'] = invalid_shader
         args['shader_node'] = self.get_shader_node(context,**args)
+        if args['shader_node'].type == 'BSDF_PRINCIPLED':
+            args['shader_node'].inputs['Specular'].default_value = 0
         args['base_x'] = args['mat_output'].location[0] - 404 * 2
         args['base_y'] = args['mat_output'].location[1]
         self.move_nodes(context,**args)

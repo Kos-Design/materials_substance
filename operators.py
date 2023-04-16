@@ -1,6 +1,7 @@
 import bpy
+from bpy import context
 from pathlib import Path
-
+import json
 from . nodeshandler import NodeHandler as nha
 from . nodeshandler import SelectionSet
 from bpy.types import (
@@ -46,7 +47,8 @@ class BSM_OT_reporter(Operator):
     reporting: bpy.props.StringProperty(default="")
 
     def execute(self, context):
-        self.report({'INFO'}, self.reporting)
+        ShowMessageBox(message=self.reporting, title="Message", icon='INFO')
+        #self.report({'INFO'}, self.reporting)
         return {'FINISHED'}
 
 
@@ -88,44 +90,12 @@ class BSM_OT_assign_nodes(sub_poll,Operator):
         return {'FINISHED'}
 
 
-class BSM_OT_name_checker(sub_poll,Operator):
-    bl_idname = "bsm.name_checker"
-    bl_label = ""
-    bl_description = "Check if a file containing the Map Name exists in the texture folder selected"
-
-    line_number: bpy.props.IntProperty(default=0)
-    lorigin: bpy.props.StringProperty(default="Not Set")
-    called: bpy.props.BoolProperty(default=True)
-
-    def execute(self, context):
-        scene = context.scene
-        propper = ph()
-        panel_line = eval(f"scene.panel_line{self.line_number}")
-        propper.default_sockets(context, panel_line)
-        propper.detect_a_map(context,self.line_number)
-        """
-        if not propper.file_tester(panel_line) and self.called :
-            toreport = f"not found "
-            self.report({'INFO'}, toreport)
-            __class__.bl_description = f"No Image containing the keyword {panel_line.map_label} found , verify the Map name and/or the Maps Folder"
-        unregister_class(__class__)
-        register_class(__class__)
-
-        if propper.file_tester(panel_line):
-            panel_line.file_is_real = True
-            if self.called:
-                toreport = f" detected in Maps Folder"
-                self.report({'INFO'}, toreport)
-        """
-        return {'FINISHED'}
-
-
 class BSM_OT_import_textures(sub_poll, Operator):
     bl_idname = "bsm.import_textures"
     bl_label = "Import Substance Maps"
     bl_description = "Import Texture Maps for active object"
-
-    def execute(self, context):
+    
+    def execute(self,context):
         bpy.ops.bsm.make_nodes(solo=False)
         bpy.ops.bsm.assign_nodes(solo=False)
         return {'FINISHED'}
@@ -368,21 +338,16 @@ class BSM_OT_save_all(sub_poll, Operator):
     bl_description = 'Save all relevant vars'
 
     def execute(self, context):
-        scene = context.scene
-        props = scene.bsmprops
-        params_to_save = []
+        args = {}
         for i in range(10):
-            map_label = eval(f"scene.panel_line{i}").map_label
-            lechan = eval(f"scene.panel_line{i}").input_sockets
-            enabled = str(eval(f"scene.panel_line{i}").line_on)
-            file_name = eval(f"scene.panel_line{i}").file_name
-            manual = str(eval(f"scene.panel_line{i}").manual)
-            items = [str(eval(f"scene.panel_line{i}").name), map_label, lechan, enabled, file_name, manual ]
-            line_raw = "@\_/@".join(str(lx) for lx in items)
-            params_to_save.append(line_raw)
-
-        props.bsm_all = "@/-\@".join(str(lx) for lx in params_to_save)
-
+            line = eval(f"context.scene.panel_line{i}")
+            args[line.name] = {}
+            args[line.name]['map_label'] = line.map_label
+            args[line.name]['input_sockets'] = line.input_sockets
+            args[line.name]['line_on'] = str(line.line_on)
+            args[line.name]['file_name'] = line.file_name
+            args[line.name]['manual'] = str(line.manual)
+        context.scene.bsmprops.bsm_all = json.dumps(args)
         return {'FINISHED'}
 
 
@@ -392,25 +357,18 @@ class BSM_OT_load_all(sub_poll, Operator):
     bl_description = 'load preset '
 
     def execute(self, context):
-
-        scene = context.scene
-        props = scene.bsmprops
-        all_params = props.bsm_all.split("@/-\@")
-        all_params_ready = []
-        for allitems in all_params:
-            item = allitems.split("@\_/@")
-            all_params_ready.append(item)
+        props = context.scene.bsmprops
+        args = json.loads(props.bsm_all)
         for i in range(10):
-            panel_line = eval(f"scene.panel_line{i}")
-            panel_line.map_label = all_params_ready[i][1]
+            panel_line = eval(f"context.scene.panel_line{i}")
+            panel_line.map_label = args[f"PaneLine{i}"]['map_label'] 
             try :
-                panel_line.input_sockets = all_params_ready[i][2]
+                panel_line.input_sockets = args[f"PaneLine{i}"]['input_sockets']
             except TypeError :
                 panel_line.input_sockets = '0'
-            panel_line.line_on = bool(int(eval(all_params_ready[i][3])))
-            panel_line.file_name = all_params_ready[i][4]
-            panel_line.manual = bool(int(eval(all_params_ready[i][5])))
-
+            panel_line.line_on = bool(int(eval(args[f"PaneLine{i}"]['line_on'])))
+            panel_line.file_name = args[f"PaneLine{i}"]['file_name']
+            panel_line.manual = bool(int(eval(args[f"PaneLine{i}"]['manual'])))
         return {'FINISHED'}
 
 

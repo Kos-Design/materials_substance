@@ -67,11 +67,11 @@ class BSM_PT_panel_line(TexImporterPanel, Panel):
         col.alignment = 'RIGHT'
         row = col.row()
         row.alignment = 'RIGHT'
-        row.operator("BSM_OT_add_map_line", icon="ADD")
+        row.operator("bsm.add_map_line", icon="ADD")
         row.separator()
         row = layout.row(align=True)
         row = row.split(factor=.02)
-        row.label(text=" " )
+        row.label(text=" ")
         row.use_property_split = True
         row.use_property_decorate = False
         row = row.split(factor=.35)
@@ -79,12 +79,7 @@ class BSM_PT_panel_line(TexImporterPanel, Panel):
         col.label(text="Map name")
         row = row.split(factor=.15)
         col = row.column(align=True)
-        col.label(text=" " )
-        """
-        row = row.split(factor=.33)
-        col = row.column(align=True)
-        col.label(text="Ext.")
-        """        
+        col.label(text=" ")       
         row = row.split(factor=.97)
         col = row.column()
         col.label(text="Sockets")
@@ -93,18 +88,15 @@ class BSM_PT_panel_line(TexImporterPanel, Panel):
         
         for k in range(panel_rows):
             panel_line = eval(f"scene.panel_line{k}")
-            file_name = panel_line.file_name
-            manual = panel_line.manual
             row = layout.row(align = True)
             row.prop(panel_line, "line_on", text = "")
             row.use_property_split = True
             row.use_property_decorate = False
             row = row.split(factor = .35)
-            row.active = panel_line.line_on
-            row.enabled = panel_line.line_on
+            row.active = row.enabled = panel_line.line_on
             row.alignment = 'LEFT'
             col = row.column(align=True)
-            if manual :
+            if panel_line.manual :
                 col.prop(panel_line, "file_name", text = "")
             else:
                 col.prop(panel_line, "map_label", text = "")
@@ -114,21 +106,11 @@ class BSM_PT_panel_line(TexImporterPanel, Panel):
             col.alignment = 'EXPAND'
             if not advanced_mode:
                 if panel_line.file_is_real:
-                    col.operator('BSM_OT_name_checker', icon='CHECKMARK').line_number = k
+                    col.prop(panel_line, "name_checker", text="", toggle=1, icon='CHECKMARK')
                 else:
-                    col.operator('BSM_OT_name_checker', icon='QUESTION').line_number = k
+                    col.prop(panel_line, "name_checker", text="", toggle=1, icon='QUESTION')
             else :
-
                 col.prop(panel_line, "manual", text="", toggle=1, icon='FILE_TICK')
-            """
-            row = row.split(factor=.33)
-            
-            row.alignment = 'LEFT'
-            col = row.column(align=True)
-            col.alignment = 'LEFT'
-            col.enabled = not manual
-            col.prop(panel_line, "map_ext", text="")
-            """
             row = row.split(factor=.97)
             col = row.column()
             col.enabled = panel_line.line_on
@@ -151,14 +133,12 @@ class BSM_PT_prefs(TexImporterPanel,Panel):
         layout = self.layout
         scene = bpy.context.scene
         bsmprops = scene.bsmprops
-
         row = layout.row()
         col = row.column()
         col.alignment = 'RIGHT'
         row = col.row()
         row.alignment = 'RIGHT'
-        row.operator("BSM_OT_del_map_line", icon="REMOVE",)
-        
+        row.operator("bsm.del_map_line", icon="REMOVE",)
         row.separator()
         row = layout.row()
         row.alignment = 'LEFT'
@@ -176,15 +156,15 @@ class BSM_PT_buttons(TexImporterPanel, Panel):
         layout = self.layout
         row = layout.row()
         col = row.column(align = True)
-        col.operator("BSM_OT_import_textures")
+        col.operator("bsm.import_textures")
         col.separator()
 
         row = col.row(align = True)
         col = layout.column(align = True)
         row = col.row(align = True)
-        row.operator("BSM_OT_assign_nodes")
+        row.operator("bsm.assign_nodes")
         row.separator()
-        ops = row.operator("BSM_OT_make_nodes")
+        ops = row.operator("bsm.make_nodes")
 
 
 class BSM_PT_options(TexImporterPanel, Panel):
