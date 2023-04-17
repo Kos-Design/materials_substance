@@ -97,15 +97,6 @@ class PropertiesHandler():
             panel_line.line_on = True
             panel_line.file_is_real = Path(panel_line.file_name).is_file()
     
-    def check_name_from_map(self,context):
-        #scene = context.scene
-        #propper = ph()
-        #panel_line = eval(f"scene.panel_line{self.line_number}")
-        panel_line = self
-        self.default_sockets(context, panel_line)
-        self.detect_relevant_maps(context)
-        #propper.detect_a_map(context,self.line_number)
-
     def detect_relevant_maps(self,context):
         props = context.scene.bsmprops
         for i in range(props.panel_rows):
@@ -113,9 +104,8 @@ class PropertiesHandler():
 
     def clean_input_sockets(self,context):
         for i in range(context.scene.bsmprops.panel_rows):
-            input_sockets = eval(f"context.scene.panel_line{i}.input_sockets")
-            input_sockets = '0'     
-        return
+            panel_line = eval(f"context.scene.panel_line{i}")
+            panel_line.input_sockets = '0'     
 
     def get_shader_inputs(self,context,mat_used):
         if mat_used != None:
@@ -129,8 +119,10 @@ class PropertiesHandler():
         return []
 
     def format_enum(self,context,rawdata):
-        dispitem = [('Disp Vector', 'Disp Vector', ''), ('Displacement', 'Displacement', '')]
         default = ('0', '', '')
+        if rawdata == []:
+            return [default]
+        dispitem = [('Disp Vector', 'Disp Vector', ''), ('Displacement', 'Displacement', '')]
         items = [(item, item, '') for item in rawdata]    
         items.extend(dispitem)
         items.reverse()

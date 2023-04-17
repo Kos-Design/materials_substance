@@ -53,29 +53,30 @@ def apply_to_all_up(self, context):
 
 def include_ngroups_up(self, context):
     propper = ph()
+    
     if context.scene.bsmprops.include_ngroups:
         propper.set_nodes_groups(context)
     else:
         context.scene.node_links.clear()
-    #propper.clean_input_sockets(context)    
     ndh = nha()
     ndh.refresh_shader_links(context)
+    propper.clean_input_sockets(context)
     propper.guess_sockets(context)
-    return
   
 def enum_sockets_cb(self, context):
     propper = ph()
+    #items = propper.get_sockets_enum_items(context)
+    #if isitems
     return propper.get_sockets_enum_items(context)
     
 def enum_sockets_up(self, context):
-    pass
+    context.view_layer.update()
 
 def map_label_up(self, context):
     if not self.manual:
         propper = ph()
         propper.detect_a_map(context,self.ID)
         propper.default_sockets(context, self)
-    return
 
 def shaders_list_cb(self, context):
     propper = ph()
@@ -83,8 +84,10 @@ def shaders_list_cb(self, context):
 
 def shaders_list_up(self, context):
     propper = ph()
-    propper.guess_sockets(context)
-    return
+    if self.replace_shader:
+        propper.clean_input_sockets(context)
+        propper.guess_sockets(context)
+    context.view_layer.update()
 
 def manual_up(self, context):
     propper = ph()
@@ -94,7 +97,6 @@ def manual_up(self, context):
         bsmprops.only_active_mat = True
         bsmprops.apply_to_all = False
         bsmprops.only_active_obj = True
-    return
 
 def advanced_mode_up(self, context):
     ndh = nha()
@@ -103,11 +105,9 @@ def advanced_mode_up(self, context):
         for i in range(self.panel_rows):
             panel_line = eval(f"context.scene.panel_line{i}")
             panel_line.manual = False
-            #self.skip_normals = False
         apply_to_all_up(self,context)
     else:
         self.apply_to_all = False
-    return
 
 def usr_dir_up(self, context):
     propper = ph()
@@ -121,8 +121,6 @@ def usr_dir_up(self, context):
     propper.detect_relevant_maps(context)
 
 def clear_nodes_up(self, context):
-    ndh = nha()
-    ndh.refresh_shader_links(context)
     if self.clear_nodes:
         self.replace_shader = True
 
@@ -134,7 +132,10 @@ def replace_shader_up(self, context):
     scene = bpy.context.scene
     propper = ph()
     propper.clean_input_sockets(context)
+    ndh = nha()
+    ndh.refresh_shader_links(context)
     propper.guess_sockets(context)
+    context.view_layer.update()
 
 def only_active_obj_up(self, context):
     if self.only_active_obj:
@@ -287,7 +288,6 @@ class BSMprops(PropertyGroup):
         items=[('0', '', '')]
     )
     usr_dir: StringProperty(
-        name="",
         description="Folder containing the Textures Images to be imported",
         subtype='DIR_PATH',
         default=str(Path(__file__).parent.joinpath("maps_example")),
@@ -308,7 +308,6 @@ class BSMprops(PropertyGroup):
         default=False
     )
     replace_shader: BoolProperty(
-        name="",
         description=" Enable to replace the Material Shader with the one in the list \
                        \n\
                        \n (Enabled by default if 'Apply to all' is activated)",
@@ -326,7 +325,6 @@ class BSMprops(PropertyGroup):
         update=shaders_list_up
     )
     advanced_mode: BoolProperty(
-        name="",
         description=" Allows Manual setup of the Maps filenames, \
                     \n  (Tick the checkbox between Map Name and Sockets to enable Manual)\
                     \n Allows Skipping Normal map detection,\
@@ -336,7 +334,6 @@ class BSMprops(PropertyGroup):
         update=advanced_mode_up
     )
     only_active_mat: BoolProperty(
-        name="",
         description=" Apply on active material only, \
                         \n  (By default the script iterates through all materials\
                         \n  presents in the Material Slots.)\
@@ -369,7 +366,6 @@ class PaneLine0(PropertyGroup):
         update=enum_sockets_up
     )
     line_on: BoolProperty(
-        name="",
         description="Enable/Disable line",
         default=True,
         update=line_on_up
@@ -381,19 +377,16 @@ class PaneLine0(PropertyGroup):
         default="maps_example/Cube_Material_BaseColor.exr"
     )
     manual: BoolProperty(
-        name="",
         description="Manual Mode (Enable to select the Map File directly)",
         default=False,
         update=manual_up
     )
     name_checker: BoolProperty(
-        name="",
         description="file_name is in bsmprops.usr_dir",
         default=False,
         update=name_checker_up
     )
     file_is_real: BoolProperty(
-        name="",
         description="File detected in selected folder",
         default=True
     )
@@ -422,7 +415,6 @@ class PaneLine1(PropertyGroup):
         update=enum_sockets_up
     )
     line_on: BoolProperty(
-        name="",
         description="Enable/Disable line",
         default=True,
         update=line_on_up
@@ -434,19 +426,16 @@ class PaneLine1(PropertyGroup):
         default="maps_example/Cube_Material_roughness.exr"
     )
     manual: BoolProperty(
-        name="",
         description="Manual Mode (Enable to select the Map File directly)",
         default=False,
         update=manual_up
     )
     name_checker: BoolProperty(
-        name="",
         description="file_name is in bsmprops.usr_dir",
         default=False,
         update=name_checker_up
     )
     file_is_real: BoolProperty(
-        name="",
         description="Associated file detected in that folder",
         default=True
     )
@@ -475,7 +464,6 @@ class PaneLine2(PropertyGroup):
         update=enum_sockets_up
     )
     line_on: BoolProperty(
-        name="",
         description="Enable/Disable line",
         default=False,
         update=line_on_up
@@ -487,19 +475,16 @@ class PaneLine2(PropertyGroup):
         default="Select a file"
     )
     manual: BoolProperty(
-        name="",
         description="Manual Mode (Enable to select the Map File directly)",
         default=False,
         update=manual_up
     )
     name_checker: BoolProperty(
-        name="",
         description="file_name is in bsmprops.usr_dir",
         default=False,
         update=name_checker_up
     )
     file_is_real: BoolProperty(
-        name="",
         description="Associated file detected in that folder",
         default=False
     )
@@ -528,7 +513,6 @@ class PaneLine3(PropertyGroup):
         update=enum_sockets_up
     )
     line_on: BoolProperty(
-        name="",
         description="Enable/Disable line",
         default=False,
         update=line_on_up
@@ -540,19 +524,16 @@ class PaneLine3(PropertyGroup):
         default="Select a file"
     )
     manual: BoolProperty(
-        name="",
         description="Manual Mode (Enable to select the Map File directly)",
         default=False,
         update=manual_up
     )
     name_checker: BoolProperty(
-        name="",
         description="file_name is in bsmprops.usr_dir",
         default=False,
         update=name_checker_up
     )
     file_is_real: BoolProperty(
-        name="",
         description="Associated file detected in that folder",
         default=False
     )
@@ -581,7 +562,6 @@ class PaneLine4(PropertyGroup):
         update=enum_sockets_up
     )
     line_on: BoolProperty(
-        name="",
         description="Enable/Disable line",
         default=False,
         update=line_on_up
@@ -593,19 +573,16 @@ class PaneLine4(PropertyGroup):
         default="Select a file"
     )
     manual: BoolProperty(
-        name="",
         description="Manual Mode (Enable to select the Map File directly)",
         default=False,
         update=manual_up
     )
     name_checker: BoolProperty(
-        name="",
         description="file_name is in bsmprops.usr_dir",
         default=False,
         update=name_checker_up
     )
     file_is_real: BoolProperty(
-        name="",
         description="Associated file detected in that folder",
         default=False
     )
@@ -634,7 +611,6 @@ class PaneLine5(PropertyGroup):
         update=enum_sockets_up
     )
     line_on: BoolProperty(
-        name="",
         description="Enable/Disable line",
         default=False,
         update=line_on_up
@@ -646,19 +622,16 @@ class PaneLine5(PropertyGroup):
         default="Select a file"
     )
     manual: BoolProperty(
-        name="",
         description="Manual Mode (Enable to select the Map File directly)",
         default=False,
         update=manual_up
     )
     name_checker: BoolProperty(
-        name="",
         description="file_name is in bsmprops.usr_dir",
         default=False,
         update=name_checker_up
     )
     file_is_real: BoolProperty(
-        name="",
         description="Associated file detected in that folder",
         default=False
     )
@@ -687,7 +660,6 @@ class PaneLine6(PropertyGroup):
         update=enum_sockets_up
     )
     line_on: BoolProperty(
-        name="",
         description="Enable/Disable line",
         default=False,
         update=line_on_up
@@ -699,19 +671,16 @@ class PaneLine6(PropertyGroup):
         default="Select a file"
     )
     manual: BoolProperty(
-        name="",
         description="Manual Mode (Enable to select the Map File directly)",
         default=False,
         update=manual_up
     )
     name_checker: BoolProperty(
-        name="",
         description="file_name is in bsmprops.usr_dir",
         default=False,
         update=name_checker_up
     )
     file_is_real: BoolProperty(
-        name="",
         description="Associated file detected in that folder",
         default=False
     )
@@ -740,7 +709,6 @@ class PaneLine7(PropertyGroup):
         update=enum_sockets_up
     )
     line_on: BoolProperty(
-        name="",
         description="Enable/Disable line",
         default=False,
         update=line_on_up
@@ -752,19 +720,16 @@ class PaneLine7(PropertyGroup):
         default="Select a file"
     )
     manual: BoolProperty(
-        name="",
         description="Manual Mode (Enable to select the Map File directly)",
         default=False,
         update=manual_up
     )
     name_checker: BoolProperty(
-        name="",
         description="file_name is in bsmprops.usr_dir",
         default=False,
         update=name_checker_up
     )
     file_is_real: BoolProperty(
-        name="",
         description="Associated file detected in that folder",
         default=False
     )
@@ -793,7 +758,6 @@ class PaneLine8(PropertyGroup):
         update=enum_sockets_up
     )
     line_on: BoolProperty(
-        name="",
         description="Enable/Disable line",
         default=False,
         update=line_on_up
@@ -805,19 +769,16 @@ class PaneLine8(PropertyGroup):
         default="Select a file"
     )
     manual: BoolProperty(
-        name="",
         description="Manual Mode (Enable to select the Map File directly)",
         default=False,
         update=manual_up
     )
     name_checker: BoolProperty(
-        name="",
         description="file_name is in bsmprops.usr_dir",
         default=False,
         update=name_checker_up
     )
     file_is_real: BoolProperty(
-        name="",
         description="Associated file detected in that folder",
         default=False
     )
@@ -846,7 +807,6 @@ class PaneLine9(PropertyGroup):
         update=enum_sockets_up
     )
     line_on: BoolProperty(
-        name="",
         description="Enable/Disable line",
         default=False,
         update=line_on_up
@@ -858,19 +818,16 @@ class PaneLine9(PropertyGroup):
         default="Select a file"
     )
     manual: BoolProperty(
-        name="",
         description="Manual Mode (Enable to select the Map File directly)",
         default=False,
         update=manual_up
     )
     name_checker: BoolProperty(
-        name="",
         description="file_name is in bsmprops.usr_dir",
         default=False,
         update=name_checker_up
     )
     file_is_real: BoolProperty(
-        name="",
         description="Associated file detected in that folder",
         default=False
     )

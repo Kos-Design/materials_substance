@@ -70,6 +70,7 @@ class NodeHandler():
         panel_rows = props.panel_rows
         maps = []
         chans = []
+        # and eval(f"bpy.context.scene.panel_line{i}.input_sockets") != '' 
         indexer = [i for i in range(panel_rows) if eval(f"bpy.context.scene.panel_line{i}.line_on")]
         for i in indexer :
             panel_line = eval(f"bpy.context.scene.panel_line{i}")
@@ -257,8 +258,7 @@ class NodeHandler():
         if not (bools['has_height'] or bools['has_normal']) or bools['skip_normals']:
             if bools['add_extras']:
                 params['tree_links'].new(params['extra_node'].outputs[0], params['shader_node'].inputs[socket])
-            else:
-                #if params['shader_node'] != "" :
+            else: 
                 params['tree_links'].new(params['new_image_node'].outputs[0], params['shader_node'].inputs[socket])
     
     def handle_disp_nodes_3(self,context,**params):
