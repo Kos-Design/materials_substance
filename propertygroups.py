@@ -65,8 +65,6 @@ def include_ngroups_up(self, context):
   
 def enum_sockets_cb(self, context):
     propper = ph()
-    #items = propper.get_sockets_enum_items(context)
-    #if isitems
     return propper.get_sockets_enum_items(context)
     
 def enum_sockets_up(self, context):
@@ -288,6 +286,7 @@ class BSMprops(PropertyGroup):
         items=[('0', '', '')]
     )
     usr_dir: StringProperty(
+        name="",
         description="Folder containing the Textures Images to be imported",
         subtype='DIR_PATH',
         default=str(Path(__file__).parent.joinpath("maps_example")),

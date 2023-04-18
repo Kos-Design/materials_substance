@@ -182,7 +182,6 @@ class BSM_presetbase:
         return name.translate(trans)
 
     def execute(self, context):
-        import os
         from bpy.utils import is_path_builtin
         bpy.ops.bsm.save_all()
         if hasattr(self, "pre_cb"):
@@ -338,7 +337,14 @@ class BSM_OT_save_all(sub_poll, Operator):
     bl_description = 'Save all relevant vars'
 
     def execute(self, context):
+        props = context.scene.bsmprops
+        internals = ["type","rna_type","content","bl_rna","bsm_all",]
         args = {}
+        #not used yet
+        args['attributes'] = [attr for attr in dir(props) if attr not in internals and attr[:2] != "__"]
+        #args['bools'] = []
+        for attr in args['attributes']:
+            args[attr] = eval(f"props.{attr}")
         for i in range(10):
             line = eval(f"context.scene.panel_line{i}")
             args[line.name] = {}
@@ -347,7 +353,7 @@ class BSM_OT_save_all(sub_poll, Operator):
             args[line.name]['line_on'] = str(line.line_on)
             args[line.name]['file_name'] = line.file_name
             args[line.name]['manual'] = str(line.manual)
-        context.scene.bsmprops.bsm_all = json.dumps(args)
+        props.bsm_all = json.dumps(args,indent=4)
         return {'FINISHED'}
 
 
