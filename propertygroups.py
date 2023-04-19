@@ -146,9 +146,9 @@ def name_checker_up(self,context):
         propper = ph()
         propper.default_sockets(context, self)
         propper.detect_a_map(context,self.ID)
-        bpy.ops.bsm.reporter(reporting=f"{Path(self.file_name).name} detected in [...]/{Path(props.usr_dir).stem}")
-    else:
-        bpy.ops.bsm.reporter(reporting=f"No image containing {self.map_label} found for this material in [...]/{Path(props.usr_dir).stem}")    
+        #bpy.ops.bsm.reporter(reporting=f"{Path(self.file_name).name} detected in [...]/{Path(props.usr_dir).stem}")
+    #else:
+        #bpy.ops.bsm.reporter(reporting=f"No image containing {self.map_label} found for this material in [...]/{Path(props.usr_dir).stem}")    
     if self.name_checker:
         self.name_checker = False
         

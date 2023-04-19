@@ -131,7 +131,6 @@ class BSM_OT_del_map_line(sub_poll, Operator):
         panel_line = eval(f"scene.panel_line{scene.bsmprops.panel_rows}")
         panel_line.manual = False
         panel_line.line_on = False
-
         context.view_layer.update()
         return {'FINISHED'}
 
@@ -337,12 +336,11 @@ class BSM_OT_save_all(sub_poll, Operator):
     bl_description = 'Save all relevant vars'
 
     def execute(self, context):
-        props = context.scene.bsmprops
-        internals = ["type","rna_type","content","bl_rna","bsm_all",]
+        propper = ph()
         args = {}
-        #not used yet
-        args['attributes'] = [attr for attr in dir(props) if attr not in internals and attr[:2] != "__"]
-        #args['bools'] = []
+        props = context.scene.bsmprops
+        args['internals'] = ["type","rna_type","content","bl_rna","name","bsm_all"]
+        args['attributes'] = [attr for attr in dir(props) if attr not in args['internals'] and attr[:2] != "__"]
         for attr in args['attributes']:
             args[attr] = eval(f"props.{attr}")
         for i in range(10):
@@ -365,17 +363,21 @@ class BSM_OT_load_all(sub_poll, Operator):
     def execute(self, context):
         props = context.scene.bsmprops
         args = json.loads(props.bsm_all)
+
+        for attr in args['attributes']:
+            props[attr] = args[attr]
         for i in range(10):
             panel_line = eval(f"context.scene.panel_line{i}")
             panel_line['map_label'] = args[f"PaneLine{i}"]['map_label'] 
             try :
                 panel_line.input_sockets = args[f"PaneLine{i}"]['input_sockets']
             except TypeError :
-                print(args[f"PaneLine{i}"]['input_sockets'])
+                #print(args[f"PaneLine{i}"]['input_sockets'])
                 panel_line['input_sockets'] = '0'
             panel_line['line_on'] = bool(int(eval(args[f"PaneLine{i}"]['line_on'])))
             panel_line['file_name'] = args[f"PaneLine{i}"]['file_name']
             panel_line['manual'] = bool(int(eval(args[f"PaneLine{i}"]['manual'])))
+        context.view_layer.update()    
         return {'FINISHED'}
 
 

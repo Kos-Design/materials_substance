@@ -3,7 +3,7 @@ from pathlib import Path
 import json
 
 class PropertiesHandler():
-
+     
     def get_shaders_list(self,context):
         nodes_links = context.scene.node_links
 
