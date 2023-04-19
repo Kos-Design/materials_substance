@@ -353,7 +353,7 @@ class BSM_OT_save_all(sub_poll, Operator):
             args[line.name]['line_on'] = str(line.line_on)
             args[line.name]['file_name'] = line.file_name
             args[line.name]['manual'] = str(line.manual)
-        props.bsm_all = json.dumps(args,indent=4)
+        props.bsm_all = json.dumps(args)
         return {'FINISHED'}
 
 
@@ -367,14 +367,15 @@ class BSM_OT_load_all(sub_poll, Operator):
         args = json.loads(props.bsm_all)
         for i in range(10):
             panel_line = eval(f"context.scene.panel_line{i}")
-            panel_line.map_label = args[f"PaneLine{i}"]['map_label'] 
+            panel_line['map_label'] = args[f"PaneLine{i}"]['map_label'] 
             try :
                 panel_line.input_sockets = args[f"PaneLine{i}"]['input_sockets']
             except TypeError :
-                panel_line.input_sockets = '0'
-            panel_line.line_on = bool(int(eval(args[f"PaneLine{i}"]['line_on'])))
-            panel_line.file_name = args[f"PaneLine{i}"]['file_name']
-            panel_line.manual = bool(int(eval(args[f"PaneLine{i}"]['manual'])))
+                print(args[f"PaneLine{i}"]['input_sockets'])
+                panel_line['input_sockets'] = '0'
+            panel_line['line_on'] = bool(int(eval(args[f"PaneLine{i}"]['line_on'])))
+            panel_line['file_name'] = args[f"PaneLine{i}"]['file_name']
+            panel_line['manual'] = bool(int(eval(args[f"PaneLine{i}"]['manual'])))
         return {'FINISHED'}
 
 
