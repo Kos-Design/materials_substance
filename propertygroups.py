@@ -74,7 +74,6 @@ def map_label_up(self, context):
     if not self.manual:
         propper = ph()
         propper.detect_a_map(context,self.ID)
-        propper.default_sockets(context, self)
 
 def shaders_list_cb(self, context):
     propper = ph()

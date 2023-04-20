@@ -141,7 +141,7 @@ class NodeHandler():
                 obj.active_material = mat_active
                 if mat_active.name not in out_args['already_done']:
                     mat_active.use_nodes = True
-                    out_args = method(context,**{'out_args':out_args,'mat_active':mat_active,'tree_nodes':mat_active.node_tree.nodes,'tree_links':mat_active.node_tree.links})
+                    out_args = method(context,**{'selection':obj,'out_args':out_args,'mat_active':mat_active,'tree_nodes':mat_active.node_tree.nodes,'tree_links':mat_active.node_tree.links})
                     out_args['already_done'].append(mat_active.name)
                 else :
                     out_args['report'] = out_args['report'] + "\n" + f"skipping{mat_active.name} as it has already been processed during {params['method']}" 
@@ -300,6 +300,9 @@ class NodeHandler():
                                   )
         if bools['has_normal'] and not bools['skip_normals']:
             params['normal_map_node'] = params['tree_nodes'].new('ShaderNodeNormalMap')
+            uvs = [uv.name for uv in params['selection'].data.uv_layers if uv.active_render]
+            if len(uvs) > 0:
+                params['normal_map_node'].uv_map = next(iter(uvs))
             params['tree_links'].new(params['new_image_node'].outputs[0], params['normal_map_node'].inputs[1])
         
         if bools['has_height'] and not bools['skip_normals']:
@@ -359,7 +362,7 @@ class NodeHandler():
         props = scene.bsmprops
         if props.clear_nodes:
             params['tree_nodes'].clear()
-        args = {'tree_nodes':params['tree_nodes'],'tree_links':params['tree_links'],'offsetter_x':-312,'offsetter_y':-312,'mat_active':params['mat_active'],'props':props,'maps':m_params['maps']}
+        args = {'selection':params['selection'],'tree_nodes':params['tree_nodes'],'tree_links':params['tree_links'],'offsetter_x':-312,'offsetter_y':-312,'mat_active':params['mat_active'],'props':props,'maps':m_params['maps']}
         args['mat_output'] = self.get_output_node(context,**args)
         first_node,invalid_shader = self.get_first_node(context,**args)
         args['first_node'] = first_node

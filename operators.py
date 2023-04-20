@@ -311,21 +311,9 @@ class BSM_OT_add_preset(BSM_presetbase, Operator):
     preset_menu = 'BSM_MT_presetsmenu'
 
     # Common variable used for all preset values
-    preset_defines = ['scene = bpy.context.scene',
-                      'bsmprops = scene.bsmprops',
-                      ]
+    preset_defines = ['bsmprops = bpy.context.scene.bsmprops',]
     # Properties to store in the preset
-    preset_values = [
-                     'bsmprops.advanced_mode',
-                     'bsmprops.bsm_all',
-                     'bsmprops.usr_dir',
-                     'bsmprops.panel_rows',
-                     'bsmprops.apply_to_all', 'bsmprops.clear_nodes',
-                     'bsmprops.tweak_levels',
-                     'bsmprops.only_active_obj', 'bsmprops.skip_normals',
-                     'bsmprops.only_active_mat'
-
-                     ]
+    preset_values = ['bsmprops.bsm_all']
     # Directory to store the presets
     preset_subdir = 'bsm_presets'
 
@@ -358,7 +346,7 @@ class BSM_OT_save_all(sub_poll, Operator):
 class BSM_OT_load_all(sub_poll, Operator):
     bl_idname = 'bsm.load_all'
     bl_label = 'save all values'
-    bl_description = 'load preset '
+    bl_description = 'load preset'
 
     def execute(self, context):
         props = context.scene.bsmprops
