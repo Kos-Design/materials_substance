@@ -368,8 +368,6 @@ class NodeHandler():
         args['first_node'] = first_node
         args['inv'] = invalid_shader
         args['shader_node'] = self.get_shader_node(context,**args)
-        if args['shader_node'].type == 'BSDF_PRINCIPLED':
-            args['shader_node'].inputs['Specular'].default_value = 0
         args['base_x'] = args['mat_output'].location[0] - 404 * 2
         args['base_y'] = args['mat_output'].location[1]
         self.move_nodes(context,**args)
@@ -380,11 +378,14 @@ class NodeHandler():
         for i in m_params['indexer']:
             args['line'] = eval(f"scene.panel_line{i}")
             args['map_name'] = self.get_map_name(context,**args)
+            #if there is a node plugged into a metallic socket spec should be 0 for PBR-related reasons
+            if "metal" in args['line'].input_sockets.lower() and "Specular" in args['shader_node'].inputs:
+                args['shader_node'].inputs['Specular'].default_value = 0
             args['bools'] = self.set_bools_params(context,**args)
             args['new_image_node'] = self.make_new_image_node(context,**args)
             args['iterator'] = iterator
             iterator = self.handle_bumps(context,**args)
-            out_args['report'] = f"{out_args['report']} \n image node for {args['line'].map_label} map created in {args['mat_active'].name}"
+            out_args['report'] = f"{out_args['report']} \n Image texture node created in {args['mat_active'].name} for {args['line'].map_label} map "
         self.arrange_last_nodes(context,**args)
         return out_args
 

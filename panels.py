@@ -43,10 +43,8 @@ class BSM_PT_params(TexImporterPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        scene = bpy.context.scene
-        bsmprops = scene.bsmprops
         row = layout.row()
-        row.prop(bsmprops, "usr_dir")
+        row.prop(context.scene.bsmprops, "usr_dir")
 
 
 class BSM_PT_panel_line(TexImporterPanel, Panel):
@@ -131,8 +129,6 @@ class BSM_PT_prefs(TexImporterPanel,Panel):
   
     def draw(self, context):
         layout = self.layout
-        scene = bpy.context.scene
-        bsmprops = scene.bsmprops
         row = layout.row()
         col = row.column()
         col.alignment = 'RIGHT'
@@ -142,7 +138,7 @@ class BSM_PT_prefs(TexImporterPanel,Panel):
         row.separator()
         row = layout.row()
         row.alignment = 'LEFT'
-        row.prop(bsmprops, "advanced_mode", text="Manual Mode ", )
+        row.prop(context.scene.bsmprops, "advanced_mode", text="Manual Mode ", )
       
       
 class BSM_PT_buttons(TexImporterPanel, Panel):
@@ -158,7 +154,6 @@ class BSM_PT_buttons(TexImporterPanel, Panel):
         col = row.column(align = True)
         col.operator("bsm.import_textures")
         col.separator()
-
         row = col.row(align = True)
         col = layout.column(align = True)
         row = col.row(align = True)
@@ -175,7 +170,7 @@ class BSM_PT_options(TexImporterPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        bsmprops = bpy.context.scene.bsmprops
+        bsmprops = context.scene.bsmprops
         row = layout.row()
         col = row.column(align = True)
         row = col.row(align = True)
@@ -184,10 +179,8 @@ class BSM_PT_options(TexImporterPanel, Panel):
         row.prop(bsmprops, "shaders_list", text="")
         row = layout.row()
         row = layout.row()
-        #row.enabled = not bsmprops.manual_on
         row.prop(bsmprops, "apply_to_all", text="Apply to all visible objects", )
         row = layout.row()
-        #row.enabled = not bsmprops.manual_on
         row.prop(bsmprops, "only_active_obj", text="Apply to active object only", )
         row = layout.row()
         row.prop(bsmprops, "skip_normals", )
@@ -198,7 +191,6 @@ class BSM_PT_options(TexImporterPanel, Panel):
         row = layout.row()
         row.prop(bsmprops, "tweak_levels", text="Attach Curves and Ramps ", )
         row = layout.row()
-        #row.enabled = not bsmprops.manual_on
         row.prop(bsmprops, "only_active_mat", text="Only active Material",)
         row = layout.row()
         row.separator()

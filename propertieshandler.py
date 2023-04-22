@@ -10,6 +10,12 @@ class PropertiesHandler():
         shaders_list = [
 
             ('ShaderNodeBsdfAnisotropic', 'Anisotropic BSDF', ''),
+            ('ShaderNodeBsdfHairPrincipled', 'Principled Hair BSDF', ''),
+            ('ShaderNodeVolumePrincipled', 'Principled Volume', ''),
+            ('ShaderNodeVolumeScatter', 'Volume Scatter', ''),
+            ('ShaderNodeVolumeAbsorption', 'Volume Absorption', ''),
+            ('ShaderNodeEmission', 'Emission', ''),
+            ('ShaderNodeBsdfAnisotropic', 'Anisotropic BSDF', ''),
             ('ShaderNodeBsdfDiffuse', 'Diffuse BSDF', ''),
             ('ShaderNodeBsdfGlass', 'Glass BSDF', ''),
             ('ShaderNodeBsdfGlossy', 'Glossy BSDF', ''),

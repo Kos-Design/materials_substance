@@ -47,8 +47,8 @@ class BSM_OT_reporter(Operator):
     reporting: bpy.props.StringProperty(default="")
 
     def execute(self, context):
-        ShowMessageBox(message=self.reporting, title="Message", icon='INFO')
-        #self.report({'INFO'}, self.reporting)
+        #ShowMessageBox(message=self.reporting, title="Message", icon='INFO')
+        self.report({'INFO'}, self.reporting)
         return {'FINISHED'}
 
 
@@ -93,7 +93,7 @@ class BSM_OT_assign_nodes(sub_poll,Operator):
 class BSM_OT_import_textures(sub_poll, Operator):
     bl_idname = "bsm.import_textures"
     bl_label = "Import Substance Maps"
-    bl_description = "Import Texture Maps for active object"
+    bl_description = "Import texture maps for active object"
     
     def execute(self,context):
         bpy.ops.bsm.make_nodes(solo=False)
