@@ -110,9 +110,12 @@ def usr_dir_up(self, context):
         self.usr_dir = str(Path(self.usr_dir).parent)
         if not Path(self.usr_dir).is_dir():
             self.usr_dir = str(Path.home())
-    scene = context.scene
     dir_content = [x.name for x in Path(self.usr_dir).glob('*.*') ]
     self.dir_content = json.dumps((dict(zip(range(len(dir_content)), dir_content))))
+    propper.detect_relevant_maps(context)
+
+def dup_mat_compatible_up(self,context):
+    propper = ph()
     propper.detect_relevant_maps(context)
 
 def clear_nodes_up(self, context):
@@ -141,11 +144,11 @@ def delay_off_state(prop):
 
 def name_checker_up(self,context):
     if self.name_checker:
+        propper = ph()
         props = context.scene.bsmprops
+        propper.detect_a_map(context,self.ID)
         if self.file_is_real :
-            propper = ph()
             propper.default_sockets(context, self)
-            propper.detect_a_map(context,self.ID)
             #bpy.ops.bsm.reporter(reporting=f"{Path(self.file_name).name} detected in [...]/{Path(props.usr_dir).stem}")
         #else:
             #bpy.ops.bsm.reporter(reporting=f"No image containing {self.map_label} found for this material in [...]/{Path(props.usr_dir).stem}")    
@@ -335,6 +338,12 @@ class BSMprops(PropertyGroup):
                         \n Enable this to only use the active Material Slot.",
         default=False,
         update=only_active_mat_up
+    )
+    dup_mat_compatible: BoolProperty(
+        description=" Process duplicated materials names like the originals, \
+                        \n  Use this to treat materials with suffix .001\
+                        \n  as the original ones (ignores the .00x suffix)",
+        default=False
     )
 
 
@@ -844,5 +853,6 @@ class PaneLine9(PropertyGroup):
     )
     file_is_real: BoolProperty(
         description="Associated file detected in that folder",
-        default=False
+        default=False,
+        update=dup_mat_compatible_up
     )

@@ -35,10 +35,13 @@ class PropertiesHandler():
         return shaders_list
     
     def mat_name_cleaner(self,context):
-            bsmprops = context.scene.bsmprops
+            props = context.scene.bsmprops
             obj = context.view_layer.objects.active
             material = obj.active_material
             mat_name = material.name
+            if props.dup_mat_compatible:
+                mat_name = next(iter(mat_name.split(".0")))
+
             return (material, mat_name)
 
     def set_nodes_groups(self,context):

@@ -144,7 +144,7 @@ class NodeHandler():
                     out_args = method(context,**{'selection':obj,'out_args':out_args,'mat_active':mat_active,'tree_nodes':mat_active.node_tree.nodes,'tree_links':mat_active.node_tree.links})
                     out_args['already_done'].append(mat_active.name)
                 else :
-                    out_args['report'] = out_args['report'] + "\n" + f"skipping{mat_active.name} as it has already been processed during {params['method']}" 
+                    out_args['report'] = out_args['report'] + "\n" + f"skipping{mat_active.name} as it has already been processed" 
                     continue   
         obj.active_material = og_mat
         return out_args
@@ -184,11 +184,13 @@ class NodeHandler():
             invalid_shader = True
         return first_node,invalid_shader
     
-    def make_tex_mapping_nodes(self,context,**params): 
+    def make_tex_mapping_nodes(self,context,**params):
+        propper = ph()
+        mat_name = propper.mat_name_cleaner(context)[1] 
         map_node = params['tree_nodes'].new('ShaderNodeMapping')
-        map_node.label = f"{params['mat_active'].name} Mapping"
+        map_node.label = f"{mat_name} Mapping"
         tex_coord_node = params['tree_nodes'].new('ShaderNodeTexCoord')
-        tex_coord_node.label = f"{params['mat_active'].name} Coordinates"
+        tex_coord_node.label = f"{mat_name} Coordinates"
         if not tex_coord_node.outputs[0].is_linked:
             params['tree_links'].new(tex_coord_node.outputs['UV'], map_node.inputs['Vector'])
         return map_node,tex_coord_node
@@ -395,8 +397,9 @@ class NodeHandler():
         out_args = params['out_args']
         panel_lines = [eval(f"bpy.context.scene.panel_line{i}") for i in range(props.panel_rows) if eval(f"bpy.context.scene.panel_line{i}.line_on")]
         out_args['img_loaded'] = 0
+        mat_name = propper.mat_name_cleaner(context)[1]
         for panel_line in panel_lines:
-            args = {'line':panel_line,'mat_name':params['mat_active'].name}
+            args = {'line':panel_line,'mat_name':mat_name}
             active_filepath = propper.find_file(context,**args)
             if active_filepath != "" :
                 image_name = Path(active_filepath).name

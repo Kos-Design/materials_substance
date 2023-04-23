@@ -193,4 +193,6 @@ class BSM_PT_options(TexImporterPanel, Panel):
         row = layout.row()
         row.prop(bsmprops, "only_active_mat", text="Only active Material",)
         row = layout.row()
+        row.prop(bsmprops, "dup_mat_compatible", text="Duplicated material compatibility",)
+        row = layout.row()
         row.separator()
