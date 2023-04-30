@@ -144,7 +144,7 @@ class NodeHandler():
                     out_args = method(context,**{'selection':obj,'out_args':out_args,'mat_active':mat_active,'tree_nodes':mat_active.node_tree.nodes,'tree_links':mat_active.node_tree.links})
                     out_args['already_done'].append(mat_active.name)
                 else :
-                    out_args['report'] = out_args['report'] + "\n" + f"skipping{mat_active.name} as it has already been processed" 
+                    out_args['report'] = out_args['report'] + "\n" + f"skipping {mat_active.name} as it has already been processed" 
                     continue   
         obj.active_material = og_mat
         return out_args
@@ -152,7 +152,7 @@ class NodeHandler():
     def get_shader_node(self,context,**params):
         props = context.scene.bsmprops
         shader_node = params['first_node']
-        if params['inv'] or props.replace_shader:
+        if params['inv'] or props.replace_shader or props.clear_nodes:
             substitute_shader = props.shaders_list
             #handles custom shaders
             if substitute_shader in context.scene.node_links:
@@ -161,13 +161,17 @@ class NodeHandler():
             else:
                 new_node = params['tree_nodes'].new(substitute_shader)
             params['tree_links'].new(new_node.outputs[0], params['mat_output'].inputs[0])
+            print(f"{params['mat_output'].name} linked")
+            context.view_layer.update()
             return new_node
+        print ("no need to relink")    
         return shader_node
 
     def get_output_node(self,context,**params):
         out_nodes = [n for n in params['tree_nodes'] if n.type == "OUTPUT_MATERIAL"]
         for node in out_nodes:
             if node.is_active_output:
+                print ("output is present")
                 return node
         return params['tree_nodes'].new("ShaderNodeOutputMaterial")
         
@@ -356,29 +360,36 @@ class NodeHandler():
     
     def create_nodes(self,context,**params):
         out_args = params['out_args']
-        m_params = self.get_mat_params(context)
-        if len(m_params['maps']) == 0:
-            return
         propper = ph()
         scene = context.scene
         props = scene.bsmprops
         if props.clear_nodes:
             params['tree_nodes'].clear()
+            context.view_layer.update()
+            params['tree_nodes'] = params['mat_active'].node_tree.nodes
+            
+        m_params = self.get_mat_params(context)    
         args = {'selection':params['selection'],'tree_nodes':params['tree_nodes'],'tree_links':params['tree_links'],'offsetter_x':-312,'offsetter_y':-312,'mat_active':params['mat_active'],'props':props,'maps':m_params['maps']}
         args['mat_output'] = self.get_output_node(context,**args)
         first_node,invalid_shader = self.get_first_node(context,**args)
         args['first_node'] = first_node
         args['inv'] = invalid_shader
+        
         args['shader_node'] = self.get_shader_node(context,**args)
         args['base_x'] = args['mat_output'].location[0] - 404 * 2
         args['base_y'] = args['mat_output'].location[1]
+        print(args['base_x'],args['base_y'])
         self.move_nodes(context,**args)
+        if len(m_params['maps']) == 0:
+            return out_args        
         map_node,tex_coord_node = self.make_tex_mapping_nodes(context,**args)
         args['map_node'] = map_node
         args['tex_coord_node'] = tex_coord_node
         iterator = 0
         for i in m_params['indexer']:
             args['line'] = eval(f"scene.panel_line{i}")
+            if not args['line'].manual:
+                propper.detect_a_map(context, i)
             args['map_name'] = self.get_map_name(context,**args)
             #if there is a node plugged into a metallic socket spec should be 0 for PBR-related reasons
             if "metal" in args['line'].input_sockets.lower() and "Specular" in args['shader_node'].inputs:

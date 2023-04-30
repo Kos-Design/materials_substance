@@ -3,7 +3,7 @@
 **Main Panel**
 
 ***
-![Blender-Substance-Texture-Importer_plugthum.cropped_picture](http://kos-design.com/images/wikipics/plugthum.cropped.png  "addon-main-panel")
+![Blender-Substance-Texture-Importer_panel](http://kos-design.com/images/wikipics/bsti_panel.jpg "addon-main-panel")
 
 **Texture Maps Folder**
 ***

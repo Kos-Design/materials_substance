@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Blender Substance Texture Importer",
     "author": "Cosmin Planchon",
-    "version": (0, 3, 0),
+    "version": (0, 3, 1),
     "blender": (3, 1, 2),
     "location": "Properties > Material",
     "description": "Import & autoassign images from Substance Painter or similar 3D painting tools",
@@ -37,7 +37,7 @@ from . panels import (  BSM_PT_presets, BSM_PT_importpanel, BSM_PT_panel_line,
                         BSM_PT_prefs, BSM_PT_options, BSM_PT_params, BSM_PT_buttons,
                         )
 
-classesp = (
+classes = (
     BSMprops,
     NodesLinks,
     ShaderLinks,
@@ -73,7 +73,7 @@ classesp = (
 
 def register():
     from bpy.utils import register_class
-    for cls in classesp:
+    for cls in classes:
         register_class(cls)
     bpy.types.Scene.bsmprops = PointerProperty(type=BSMprops)
     for i in range(10) :
@@ -83,7 +83,7 @@ def register():
 
 def unregister():
     from bpy.utils import unregister_class
-    for cls in classesp:
+    for cls in classes:
         unregister_class(cls)
     del bpy.types.Scene.shader_links
     del bpy.types.Scene.node_links
