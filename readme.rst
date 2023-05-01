@@ -1,36 +1,37 @@
 Blender Substance Texture Importer
 ------------------------------------
 
-Doc and screenshots outdated !!!
 
-.. figure:: http://kos-design.com/images/plugthum.cropped.png
+.. figure:: http://kos-design.com/images/wikipics/bsti_panel.jpg
    :scale: 100 %
    :align: center
 
------------
+
 Description:
------------
+------------
 
-Blender addon designed to import Substance Painter Textures and other similar P.B.R maps into Blender 3D easily. The script imports the texture maps from the choosen folder and assigns them to the selected objects according to their material name.
-The texture maps exported from Substance Painter or similar tools usually have a name pattern containing the material name a prefix(object name) and the texture map name (BaseColor, Metallic, Roughness, Normal etc.). 
-The script attempts to guess the name pattern from the texture folder content and assigns the relevant texture maps to the Shaders of the selected objects. (Manual assignment is also possible for special cases)
+Blender addon designed to import images textures made with Substance Painter or other similar surfacing tools into Blender 3D easily.
+The script looks at all the images in the choosen directory and attempts to guess the corresponding shader input to plug them into.
+Basing its detection on the objects materials names, the algorithm will look for a matching image file depending on the selected map types enabled in the UI panel (available in the Material Properties section ).
+The texture maps names are editable and the target shader input socket can be set from a dropdown list for better control.
+The texture files must have been exported using a pattern containing the material name and a map type (BaseColor, Metallic, Roughness, Normal etc.).
+Manual assignement is also possible for a given material regardless of the texture file name pattern. 
+Various options are available for fine tuning such as adding RGB curves and color ramps, using custom shader nodes or even ignoring the .00x prefix in duplicated material names.
 
-Lets say the selected texture folder contains a set of P.B.R. texture maps named “prefix_FirstMaterialName_BaseColor.png”, “prefix_FirstMaterialName_Roughness.png”, “prefix_FirstMaterialName_Metallic.exr”, “prefix_SecondMaterialName_BaseColor.png” etc.
-(or another kind of name pattern containing a Material name and a Texture map name) 
-You only need to activate the relevant line in the addon panel (and edit the texture map name if needed) to batch import the image textures into their associated shaders on all selected objects at once.
 
 Installation:
----------------
+-------------
 
 `TLDR Add-on Installation Video Tutorial <https://youtu.be/lumrnhikSOg>`__
 
 https://youtu.be/lumrnhikSOg
 
-Download the git release from https://github.com/Kos-Design/materials_substance/releases/download/0.2.4/Blender_Substance_Texture_Importer.zip
+Download the git release from here (LINK_TO_LATEST_RELEASE)
 and install it in Blender via Edit > Preferences > Add-ons > Install an Addon
-Note : if you download the files manually from git, place them ( __init__.py, Operators.py, Panels.py and PropertyGroups.py ) in a folder called "materials_substance" inside your Blender Add-Ons directory.
-It will appear in the Add-Ons list, enable it by ticking the checkbox in front of “Material: Blender Substance Texture Importer”
-That’s it the plugin is ready to use.
+Note : if you download the files manually copy the folder inside your Blender Add-Ons directory.
+It will then appear in the Add-Ons list (you can find it by typing "Material: Blender Substance Texture Importer" in the search bar of the Blender Preferences window > Addon tab).
+Enable like the other add-ons by ticking the checkbox in front of “Material: Blender Substance Texture Importer”.
+The user interface panel is available from the Material section in the Properties window.
 
 
 How-to:
@@ -40,13 +41,77 @@ How-to:
 
 https://youtu.be/45rky8J_0us
 
-`Documentation <doc/Home.md>`__
+`Wiki <doc/Home.md>`__
 (still in progress) 
 
-A Panel labeled Substance Texture Importer is displayed under the Shader Settings in the Material Tab. 
+The panel labeled "Substance Texture Importer" is displayed under the Shader Settings in the Material Tab. 
 
-First choose the Directory containing the Texture Maps to be imported.
-(It is best to keep the texture images in a separate folder to help the script images name detection.) 
+First choose the directory containing the textures files to be imported.
+(IMG FOLDERSELECT)
+After setting the folder the script should automatically detect and activate the relevant maps in the panel. 
+You can enable/disable the textures maps type you wish to import by checking the corresponding line in the addon panel (and edit the texture map name if needed)
+If a matching texture fils is detected the icon next to the map name should change from a question mark to a checked icon (IMAGE Question mark & Checked icons) 
+Then you can use the "Import Textures" button to batch import the images into their associated shaders sockets.
+Or use the "Setup nodes" button below to only create empty image nodes, and the use the "Assign images" button to fill the images nodes with the matching textures files.
+By default the script will import the images for all selected objects at once, there are also some options to import them for all visible objects, only the active object or only the active material of each selected object.
+
+
+Options:
+--------
+
+---------------
+Replace Shader:
+---------------
+When this option is enabled the shader node of the material will be replaced by the one displayed in the dropdown selector next to it.
+
+-----------------------------
+Apply to all visible objects:
+-----------------------------
+Process all visible objects regardless of the current selection.
+
+----------------------------
+Apply to active object only:
+----------------------------
+Process only the last selected / active object regardless of the current selection.
+
+--------------------------
+Skip normal map detection:
+--------------------------
+By default a normal map node or bump map node is added when a normal map or height map is detected. Enable this option if you are using a custom shader that already include such conversion node in order to plug the image directly in the selected input socket.
+
+----------------------
+Enable Custom Shaders:
+----------------------
+Use this option to add your own NodeGroups to the Shaders list used by the "Replace Shaders" option. 
+Your custom shaders needs to have at least one input socket and a shader output socket in order to be added to the list.
+
+--------------------------
+Clear nodes from material:
+--------------------------
+Removes all existing nodes nodes from the target materials before processing them.
+
+---------------------
+Only active material:
+---------------------
+Process only the active material from the material slots for each target object.
+
+----------------------------------
+Duplicated material compatibility:
+----------------------------------
+Enable this option to ignore the .00x prefix from the target materials names.
+
+------------
+Manual Mode:
+------------
+Use this to be able to manually select a texture file instead of relying on the pattern detection algorithm of the addon.
+When enabled the icon next to the map name on each panel line will change to (ICON). 
+You can then activate it for each line and the texture map name will change to an individual file selection field.
+
+
+Presets:
+--------
+The icon (ICON) in the top-right corner allows you to store and loads the parameters used in the UI panel.
+
 
 License
 -------
