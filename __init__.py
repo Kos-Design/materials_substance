@@ -6,7 +6,7 @@ bl_info = {
     "location": "Properties > Material",
     "description": "Import & autoassign images from Substance Painter or similar 3D painting tools",
     "warning": "",
-    "wiki_url": "https://github.com/Kos-Design/materials_substance/wiki/Blender-Substance-Texture-Importer-Wiki",
+    "wiki_url": "https://github.com/Kos-Design/materials_substance/blob/main/readme.rst",
     "tracker_url": "https://github.com/Kos-Design/materials_substance/issues",
     "category": "Material"}
 

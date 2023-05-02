@@ -26,8 +26,9 @@ Installation:
 
 https://youtu.be/lumrnhikSOg
 
-Download the git release from here (LINK_TO_LATEST_RELEASE)
-and install it in Blender via Edit > Preferences > Add-ons > Install an Addon
+`Download the latest git release of Blender Substance Texture Importer from here <https://github.com/Kos-Design/materials_substance/releases/download/0.3.1/Blender_Substance_Texture_Importer.zip>`__
+and install it in Blender via Edit > Preferences > Add-ons > Install an Addon.
+
 Note : if you download the files manually copy the folder inside your Blender Add-Ons directory.
 It will then appear in the Add-Ons list (you can find it by typing "Material: Blender Substance Texture Importer" in the search bar of the Blender Preferences window > Addon tab).
 Enable like the other add-ons by ticking the checkbox in front of “Material: Blender Substance Texture Importer”.
@@ -41,18 +42,44 @@ How-to:
 
 https://youtu.be/45rky8J_0us
 
-`Wiki <doc/Home.md>`__
-(still in progress) 
-
 The panel labeled "Substance Texture Importer" is displayed under the Shader Settings in the Material Tab. 
 
-First choose the directory containing the textures files to be imported.
-(IMG FOLDERSELECT)
+First choose the directory containing the textures files to be imported using the folder selection field under "Maps Folder" section of the addon panel.
+
+.. figure:: http://kos-design.com/images/wikipics/folder_select.jpg
+
 After setting the folder the script should automatically detect and activate the relevant maps in the panel. 
 You can enable/disable the textures maps type you wish to import by checking the corresponding line in the addon panel (and edit the texture map name if needed)
-If a matching texture fils is detected the icon next to the map name should change from a question mark to a checked icon (IMAGE Question mark & Checked icons) 
+
+.. figure:: http://kos-design.com/images/wikipics/panel_lines.jpg
+
+If a matching texture file is detected the icon next to the map name should change
+
+from a question mark :
+
+.. figure:: http://kos-design.com/images/wikipics/question_mark.jpg
+   :align: left
+
+to a checked icon :
+
+.. figure:: http://kos-design.com/images/wikipics/checked.jpg
+   :align: left
+
 Then you can use the "Import Textures" button to batch import the images into their associated shaders sockets.
-Or use the "Setup nodes" button below to only create empty image nodes, and the use the "Assign images" button to fill the images nodes with the matching textures files.
+
+.. figure:: http://kos-design.com/images/wikipics/import_maps.jpg
+   :align: left
+
+Or use the "Setup nodes" button below to only create empty image nodes,
+
+.. figure:: http://kos-design.com/images/wikipics/only_setup.jpg
+   :align: left
+
+and then use the "Assign images" button next to it to fill these images nodes with the matching textures files.
+
+.. figure:: http://kos-design.com/images/wikipics/only_assign.jpg
+   :align: left
+
 By default the script will import the images for all selected objects at once, there are also some options to import them for all visible objects, only the active object or only the active material of each selected object.
 
 
@@ -104,14 +131,22 @@ Enable this option to ignore the .00x prefix from the target materials names.
 Manual Mode:
 ------------
 Use this to be able to manually select a texture file instead of relying on the pattern detection algorithm of the addon.
-When enabled the icon next to the map name on each panel line will change to (ICON). 
+When enabled the icon next to the map name on each panel line will change to :
+
+.. figure:: http://kos-design.com/images/wikipics/manual_off.jpg
+   :align: left
+   
 You can then activate it for each line and the texture map name will change to an individual file selection field.
 
+.. figure:: http://kos-design.com/images/wikipics/manual_enabled.jpg
+   :align: left  
 
 Presets:
 --------
-The icon (ICON) in the top-right corner allows you to store and loads the parameters used in the UI panel.
+The icon in the top-right corner allows you to store and loads the parameters used in the UI panel.
 
+.. figure:: http://kos-design.com/images/wikipics/preset_button.jpg
+   :align: left  
 
 License
 -------
