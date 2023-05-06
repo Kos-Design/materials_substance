@@ -44,7 +44,7 @@ https://youtu.be/45rky8J_0us
 
 The panel labeled "Substance Texture Importer" is displayed under the Shader Settings in the Material Tab. 
 
-First choose the directory containing the textures files to be imported using the folder selection field under "Maps Folder" section of the addon panel.
+First choose the directory containing the textures files to be imported using the folder selection field under the "Maps Folder" section of the addon panel.
 
 .. figure:: http://kos-design.com/images/wikipics/folder_select.jpg
 
@@ -65,17 +65,17 @@ to a checked icon :
 .. figure:: http://kos-design.com/images/wikipics/checked.jpg
    :align: left
 
-Then you can use the "Import Textures" button to batch import the images into their associated shaders sockets.
+Then you can use the "Import Substance Maps" button to batch import the images into their associated shaders sockets.
 
 .. figure:: http://kos-design.com/images/wikipics/import_maps.jpg
    :align: left
 
-Or use the "Setup nodes" button below to only create empty image nodes,
+Or use the "Only Setup Nodes" button below to only create empty image nodes,
 
 .. figure:: http://kos-design.com/images/wikipics/only_setup.jpg
    :align: left
 
-and then use the "Assign images" button next to it to fill these images nodes with the matching textures files.
+and then use the "Only Assign Images" button next to it to fill these images nodes with the matching textures files.
 
 .. figure:: http://kos-design.com/images/wikipics/only_assign.jpg
    :align: left
@@ -136,7 +136,8 @@ When enabled the icon next to the map name on each panel line will change to :
 .. figure:: http://kos-design.com/images/wikipics/manual_off.jpg
    :align: left
    
-You can then activate it for each line and the texture map name will change to an individual file selection field.
+You can then activate it for each line and the texture map name will change to an individual file selection field that you can use to set the path of a texture file to import.
+Note: When "Manual" is enabled in one of the Panel lines for a given map, the "Only Active Material" and "Apply to active object only" will be activated (otherwise the Importer would load the same file for each material & objects in the selected shader input node).
 
 .. figure:: http://kos-design.com/images/wikipics/manual_enabled.jpg
    :align: left  
