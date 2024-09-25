@@ -127,13 +127,18 @@ def only_active_mat_up(self, context):
     ndh.refresh_shader_links(context)  
   
 def replace_shader_up(self, context):
+    
     scene = bpy.context.scene
     propper = ph()
     propper.clean_input_sockets(context)
+    if self.include_ngroups:
+        scene.node_links.clear()
+        include_ngroups_up(self,context)
     ndh = nha()
     ndh.refresh_shader_links(context)
     propper.guess_sockets(context)
     context.view_layer.update()
+    
 
 def only_active_obj_up(self, context):
     if self.only_active_obj:
@@ -343,7 +348,7 @@ class BSMprops(PropertyGroup):
         description=" Process duplicated materials names like the originals, \
                         \n  Use this to treat materials with suffix .001\
                         \n  as the original ones (ignores the .00x suffix)",
-        default=False
+        default=True
     )
 
 

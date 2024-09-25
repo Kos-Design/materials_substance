@@ -1,8 +1,8 @@
 bl_info = {
     "name": "Blender Substance Texture Importer",
     "author": "Cosmin Planchon",
-    "version": (0, 3, 1),
-    "blender": (3, 1, 2),
+    "version": (0, 4, 0),
+    "blender": (4, 0, 0),
     "location": "Properties > Material",
     "description": "Import & autoassign images from Substance Painter or similar 3D painting tools",
     "warning": "",

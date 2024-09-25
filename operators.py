@@ -360,7 +360,6 @@ class BSM_OT_load_all(sub_poll, Operator):
             try :
                 panel_line.input_sockets = args[f"PaneLine{i}"]['input_sockets']
             except TypeError :
-                #print(args[f"PaneLine{i}"]['input_sockets'])
                 panel_line['input_sockets'] = '0'
             panel_line['line_on'] = bool(int(eval(args[f"PaneLine{i}"]['line_on'])))
             panel_line['file_name'] = args[f"PaneLine{i}"]['file_name']
