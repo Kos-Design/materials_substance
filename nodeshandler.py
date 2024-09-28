@@ -468,13 +468,14 @@ class NodeHandler():
             active_filepath = propper.find_file(context,**args)
             if active_filepath != "" :
                 image_name = Path(active_filepath).name
+                
                 if params['mat_active'].node_tree.nodes.find(f"BSM_{image_name}") > 0:
                     if Path(active_filepath).is_file():
                         file_path = Path(active_filepath).name
-                        bpy.ops.image.open(filepath=active_filepath,show_multiview=False)
+                        image = bpy.data.images.load(filepath=active_filepath) if not image_name in bpy.data.images else bpy.data.images[image_name]
                         nodes_to_fill = [nod for nod in params['mat_active'].node_tree.nodes if self.strip_digits(nod.name).replace(" ", "").lower() in image_name.replace(" ", "").lower()]
                         for node in nodes_to_fill:
-                            node.image = bpy.data.images[image_name]
+                            node.image = bpy.data.images[image.name]
                             if image_name.lower() in ["normal", "nor", "norm", "normale", "normals"]:
                                 node.image.colorspace_settings.name = 'Non-Color'
                             out_args['img_loaded'] += 1
