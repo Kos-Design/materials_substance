@@ -51,7 +51,7 @@ def apply_to_all_up(self, context):
 
 def include_ngroups_up(self, context):
     propper = ph()
-    
+
     if context.scene.bsmprops.include_ngroups:
         propper.set_nodes_groups(context)
     else:
@@ -60,18 +60,18 @@ def include_ngroups_up(self, context):
     ndh.refresh_shader_links(context)
     propper.clean_input_sockets(context)
     propper.guess_sockets(context)
-  
+
 def enum_sockets_cb(self, context):
     propper = ph()
     return propper.get_sockets_enum_items(context)
-    
+
 def enum_sockets_up(self, context):
     context.view_layer.update()
 
 def map_label_up(self, context):
     if not self.manual:
         propper = ph()
-        propper.detect_a_map(context,self.ID)
+        propper.detect_a_map(context,self)
 
 def shaders_list_cb(self, context):
     propper = ph()
@@ -85,33 +85,39 @@ def shaders_list_up(self, context):
     context.view_layer.update()
 
 def manual_up(self, context):
-    propper = ph()
-    propper.detect_a_map(context,self.ID)
     if self.manual:
         bsmprops = context.scene.bsmprops
         bsmprops.only_active_mat = True
         bsmprops.apply_to_all = False
         bsmprops.only_active_obj = True
+    else:
+        propper = ph()
+        propper.detect_a_map(context,self)
 
 def advanced_mode_up(self, context):
     ndh = nha()
     ndh.refresh_shader_links(context)
     if not self.advanced_mode:
-        for i in range(self.panel_rows):
-            panel_line = eval(f"context.scene.panel_line{i}")
-            panel_line.manual = False
+        props = context.scene.bsmprops
+        lines = props.texture_importer.textures
+        for line in lines:
+            line.manual = False
         apply_to_all_up(self,context)
     else:
         self.apply_to_all = False
 
 def usr_dir_up(self, context):
     propper = ph()
+    self.dir_content = ""
+    #in case a file path is manually entered instead of a folder path
     if not Path(self.usr_dir).is_dir():
         self.usr_dir = str(Path(self.usr_dir).parent)
         if not Path(self.usr_dir).is_dir():
-            self.usr_dir = str(Path.home())
+            #reverting to addon folder by default if no valid texture folder is set
+            self.usr_dir = f"{(Path(__file__).parent)}"
     dir_content = [x.name for x in Path(self.usr_dir).glob('*.*') ]
-    self.dir_content = json.dumps((dict(zip(range(len(dir_content)), dir_content))))
+    if len(dir_content) :
+        self.dir_content = json.dumps((dict(zip(range(len(dir_content)), dir_content))))
     propper.detect_relevant_maps(context)
 
 def dup_mat_compatible_up(self,context):
@@ -124,10 +130,9 @@ def clear_nodes_up(self, context):
 
 def only_active_mat_up(self, context):
     ndh = nha()
-    ndh.refresh_shader_links(context)  
-  
+    ndh.refresh_shader_links(context)
+
 def replace_shader_up(self, context):
-    
     scene = bpy.context.scene
     propper = ph()
     propper.clean_input_sockets(context)
@@ -138,28 +143,11 @@ def replace_shader_up(self, context):
     ndh.refresh_shader_links(context)
     propper.guess_sockets(context)
     context.view_layer.update()
-    
 
 def only_active_obj_up(self, context):
     if self.only_active_obj:
         self.apply_to_all = False
 
-def delay_off_state(prop):
-    prop.name_checker = False
-
-def name_checker_up(self,context):
-    if self.name_checker:
-        propper = ph()
-        props = context.scene.bsmprops
-        propper.detect_a_map(context,self.ID)
-        if self.file_is_real :
-            propper.default_sockets(context, self)
-            #bpy.ops.bsm.reporter(reporting=f"{Path(self.file_name).name} detected in [...]/{Path(props.usr_dir).stem}")
-        #else:
-            #bpy.ops.bsm.reporter(reporting=f"No image containing {self.map_label} found for this material in [...]/{Path(props.usr_dir).stem}")    
-        bpy.app.timers.register(functools.partial(delay_off_state, self), first_interval=0.175)
-        
-        
 class ShaderLinks(PropertyGroup):
     # shaders_links
     ID: IntProperty(
@@ -172,16 +160,16 @@ class ShaderLinks(PropertyGroup):
     )
     shadertype: StringProperty(
         name="internal name",
-        default='{"0":""}'
+        default="{'0':''}"
     )
     input_sockets: StringProperty(
         name="",
         description="Shader input sockets for this texture node",
-        default='{"0":""}'
+        default="{'0':''}"
     )
     outputsockets: StringProperty(
         name="lint of output sockets",
-        default='{"0":""}'
+        default="{'0':''}"
     )
     hasoutputs: BoolProperty(
         name="hasoutputs",
@@ -209,15 +197,15 @@ class NodesLinks(PropertyGroup):
     )
     nodetype: StringProperty(
         name="internal name",
-        default='{"0":""}'
+        default="{'0':''}"
     )
     input_sockets: StringProperty(
         name="list of input sockets",
-        default='{"0":""}'
+        default="{'0':''}"
     )
     outputsockets: StringProperty(
         name="lint of output sockets",
-        default='{"0":""}'
+        default="{'0':''}"
     )
     hasoutputs: BoolProperty(
         name="hasoutputs",
@@ -233,7 +221,51 @@ class NodesLinks(PropertyGroup):
     )
 
 
+class PanelLines(PropertyGroup):
+
+    map_label: StringProperty(
+        name="Map name",
+        description="Keyword identifier of the texture map to import",
+        default="Metallic",
+        update=map_label_up
+    )
+    file_name: StringProperty(
+        name="File",
+        subtype='FILE_PATH',
+        description="Complete filepath of the texture map",
+        default="Select a file"
+    )
+    input_sockets: EnumProperty(
+        name="",
+        description="Target shader input sockets for this texture node",
+        items=enum_sockets_cb,
+        update=enum_sockets_up
+    )
+    file_is_real: BoolProperty(
+        description="Associated file exists",
+        default=False
+    )
+    manual: BoolProperty(
+        name='Overwrite file name',
+        description="Manual mode switch",
+        default=False,
+        update=manual_up
+    )
+    line_on: BoolProperty(
+        name="Active",
+        description="Enable/Disable line",
+        default=True,
+        update=line_on_up
+    )
+
+
+class PanelLiner(PropertyGroup):
+    textures: CollectionProperty(type=PanelLines)
+    texture_index: IntProperty(default=0)
+
+
 class BSMprops(PropertyGroup):
+    texture_importer: PointerProperty(type=PanelLiner)
 
     include_ngroups: BoolProperty(
         name="Enable or Disable",
@@ -263,7 +295,7 @@ class BSMprops(PropertyGroup):
         description=" Clear existing nodes \
                      \n Removes all nodes from the material shader \
                      \n before setting up the nodes trees",
-        default=False, 
+        default=False,
         update=clear_nodes_up
     )
     tweak_levels: BoolProperty(
@@ -276,34 +308,22 @@ class BSMprops(PropertyGroup):
                         \n during Nodes Trees setup",
         default=False
     )
-    panel_rows: IntProperty(
-        name="Set a value",
-        description="Number of map rows displayed in the UI",
-        default=5,
-        min=1,
-        max=10
-    )
     dir_content: StringProperty(
         name="Setavalue",
         description="content of selected texture folder",
-        default='{"0":"Cube_Material_BaseColor.exr","1":"Cube_Material_roughness.exr"}'
-    )
-    enum_placeholder: EnumProperty(
-        name="Enable row to select input socket.",
-        description="placeholder",
-        items=[('0', '', '')]
+        default=""
     )
     usr_dir: StringProperty(
         name="",
         description="Folder containing the Textures Images to be imported",
         subtype='DIR_PATH',
-        default=str(Path(__file__).parent.joinpath("maps_example")),
+        default=str(Path(__file__).parent),
         update=usr_dir_up
     )
     bsm_all: StringProperty(
         name="allsettings",
         description="Json string of all settings, used internally for preset saving",
-        default='{"0":"0"}'
+        default="{'0':'0'}"
     )
     skip_normals: BoolProperty(
         name="Skip normal map detection",
@@ -349,515 +369,4 @@ class BSMprops(PropertyGroup):
                         \n  Use this to treat materials with suffix .001\
                         \n  as the original ones (ignores the .00x suffix)",
         default=True
-    )
-
-
-class PaneLine0(PropertyGroup):
-    # panel_line0
-    ID: IntProperty(
-        name="ID",
-        default=0
-    )
-    name: StringProperty(
-        name="name",
-        default="PaneLine0"
-    )
-    map_label: StringProperty(
-        name="Map name",
-        description="Keyword identifier of the texture map to import",
-        default="BaseColor",
-        update=map_label_up
-    )
-    input_sockets: EnumProperty(
-        name="",
-        description="Shader input sockets for this texture node",
-        items=enum_sockets_cb,
-        update=enum_sockets_up
-    )
-    line_on: BoolProperty(
-        name="",
-        description="Enable/Disable line",
-        default=True,
-        update=line_on_up
-    )
-    file_name: StringProperty(
-        name="File name",
-        subtype='FILE_PATH',
-        description="Complete filepath of the texture map",
-        default="maps_example/Cube_Material_BaseColor.exr"
-    )
-    manual: BoolProperty(
-        description="Manual Mode (Enable to select the Map File directly)",
-        default=False,
-        update=manual_up
-    )
-    name_checker: BoolProperty(
-        name="",
-        description="Detect corresponding map file and input socket",
-        default=False,
-        update=name_checker_up
-    )
-    file_is_real: BoolProperty(
-        description="File detected in selected folder",
-        default=True
-    )
-
-
-class PaneLine1(PropertyGroup):
-    #panel_line1
-    ID: IntProperty(
-        name="ID",
-        default=1
-    )
-    name: StringProperty(
-        name="name",
-        default="PaneLine1"
-    )
-    map_label: StringProperty(
-        name="Map name",
-        description="Keyword identifier of the texture map to import",
-        default="Roughness",
-        update=map_label_up
-    )
-    input_sockets: EnumProperty(
-        name="",
-        description="Shader input sockets for this texture node",
-        items=enum_sockets_cb,
-        update=enum_sockets_up
-    )
-    line_on: BoolProperty(
-        name="",
-        description="Enable/Disable line",
-        default=True,
-        update=line_on_up
-    )
-    file_name: StringProperty(
-        name="File name",
-        subtype='FILE_PATH',
-        description="Complete filepath of the texture map",
-        default="maps_example/Cube_Material_roughness.exr"
-    )
-    manual: BoolProperty(
-        description="Manual Mode (Enable to select the Map File directly)",
-        default=False,
-        update=manual_up
-    )
-    name_checker: BoolProperty(
-        name="",
-        description="Detect corresponding map file and input socket",
-        default=False,
-        update=name_checker_up
-    )
-    file_is_real: BoolProperty(
-        description="Associated file detected in that folder",
-        default=True
-    )
-
-
-class PaneLine2(PropertyGroup):
-    # panel_line2
-    ID: IntProperty(
-        name="ID",
-        default=2
-    )
-    name: StringProperty(
-        name="name",
-        default="PaneLine2"
-    )
-    map_label: StringProperty(
-        name="Map name",
-        description="Keyword identifier of the texture map to import",
-        default="Metallic",
-        update=map_label_up
-    )
-    input_sockets: EnumProperty(
-        name="",
-        description="Shader input sockets for this texture node",
-        items=enum_sockets_cb,
-        update=enum_sockets_up
-    )
-    line_on: BoolProperty(
-        name="",
-        description="Enable/Disable line",
-        default=False,
-        update=line_on_up
-    )
-    file_name: StringProperty(
-        name="File name",
-        subtype='FILE_PATH',
-        description="Complete filepath of the texture map",
-        default="Select a file"
-    )
-    manual: BoolProperty(
-        description="Manual Mode (Enable to select the Map File directly)",
-        default=False,
-        update=manual_up
-    )
-    name_checker: BoolProperty(
-        name="",
-        description="Detect corresponding map file and input socket",
-        default=False,
-        update=name_checker_up
-    )
-    file_is_real: BoolProperty(
-        description="Associated file detected in that folder",
-        default=False
-    )
-
-
-class PaneLine3(PropertyGroup):
-    # panel_line3
-    ID: IntProperty(
-        name="ID",
-        default=3
-    )
-    name: StringProperty(
-        name="name",
-        default="PaneLine3"
-    )
-    map_label: StringProperty(
-        name="Map name",
-        description="Keyword identifier of the texture map to import",
-        default="Normal",
-        update=map_label_up
-    )
-    input_sockets: EnumProperty(
-        name="",
-        description="Shader input sockets for this texture node",
-        items=enum_sockets_cb,
-        update=enum_sockets_up
-    )
-    line_on: BoolProperty(
-        name="",
-        description="Enable/Disable line",
-        default=False,
-        update=line_on_up
-    )
-    file_name: StringProperty(
-        name="File name",
-        subtype='FILE_PATH',
-        description="Complete filepath of the texture map",
-        default="Select a file"
-    )
-    manual: BoolProperty(
-        description="Manual Mode (Enable to select the Map File directly)",
-        default=False,
-        update=manual_up
-    )
-    name_checker: BoolProperty(
-        name="",
-        description="Detect corresponding map file and input socket",
-        default=False,
-        update=name_checker_up
-    )
-    file_is_real: BoolProperty(
-        description="Associated file detected in that folder",
-        default=False
-    )
-
-
-class PaneLine4(PropertyGroup):
-    # panel_line4
-    ID: IntProperty(
-        name="ID",
-        default=4
-    )
-    name: StringProperty(
-        name="name",
-        default="PaneLine4"
-    )
-    map_label: StringProperty(
-        name="Map name",
-        description="Keyword identifier of the texture map to import",
-        default="Height",
-        update=map_label_up
-    )
-    input_sockets: EnumProperty(
-        name="",
-        description="Shader input sockets for this texture node",
-        items=enum_sockets_cb,
-        update=enum_sockets_up
-    )
-    line_on: BoolProperty(
-        name="",
-        description="Enable/Disable line",
-        default=False,
-        update=line_on_up
-    )
-    file_name: StringProperty(
-        name="File name",
-        subtype='FILE_PATH',
-        description="Complete filepath of the texture map",
-        default="Select a file"
-    )
-    manual: BoolProperty(
-        description="Manual Mode (Enable to select the Map File directly)",
-        default=False,
-        update=manual_up
-    )
-    name_checker: BoolProperty(
-        name="",
-        description="Detect corresponding map file and input socket",
-        default=False,
-        update=name_checker_up
-    )
-    file_is_real: BoolProperty(
-        description="Associated file detected in that folder",
-        default=False
-    )
-
-
-class PaneLine5(PropertyGroup):
-    # panel_line5
-    ID: IntProperty(
-        name="ID",
-        default=5
-    )
-    name: StringProperty(
-        name="name",
-        default="PaneLine5"
-    )
-    map_label: StringProperty(
-        name="Map name",
-        description="Keyword identifier of the texture map to import",
-        default="Specular",
-        update=map_label_up
-    )
-    input_sockets: EnumProperty(
-        name="",
-        description="Shader input sockets for this texture node",
-        items=enum_sockets_cb,
-        update=enum_sockets_up
-    )
-    line_on: BoolProperty(
-        name="",
-        description="Enable/Disable line",
-        default=False,
-        update=line_on_up
-    )
-    file_name: StringProperty(
-        name="File name",
-        subtype='FILE_PATH',
-        description="Complete filepath of the texture map",
-        default="Select a file"
-    )
-    manual: BoolProperty(
-        description="Manual Mode (Enable to select the Map File directly)",
-        default=False,
-        update=manual_up
-    )
-    name_checker: BoolProperty(
-        name="",
-        description="Detect corresponding map file and input socket",
-        default=False,
-        update=name_checker_up
-    )
-    file_is_real: BoolProperty(
-        description="Associated file detected in that folder",
-        default=False
-    )
-
-
-class PaneLine6(PropertyGroup):
-    # panel_line6
-    ID: IntProperty(
-        name="ID",
-        default=6
-    )
-    name: StringProperty(
-        name="name",
-        default="PaneLine6"
-    )
-    map_label: StringProperty(
-        name="Map name",
-        description="Keyword identifier of the texture map to import",
-        default="Glossy",
-        update=map_label_up
-    )
-    input_sockets: EnumProperty(
-        name="",
-        description="Shader input sockets for this texture node",
-        items=enum_sockets_cb,
-        update=enum_sockets_up
-    )
-    line_on: BoolProperty(
-        name="",
-        description="Enable/Disable line",
-        default=False,
-        update=line_on_up
-    )
-    file_name: StringProperty(
-        name="File name",
-        subtype='FILE_PATH',
-        description="Complete filepath of the texture map",
-        default="Select a file"
-    )
-    manual: BoolProperty(
-        description="Manual Mode (Enable to select the Map File directly)",
-        default=False,
-        update=manual_up
-    )
-    name_checker: BoolProperty(
-        name="",
-        description="Detect corresponding map file and input socket",
-        default=False,
-        update=name_checker_up
-    )
-    file_is_real: BoolProperty(
-        description="Associated file detected in that folder",
-        default=False
-    )
-
-
-class PaneLine7(PropertyGroup):
-    # panel_line7
-    ID: IntProperty(
-        name="ID",
-        default=7
-    )
-    name: StringProperty(
-        name="name",
-        default="PaneLine7"
-    )
-    map_label: StringProperty(
-        name="Map name",
-        description="Keyword identifier of the texture map to import",
-        default="Emission",
-        update=map_label_up
-    )
-    input_sockets: EnumProperty(
-        name="",
-        description="Shader input sockets for this texture node",
-        items=enum_sockets_cb,
-        update=enum_sockets_up
-    )
-    line_on: BoolProperty(
-        name="",
-        description="Enable/Disable line",
-        default=False,
-        update=line_on_up
-    )
-    file_name: StringProperty(
-        name="File name",
-        subtype='FILE_PATH',
-        description="Complete filepath of the texture map",
-        default="Select a file"
-    )
-    manual: BoolProperty(
-        description="Manual Mode (Enable to select the Map File directly)",
-        default=False,
-        update=manual_up
-    )
-    name_checker: BoolProperty(
-        name="",
-        description="Detect corresponding map file and input socket",
-        default=False,
-        update=name_checker_up
-    )
-    file_is_real: BoolProperty(
-        description="Associated file detected in that folder",
-        default=False
-    )
-
-
-class PaneLine8(PropertyGroup):
-    # panel_line8
-    ID: IntProperty(
-        name="ID",
-        default=8
-    )
-    name: StringProperty(
-        name="name",
-        default="PaneLine8"
-    )
-    map_label: StringProperty(
-        name="Map name",
-        description="Keyword identifier of the texture map to import",
-        default="Transparency",
-        update=map_label_up
-    )
-    input_sockets: EnumProperty(
-        name="",
-        description="Shader input sockets for this texture node",
-        items=enum_sockets_cb,
-        update=enum_sockets_up
-    )
-    line_on: BoolProperty(
-        name="",
-        description="Enable/Disable line",
-        default=False,
-        update=line_on_up
-    )
-    file_name: StringProperty(
-        name="File name",
-        subtype='FILE_PATH',
-        description="Complete filepath of the texture map",
-        default="Select a file"
-    )
-    manual: BoolProperty(
-        description="Manual Mode (Enable to select the Map File directly)",
-        default=False,
-        update=manual_up
-    )
-    name_checker: BoolProperty(
-        name="",
-        description="Detect corresponding map file and input socket",
-        default=False,
-        update=name_checker_up
-    )
-    file_is_real: BoolProperty(
-        description="Associated file detected in that folder",
-        default=False
-    )
-
-
-class PaneLine9(PropertyGroup):
-    # panel_line9
-    ID: IntProperty(
-        name="ID",
-        default=9
-    )
-    name: StringProperty(
-        name="name",
-        default="PaneLine9"
-    )
-    map_label: StringProperty(
-        name="Map name",
-        description="Keyword identifier of the texture map to import",
-        default="Anisotropic",
-        update=map_label_up
-    )
-    input_sockets: EnumProperty(
-        name="",
-        description="Shader input sockets for this texture node",
-        items=enum_sockets_cb,
-        update=enum_sockets_up
-    )
-    line_on: BoolProperty(
-        name="",
-        description="Enable/Disable line",
-        default=False,
-        update=line_on_up
-    )
-    file_name: StringProperty(
-        name="File name",
-        subtype='FILE_PATH',
-        description="Complete filepath of the texture map",
-        default="Select a file"
-    )
-    manual: BoolProperty(
-        description="Manual Mode (Enable to select the Map File directly)",
-        default=False,
-        update=manual_up
-    )
-    name_checker: BoolProperty(
-        name="",
-        description="Detect corresponding map file and input socket",
-        default=False,
-        update=name_checker_up
-    )
-    file_is_real: BoolProperty(
-        description="Associated file detected in that folder",
-        default=False,
-        update=dup_mat_compatible_up
     )

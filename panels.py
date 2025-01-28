@@ -46,79 +46,39 @@ class BSM_PT_params(TexImporterPanel, Panel):
         row = layout.row()
         row.prop(context.scene.bsmprops, "usr_dir")
 
-
-class BSM_PT_panel_line(TexImporterPanel, Panel):
-    bl_idname = "BSM_PT_panel_line"
-    bl_label = "Texture maps"
+class BSM_PT_panel_liner(TexImporterPanel,Panel):
+    bl_label = "Textures:"
+    bl_idname = "BSM_PT_substance_texture_importer"
     bl_parent_id = "BSM_PT_importpanel"
-    bl_options = {'HIDE_HEADER'}
-
 
     def draw(self, context):
         layout = self.layout
-        scene = bpy.context.scene
-        bsmprops = scene.bsmprops
-        advanced_mode = bsmprops.advanced_mode
-        panel_rows = bsmprops.panel_rows
+        props = context.scene.bsmprops
+        texture_importer = props.texture_importer
         row = layout.row()
-        col = row.column()
-        col.alignment = 'RIGHT'
-        row = col.row()
-        row.alignment = 'RIGHT'
-        row.operator("bsm.add_map_line", icon="ADD")
-        row.separator()
-        row = layout.row(align=True)
-        row = row.split(factor=.02)
-        row.label(text=" ")
-        row.use_property_split = True
-        row.use_property_decorate = False
-        row = row.split(factor=.35)
-        col = row.column(align=True)
-        col.label(text="Map name")
-        row = row.split(factor=.15)
-        col = row.column(align=True)
-        col.label(text=" ")       
-        row = row.split(factor=.97)
-        col = row.column()
-        col.label(text="Sockets")
-        row.separator()
-        row = layout.row()
-        
-        for k in range(panel_rows):
-            panel_line = eval(f"scene.panel_line{k}")
-            row = layout.row(align = True)
-            row.prop(panel_line, "line_on", text = "")
-            row.use_property_split = True
-            row.use_property_decorate = False
-            row = row.split(factor = .35)
-            row.active = row.enabled = panel_line.line_on
-            row.alignment = 'LEFT'
-            col = row.column(align=True)
-            if panel_line.manual :
-                col.prop(panel_line, "file_name", text = "")
-            else:
-                col.prop(panel_line, "map_label", text = "")
-            row = row.split(factor = .11)
-            row.alignment = 'EXPAND'
-            col = row.column(align = True)
-            col.alignment = 'EXPAND'
-            if not advanced_mode:
-                if panel_line.file_is_real:
-                    col.prop(panel_line, "name_checker", text="", toggle=1, icon='CHECKMARK')
-                else:
-                    col.prop(panel_line, "name_checker", text="", toggle=1, icon='QUESTION')
-            else :
-                col.prop(panel_line, "manual", text="", toggle=1, icon='FILE_TICK')
-            row = row.split(factor=.97)
-            col = row.column()
-            col.enabled = panel_line.line_on
-            if not col.active :
-                col.prop(bsmprops, "enum_placeholder" , text="")
-            else:
-                col.prop(panel_line, "input_sockets" , text="")
-            row.separator()
-        row = layout.row()
+        row.template_list(
+            "UI_UL_list", "Textures",
+            texture_importer, "textures",
+            texture_importer, "texture_index",
+        )
 
+        col = row.column(align=True)
+        col.operator("bsm.add_item", icon="ADD", text="")
+        col.operator("bsm.remove_item", icon="REMOVE", text="")
+
+        if texture_importer.textures and texture_importer.texture_index < len(texture_importer.textures):
+            item = texture_importer.textures[texture_importer.texture_index]
+            layout.prop(item, "line_on")
+            sub_layout = layout.column()  # Or layout.box() for a bordered box
+            sub_layout.enabled = item.line_on  # Disable all UI elements within this group if line_on is False
+            sub_layout.prop(item, "map_label")
+            if props.advanced_mode :
+                sub_sub_layout = sub_layout.column()
+                sub_sub_layout.prop(item, "manual")
+                if item.manual :
+                    sub_sub_sub_layout = sub_sub_layout.column()
+                    sub_sub_sub_layout.prop(item, "file_name")
+            sub_layout.prop(item, "input_sockets")
 
 class BSM_PT_prefs(TexImporterPanel,Panel):
 
@@ -126,21 +86,14 @@ class BSM_PT_prefs(TexImporterPanel,Panel):
     bl_label = ""
     bl_parent_id = "BSM_PT_importpanel"
     bl_options = {'HIDE_HEADER'}
-  
+
     def draw(self, context):
         layout = self.layout
         row = layout.row()
-        col = row.column()
-        col.alignment = 'RIGHT'
-        row = col.row()
-        row.alignment = 'RIGHT'
-        row.operator("bsm.del_map_line", icon="REMOVE",)
-        row.separator()
-        row = layout.row()
         row.alignment = 'LEFT'
         row.prop(context.scene.bsmprops, "advanced_mode", text="Manual Mode ", )
-      
-      
+
+
 class BSM_PT_buttons(TexImporterPanel, Panel):
 
     bl_idname = "BSM_PT_buttons"

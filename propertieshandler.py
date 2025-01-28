@@ -33,7 +33,6 @@ class PropertiesHandler():
             return self.get_shaders_list_eve(context)
         if bpy.context.scene.render.engine == 'CYCLES' :
             return self.get_shaders_list_cycles(context)
-              
 
     def get_shaders_list_cycles(self,context):
         nodes_links = context.scene.node_links
@@ -61,15 +60,17 @@ class PropertiesHandler():
                 shaders_list.append((item, item, ''), )
         shaders_list.reverse()
         return shaders_list
-    
+
     def mat_name_cleaner(self,context):
             props = context.scene.bsmprops
             obj = context.view_layer.objects.active
-            material = obj.active_material
-            mat_name = material.name
-            if props.dup_mat_compatible:
-                mat_name = next(iter(mat_name.split(".0")))
-            return (material, mat_name)
+            if obj :
+                material = obj.active_material
+                mat_name = material.name
+                if props.dup_mat_compatible:
+                    mat_name = next(iter(mat_name.split(".0")))
+                return (material, mat_name)
+            return None
 
     def set_nodes_groups(self,context):
         ng = bpy.data.node_groups
@@ -80,21 +81,19 @@ class PropertiesHandler():
         for nd in ng:
             noder = mat_tmp.node_tree.nodes.new('ShaderNodeGroup')
             noder.node_tree = nd
-            if conectable := bool(len(noder.inputs)) and bool(len(noder.outputs)):
-                #if conectable := True:    
+            if conectable := len(noder.inputs) and len(noder.outputs):
                 new_link = context.scene.node_links.add()
                 new_link.name = nd.name
                 new_link.label = nd.name
-                #maybe use label or other id
                 new_link.nodetype = nd.name
                 for socket in [i for i in noder.outputs if conectable]:
                     validoutput = socket.type == "SHADER"
                     if validoutput:
                         new_link.outputsockets = socket.name
-                        break    
+                        break
                 socks = [str(socket.name) for socket in [n for n in noder.inputs if conectable] if socket.type != "SHADER"]
-                if not bool(len(socks)):
-                    new_link.input_sockets = '{"0":"0"}'
+                if not len(socks):
+                    new_link.input_sockets = "{'0':'0'}"
                 else:
                     new_link.input_sockets = json.dumps((dict(zip(range(len(socks)), socks))))
         mat_tmp.node_tree.nodes.clear()
@@ -115,40 +114,76 @@ class PropertiesHandler():
                 rawdata = [v for (k,v) in json.loads(nodes_links[i].input_sockets).items()]
         if not bsmprops.replace_shader:  # and valid mat
             mat_used = self.mat_name_cleaner(context)[0]
-            rawdata = self.get_shader_inputs(context,mat_used) 
+            rawdata = self.get_shader_inputs(context,mat_used)
         return self.format_enum(context, rawdata)
-    
-    def default_sockets(self,context,panel_line):
+
+    def default_sockets(self,context,line):
         bsmprops = context.scene.bsmprops
-        sockets_list = [sock for sock in self.get_sockets_enum_items(context) if sock[0].replace(" ", "").lower() in panel_line.map_label.strip().replace(" ", "").lower()]
+        sockets_list = []
+        for sock in self.get_sockets_enum_items(context):
+            match_1 = line.map_label.strip().replace(" ", "").lower() in sock[0].replace(" ", "").lower()
+            match_2 = line.map_label.strip().replace(" ", "").lower() in ('').join(sock[0].split()).lower()
+            if match_1 or match_2 :
+                sockets_list.append(sock)
         if len(sockets_list):
-            panel_line.input_sockets = sockets_list[0][0]  
-    
+            line.input_sockets = sockets_list[0][0]
+        else:
+            sockets_list = [sock[0].replace(" ", "").lower() for sock in self.get_sockets_enum_items(context)]
+            print(f"socket not found for {line.name} in {sockets_list} ")
+
     def guess_sockets(self,context):
         props = context.scene.bsmprops
-        for i in range(props.panel_rows):
-            panel_line = eval(f"bpy.context.scene.panel_line{i}")
-            self.default_sockets(context,panel_line) 
-    
-    def detect_a_map(self,context,i):
+        lines = props.texture_importer.textures
+        for line in lines:
+            self.default_sockets(context,line)
+
+    def fill_settings(self,context):
+        args = {}
         props = context.scene.bsmprops
-        panel_line = eval(f"bpy.context.scene.panel_line{i}")
-        args = {'line':panel_line,'mat_name':self.mat_name_cleaner(context)[1]}
-        panel_line.file_name = self.find_file(context,**args)
-        panel_line.file_is_real = False
-        if panel_line.file_name != "" :
-            panel_line.line_on = True
-            panel_line.file_is_real = Path(panel_line.file_name).is_file()
-    
+        args['internals'] = ['type','rna_type','dir_content','content','bl_rna','name','bsm_all','texture_importer']
+        args['attributes'] = [attr for attr in dir(props) if attr not in args['internals'] and attr[:2] != "__"]
+        args['line_names'] = []
+        for attr in args['attributes']:
+            if isinstance(getattr(props,attr),bool):
+                args[attr] = f"{getattr(props,attr)}"
+            else:
+                args[attr] = getattr(props,attr)
+        lines = props.texture_importer.textures
+        for line in lines:
+            args['line_names'].append(line.name)
+            args[line.name] = {}
+            args[line.name]['map_label'] = line.map_label
+            args[line.name]['input_sockets'] = line.input_sockets
+            args[line.name]['line_on'] = f"{line.line_on}"
+            args[line.name]['file_name'] = line.file_name
+            args[line.name]['manual'] = f"{line.manual}"
+        return json.dumps(args)
+
+    def detect_a_map(self,context,line):
+        props = context.scene.bsmprops
+        mat_name = self.mat_name_cleaner(context)
+        if mat_name:
+            args = {'line':line,'mat_name':mat_name[1]}
+            if not (props.advanced_mode and line.manual):
+                line.file_name = self.find_file(context,**args)
+                #replace_shader_up refresh ?
+                self.default_sockets(context,line)
+            line.file_is_real = False
+            if line.file_name != "" :
+                #line.line_on = True
+                line.file_is_real = Path(line.file_name).exists() and Path(line.file_name).is_file()
+
     def detect_relevant_maps(self,context):
         props = context.scene.bsmprops
-        for i in range(props.panel_rows):
-            self.detect_a_map(context,i)
+        lines = props.texture_importer.textures
+        for line in lines:
+            self.detect_a_map(context,line)
 
     def clean_input_sockets(self,context):
-        for i in range(context.scene.bsmprops.panel_rows):
-            panel_line = eval(f"context.scene.panel_line{i}")
-            panel_line.input_sockets = '0'     
+        props = context.scene.bsmprops
+        lines = props.texture_importer.textures
+        for line in lines:
+            line.input_sockets = '0'
 
     def get_shader_inputs(self,context,mat_used):
         if mat_used != None:
@@ -162,46 +197,26 @@ class PropertiesHandler():
         return []
 
     def format_enum(self,context,rawdata):
-        default = ('0', '', '')
+        default = ('0', '-- Select Socket --', '')
         if rawdata == []:
             return [default]
         dispitem = [('Disp Vector', 'Disp Vector', ''), ('Displacement', 'Displacement', '')]
-        items = [(item, item, '') for item in rawdata]    
+        items = [(item, item, '') for item in rawdata]
         items.extend(dispitem)
         items.reverse()
         items.append(default)
         items.reverse()
         return items
 
-    def get_extensions(self,context):
-        filetypes = [
-            ('.exr', 'EXR', ''),
-            ('.bmp', 'BMP', ''),
-            ('.png', 'PNG', ''),
-            ('.jpg', 'JPEG', ''),
-            ('.tga', 'TARGA', ''),
-            ('.dpx', 'DPX', ''),
-            ('.hdr', 'HDR', ''),
-            ('.tif', 'TIFF', ''),
-            ('.avi', 'AVI', ''),
-            ('.mp4', 'MP4', ''),
-            # ('', 'FFMPEG', ''),
-            # ('', 'IRIS', ''),
-            # ('.tga_raw', 'TARGA_RAW', ''),
-            # ('.cineon', 'CINEON', ''),
-            # ('', 'JPEG2000', ''),
-        ]
-        return filetypes
-    
     def find_file(self,context,**args):
-        panel_line = args['line']
+        line = args['line']
         mat_name = args['mat_name']
         props = bpy.context.scene.bsmprops
-        dir_content = [v for (k,v) in json.loads(props.dir_content).items()]
-        lower_dir_content = [v.lower() for v in dir_content]
-        map_name = panel_line.map_label
-        for map_file in lower_dir_content:
-            if mat_name.lower() in map_file and map_name.lower() in map_file:
-                return str(Path(props.usr_dir).joinpath(Path(dir_content[lower_dir_content.index(map_file)])))
+        if props.dir_content :
+            dir_content = [v for (k,v) in json.loads(props.dir_content).items()]
+            lower_dir_content = [v.lower() for v in dir_content]
+            map_name = line.map_label
+            for map_file in lower_dir_content:
+                if mat_name.lower() in map_file and map_name.lower() in map_file:
+                    return str(Path(props.usr_dir).joinpath(Path(dir_content[lower_dir_content.index(map_file)])))
         return ""
-                   

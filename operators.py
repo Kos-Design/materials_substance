@@ -16,7 +16,7 @@ from bpy.props import (
 )
 
 from . propertieshandler import PropertiesHandler as ph
-                                    
+
 from bpy.utils import (register_class, unregister_class)
 
 
@@ -43,7 +43,7 @@ class BSM_OT_reporter(Operator):
     bl_label = "Displays reports"
     bl_description = "Prints message in Info Window"
     bl_options = {'INTERNAL'}
-    
+
     reporting: bpy.props.StringProperty(default="")
 
     def execute(self, context):
@@ -51,6 +51,38 @@ class BSM_OT_reporter(Operator):
         self.report({'INFO'}, self.reporting)
         return {'FINISHED'}
 
+class BSM_OT_add_substance_texture(Operator):
+    bl_idname = "bsm.add_item"
+    bl_label = "Add Texture"
+
+    def execute(self, context):
+        texture_importer = context.scene.bsmprops.texture_importer
+        texture = texture_importer.textures.add()
+        texture.name = self.get_available_name(context)
+        texture_importer.texture_index = len(texture_importer.textures) - 1
+        return {'FINISHED'}
+
+    def get_available_name(self,context):
+        new_index = 0
+        texture_importer = context.scene.bsmprops.texture_importer
+        new_name = "Custom map 1"
+        while new_name in [item.name for item in texture_importer.textures]:
+            new_index += 1
+            new_name = f"Custom map {new_index}"
+        return new_name
+
+
+class BSM_OT_del_substance_texture(Operator):
+    bl_idname = "bsm.remove_item"
+    bl_label = "Remove Texture"
+
+    def execute(self, context):
+        texture_importer = context.scene.bsmprops.texture_importer
+        index = texture_importer.texture_index
+        if 0 <= index < len(texture_importer.textures):
+            texture_importer.textures.remove(index)
+            texture_importer.texture_index = max(0, index - 1)
+        return {'FINISHED'}
 
 class BSM_OT_make_nodes(sub_poll,Operator):
     bl_idname = "bsm.make_nodes"
@@ -58,13 +90,10 @@ class BSM_OT_make_nodes(sub_poll,Operator):
     bl_description = "Setup empty Texture Nodes"
 
     solo: bpy.props.BoolProperty(default=True)
-   
+
     def execute(self, context):
         ndh = nha()
-        report = ndh.handle_nodes(context,**{'method':'create_nodes'})
-        reporting = ndh.print_dict(report)
-           
-        #)" \n ".join(list(report))
+        reporting = ndh.print_dict(ndh.handle_nodes(context,True))
         self.report({'INFO'}, reporting)
         if self.solo:
             ShowMessageBox("Check Shader nodes panel", "Nodes created", 'FAKE_USER_ON')
@@ -77,11 +106,10 @@ class BSM_OT_assign_nodes(sub_poll,Operator):
     bl_description = "import maps for all selected objects"
 
     solo: bpy.props.BoolProperty(default=True)
-    
+
     def execute(self, context):
         ndh = nha()
-        report = ndh.handle_nodes(context,**{'method':'setup_nodes'})
-        report['img_loaded'] 
+        report = ndh.handle_nodes(context)
         reporting = ndh.print_dict(report)
         self.report({'INFO'}, reporting)
         #self.report({'INFO'}, " \n ".join(list(report)))
@@ -94,46 +122,11 @@ class BSM_OT_import_textures(sub_poll, Operator):
     bl_idname = "bsm.import_textures"
     bl_label = "Import Substance Maps"
     bl_description = "Import texture maps for active object"
-    
+
     def execute(self,context):
         bpy.ops.bsm.make_nodes(solo=False)
         bpy.ops.bsm.assign_nodes(solo=False)
         return {'FINISHED'}
-
-
-class BSM_OT_add_map_line(sub_poll, Operator):
-    bl_idname = "bsm.add_map_line"
-    bl_label = ""
-    bl_description = "Add a new map line below"
-
-    line_number: IntProperty(default=0)
-
-    def execute(self, context):
-        ndh = nha()
-        ndh.refresh_shader_links(context)
-        context.scene.bsmprops.panel_rows += 1
-
-        return {'FINISHED'}
-
-
-class BSM_OT_del_map_line(sub_poll, Operator):
-    bl_idname = "bsm.del_map_line"
-    bl_label = ""
-    bl_description = "Remove last Map from the list"
-
-    marked: StringProperty(name="line n", default="BSM_PT_PaneLine1")
-
-    def execute(self, context):
-        ndh = nha()
-        ndh.refresh_shader_links(context)
-        scene = context.scene
-        context.scene.bsmprops.panel_rows -= 1
-        panel_line = eval(f"scene.panel_line{scene.bsmprops.panel_rows}")
-        panel_line.manual = False
-        panel_line.line_on = False
-        context.view_layer.update()
-        return {'FINISHED'}
-
 
 class BSM_presetbase:
     #    """Base preset class, only for subclassing
@@ -249,15 +242,14 @@ class BSM_presetbase:
 
                     file_preset = open(filepath, 'w', encoding="utf-8")
                     file_preset.write("import bpy\n")
-
+                    bsmprops = bpy.context.scene.bsmprops
                     if hasattr(self, "preset_defines"):
                         for rna_path in self.preset_defines:
-                            exec(rna_path)
                             file_preset.write("%s\n" % rna_path)
                         file_preset.write("\n")
 
                     for rna_path in self.preset_values:
-                        value = eval(rna_path)
+                        value = bsmprops.bsm_all
                         rna_recursive_attr_expand(value, rna_path, 1)
 
                     file_preset.close()
@@ -325,51 +317,60 @@ class BSM_OT_save_all(sub_poll, Operator):
 
     def execute(self, context):
         propper = ph()
-        args = {}
         props = context.scene.bsmprops
-        args['internals'] = ["type","rna_type","content","bl_rna","name","bsm_all"]
-        args['attributes'] = [attr for attr in dir(props) if attr not in args['internals'] and attr[:2] != "__"]
-        for attr in args['attributes']:
-            args[attr] = eval(f"props.{attr}")
-        for i in range(10):
-            line = eval(f"context.scene.panel_line{i}")
-            args[line.name] = {}
-            args[line.name]['map_label'] = line.map_label
-            args[line.name]['input_sockets'] = line.input_sockets
-            args[line.name]['line_on'] = str(line.line_on)
-            args[line.name]['file_name'] = line.file_name
-            args[line.name]['manual'] = str(line.manual)
-        props.bsm_all = json.dumps(args)
+        props.bsm_all = propper.fill_settings(context)
         return {'FINISHED'}
 
 
 class BSM_OT_load_all(sub_poll, Operator):
     bl_idname = 'bsm.load_all'
-    bl_label = 'save all values'
+    bl_label = 'load all values'
     bl_description = 'load preset'
 
     def execute(self, context):
         props = context.scene.bsmprops
         args = json.loads(props.bsm_all)
-
-        for attr in args['attributes']:
-            props[attr] = args[attr]
-        for i in range(10):
-            panel_line = eval(f"context.scene.panel_line{i}")
-            panel_line['map_label'] = args[f"PaneLine{i}"]['map_label'] 
+        lines = props.texture_importer.textures
+        line_names = args['line_names']
+        mismatch = len(line_names) - len(lines)
+        if mismatch:
+            self.adjust_lines_count(context,mismatch)
+        self.refresh_inputs(context)
+        for index,line in enumerate(lines):
+            line.name = line_names[index]
+            line['map_label'] = args[line.name]['map_label']
             try :
-                panel_line.input_sockets = args[f"PaneLine{i}"]['input_sockets']
+                line.input_sockets = args[line.name]['input_sockets']
             except TypeError :
-                panel_line['input_sockets'] = '0'
-            panel_line['line_on'] = bool(int(eval(args[f"PaneLine{i}"]['line_on'])))
-            panel_line['file_name'] = args[f"PaneLine{i}"]['file_name']
-            panel_line['manual'] = bool(int(eval(args[f"PaneLine{i}"]['manual'])))
-        context.view_layer.update()    
+                line['input_sockets'] = '0'
+            line['line_on'] = 'True' in args[line.name]['line_on']
+            line['file_name'] = args[line.name]['file_name']
+            line['manual'] = 'True' in args[line.name]['manual']
+        for attr in args['attributes']:
+            if isinstance(getattr(props,attr),bool):
+                setattr(props, attr,'True' in args[attr])
+            else:
+                setattr(props, attr,args[attr])
+        context.view_layer.update()
         return {'FINISHED'}
+
+    def adjust_lines_count(self,context,difference):
+        method = bpy.ops.bsm.remove_item if difference < 0 else bpy.ops.bsm.add_item
+        for i in range(abs(difference)):
+            method()
+
+    def refresh_inputs(self,context):
+        propper = ph()
+        ndh = nha()
+        propper.clean_input_sockets(context)
+        props = context.scene.bsmprops
+        if props.include_ngroups:
+            context.scene.node_links.clear()
+            propper.set_nodes_groups(context)
+        ndh.refresh_shader_links(context)
 
 
 class BSM_MT_presetsmenu(Menu):
-    # bl_idname = 'my.presetmenu'
     bl_label = 'Presets Menu'
     preset_subdir = 'bsm_presets'
     preset_operator = 'bsm.execute_preset'
@@ -421,3 +422,4 @@ class BSM_OT_execute_preset(Operator):
             preset_class.post_cb(context)
         bpy.ops.bsm.load_all()
         return {'FINISHED'}
+

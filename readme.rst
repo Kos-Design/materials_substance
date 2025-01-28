@@ -1,4 +1,4 @@
-Blender Substance Texture Importer
+Substance Texture Importer
 ------------------------------------
 
 
@@ -15,7 +15,7 @@ The script looks at all the images in the choosen directory and attempts to gues
 Basing its detection on the objects materials names, the algorithm will look for a matching image file depending on the selected map types enabled in the UI panel (available in the Material Properties section ).
 The texture maps names are editable and the target shader input socket can be set from a dropdown list for better control.
 The texture files must have been exported using a pattern containing the material name and a map type (BaseColor, Metallic, Roughness, Normal etc.).
-Manual assignement is also possible for a given material regardless of the texture file name pattern. 
+Manual assignement is also possible for a given material regardless of the texture file name pattern.
 Various options are available for fine tuning such as adding RGB curves and color ramps, using custom shader nodes or even ignoring the .00x prefix in duplicated material names.
 
 
@@ -26,12 +26,12 @@ Installation:
 
 https://youtu.be/lumrnhikSOg
 
-`Download the latest git release of Blender Substance Texture Importer from here <https://github.com/Kos-Design/materials_substance/releases/download/0.3.1/Blender_Substance_Texture_Importer.zip>`__
+`Download the latest git release of Substance Texture Importer from here <https://github.com/Kos-Design/materials_substance/releases/download/0.4.1/Substance_Texture_Importer.zip>`__
 and install it in Blender via Edit > Preferences > Add-ons > Install an Addon.
 
 Note : if you download the files manually copy the folder inside your Blender Add-Ons directory.
-It will then appear in the Add-Ons list (you can find it by typing "Material: Blender Substance Texture Importer" in the search bar of the Blender Preferences window > Addon tab).
-Enable like the other add-ons by ticking the checkbox in front of “Material: Blender Substance Texture Importer”.
+It will then appear in the Add-Ons list (you can find it by typing "Material: Substance Texture Importer" in the search bar of the Blender Preferences window > Addon tab).
+Enable like the other add-ons by ticking the checkbox in front of “Material: Substance Texture Importer”.
 The user interface panel is available from the Material section in the Properties window.
 
 
@@ -42,13 +42,13 @@ How-to:
 
 https://youtu.be/45rky8J_0us
 
-The panel labeled "Substance Texture Importer" is displayed under the Shader Settings in the Material Tab. 
+The panel labeled "Substance Texture Importer" is displayed under the Shader Settings in the Material Tab.
 
 First choose the directory containing the textures files to be imported using the folder selection field under the "Maps Folder" section of the addon panel.
 
 .. figure:: http://kos-design.com/images/wikipics/folder_select.jpg
 
-After setting the folder the script should automatically detect and activate the relevant maps in the panel. 
+After setting the folder the script should automatically detect and activate the relevant maps in the panel.
 You can enable/disable the textures maps type you wish to import by checking the corresponding line in the addon panel (and edit the texture map name if needed)
 
 .. figure:: http://kos-design.com/images/wikipics/panel_lines.jpg
@@ -109,7 +109,7 @@ By default a normal map node or bump map node is added when a normal map or heig
 ----------------------
 Enable Custom Shaders:
 ----------------------
-Use this option to add your own NodeGroups to the Shaders list used by the "Replace Shaders" option. 
+Use this option to add your own NodeGroups to the Shaders list used by the "Replace Shaders" option.
 Your custom shaders needs to have at least one input socket and a shader output socket in order to be added to the list.
 
 --------------------------
@@ -135,19 +135,19 @@ When enabled the icon next to the map name on each panel line will change to :
 
 .. figure:: http://kos-design.com/images/wikipics/manual_off.jpg
    :align: left
-   
+
 You can then activate it for each line and the texture map name will change to an individual file selection field that you can use to set the path of a texture file to import.
 Note: When "Manual" is enabled in one of the Panel lines for a given map, the "Only Active Material" and "Apply to active object only" will be activated (otherwise the Importer would load the same file for each material & objects in the selected shader input node).
 
 .. figure:: http://kos-design.com/images/wikipics/manual_enabled.jpg
-   :align: left  
+   :align: left
 
 Presets:
 --------
 The icon in the top-right corner allows you to store and loads the parameters used in the UI panel.
 
 .. figure:: http://kos-design.com/images/wikipics/preset_button.jpg
-   :align: left  
+   :align: left
 
 License
 -------
