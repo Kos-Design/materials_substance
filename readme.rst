@@ -2,7 +2,7 @@ Substance Texture Importer
 ------------------------------------
 
 
-.. figure:: http://kos-design.com/images/wikipics/bsti_panel.jpg
+.. figure:: http://kos-design.com/images/wikipics/addon_pic.png
    :scale: 100 %
    :align: center
 
@@ -26,7 +26,7 @@ Installation:
 
 https://youtu.be/lumrnhikSOg
 
-`Download the latest git release of Substance Texture Importer from here <https://github.com/Kos-Design/materials_substance/releases/download/0.4.1/Substance_Texture_Importer.zip>`__
+`Download the latest git release of Substance Texture Importer from here <https://github.com/Kos-Design/materials_substance/releases/download/0.5.0/Substance_Texture_Importer.zip>`__
 and install it in Blender via Edit > Preferences > Add-ons > Install an Addon.
 
 Note : if you download the files manually copy the folder inside your Blender Add-Ons directory.
@@ -48,22 +48,12 @@ First choose the directory containing the textures files to be imported using th
 
 .. figure:: http://kos-design.com/images/wikipics/folder_select.jpg
 
-After setting the folder the script should automatically detect and activate the relevant maps in the panel.
-You can enable/disable the textures maps type you wish to import by checking the corresponding line in the addon panel (and edit the texture map name if needed)
+After setting the folder the script, modify the texture maps names ('Color','Roughness'...) to fit your naming pattern
 
-.. figure:: http://kos-design.com/images/wikipics/panel_lines.jpg
-
-If a matching texture file is detected the icon next to the map name should change
-
-from a question mark :
-
-.. figure:: http://kos-design.com/images/wikipics/question_mark.jpg
+.. figure:: http://kos-design.com/images/wikipics/addon_panel.png
    :align: left
 
-to a checked icon :
-
-.. figure:: http://kos-design.com/images/wikipics/checked.jpg
-   :align: left
+You can enable/disable the textures maps type you wish to import by ticking the 'Active' checkmark under the maps list in the addon panel (you can also add/delete more lines and edit the texture map name if needed)
 
 Then you can use the "Import Substance Maps" button to batch import the images into their associated shaders sockets.
 
@@ -131,22 +121,18 @@ Enable this option to ignore the .00x prefix from the target materials names.
 Manual Mode:
 ------------
 Use this to be able to manually select a texture file instead of relying on the pattern detection algorithm of the addon.
-When enabled the icon next to the map name on each panel line will change to :
-
-.. figure:: http://kos-design.com/images/wikipics/manual_off.jpg
-   :align: left
-
+When enabled, a new line labelled 'Overwrite file name' will appear under the maps table.
 You can then activate it for each line and the texture map name will change to an individual file selection field that you can use to set the path of a texture file to import.
-Note: When "Manual" is enabled in one of the Panel lines for a given map, the "Only Active Material" and "Apply to active object only" will be activated (otherwise the Importer would load the same file for each material & objects in the selected shader input node).
+Note: When "Manual" is enabled in one of the Panel lines for a given map, the addon will skip the name pattern detection and will use the path you select instead. Also the "Only Active Material" and "Apply to active object only" should be activated when 'Overwrite file name' is used (otherwise the Importer would load the same file for each material & objects in the selected shader input node).
 
-.. figure:: http://kos-design.com/images/wikipics/manual_enabled.jpg
+.. figure:: http://kos-design.com/images/wikipics/manual.png
    :align: left
 
 Presets:
 --------
 The icon in the top-right corner allows you to store and loads the parameters used in the UI panel.
 
-.. figure:: http://kos-design.com/images/wikipics/preset_button.jpg
+.. figure:: http://kos-design.com/images/wikipics/preset.png
    :align: left
 
 License
