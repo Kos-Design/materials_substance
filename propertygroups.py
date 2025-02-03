@@ -16,32 +16,40 @@ from bpy.types import (PropertyGroup, UIList,
 from bpy.utils import (register_class,
                        unregister_class
                        )
-from . propertieshandler import PropertiesHandler as ph
+from . propertieshandler import PropertiesHandler, props, node_links, lines, texture_importer
 
-from . nodeshandler import NodeHandler as nha
+propper = PropertiesHandler()
 
 def line_on_up(self, context):
-    propper = ph()
-    ndh = nha()
     propper.default_sockets(context, self)
-    ndh.refresh_shader_links(context)
+    propper.refresh_shader_links(context)
     return
 
-def apply_to_all_up(self, context):
+def initialize_defaults(self, context):
+    if len(self.textures) != 0:
+        return
+    maps = ["Color","Roughness","Metallic","Normal"]
+    for i in range(4):
+        item = self.textures.add()
+        item.name = f"{maps[i]} map"
+        item.name = f"{maps[i]}"
+        propper.default_sockets(bpy.context,item)
+    return
+
+def apply_to_all_objs_up(self, context):
     target = "selected objects"
     if self.advanced_mode:
         target = "active object"
-    if self.apply_to_all:
+    if self.apply_to_all_objs:
         target = "all visible objects"
         self.only_active_obj = False
-
-    bpy.types.BSM_OT_import_textures.bl_description = "Setup nodes and load textures maps on " + target
-    bpy.types.BSM_OT_make_nodes.bl_description = "Setup Nodes on " + target
-    bpy.types.BSM_OT_assign_nodes.bl_description = "Load textures maps on " + target
+    bpy.types.NODE_OT_stm_import_textures.bl_description = "Setup nodes and load textures maps on " + target
+    bpy.types.NODE_OT_stm_make_nodes.bl_description = "Setup Nodes on " + target
+    bpy.types.NODE_OT_stm_assign_nodes.bl_description = "Load textures maps on " + target
     liste = [
-        bpy.types.BSM_OT_import_textures,
-        bpy.types.BSM_OT_make_nodes,
-        bpy.types.BSM_OT_assign_nodes
+        bpy.types.NODE_OT_stm_import_textures,
+        bpy.types.NODE_OT_stm_make_nodes,
+        bpy.types.NODE_OT_stm_assign_nodes
     ]
     for cls in liste:
         laclasse = cls
@@ -49,79 +57,117 @@ def apply_to_all_up(self, context):
         register_class(laclasse)
     return
 
-def include_ngroups_up(self, context):
-    propper = ph()
+def target_list_cb(self,context):
+    targets = [('selected_objects', 'Selected Objects materials', '',0),
+                ('all_visible', 'All visible Objects materials', '',1),
+                ('all_objects', 'All Objects materials', '',2),
+                ('all_materials', 'All scene materials', '',3),
+                ('active_obj', 'Only Active Object in selection', '',4),
+            ]
+    return targets
 
-    if context.scene.bsmprops.include_ngroups:
+def match_sockets_up(self,context):
+    if self.match_sockets:
+        replace_shader_up(self,context)
+
+def target_list_up(self,context):
+    match self.target:
+        case "selected_objects":
+            pass
+        case "all_visible":
+            pass
+        case "all_objects":
+            pass
+        case "all_materials":
+            self.apply_to_all_mats = True
+            self.only_active_mat = False
+        case "active_obj":
+            pass
+    #if self.advanced_mode:
+    return
+
+def apply_to_all_mats_up(self, context):
+    target = "selected objects"
+    bpy.types.NODE_OT_stm_import_textures.bl_description = "Setup nodes and load textures maps on " + target
+    bpy.types.NODE_OT_stm_make_nodes.bl_description = "Setup Nodes on " + target
+    bpy.types.NODE_OT_stm_assign_nodes.bl_description = "Load textures maps on " + target
+    liste = [
+        bpy.types.NODE_OT_stm_import_textures,
+        bpy.types.NODE_OT_stm_make_nodes,
+        bpy.types.NODE_OT_stm_assign_nodes
+    ]
+    for cls in liste:
+        laclasse = cls
+        unregister_class(cls)
+        register_class(laclasse)
+    return
+
+def make_clean_channels(self,context):
+    self.channels.socket.clear()
+    for i in range(3):
+        item = self.channels.socket.add()
+        item.name = ['R','G','B'][i]
+
+def split_rgb_up(self,context):
+    if not (len(self.channels.socket) and len(self.channels.socket) == 3):
+        make_clean_channels(self,context)
+
+def include_ngroups_up(self, context):
+    if props().include_ngroups:
         propper.set_nodes_groups(context)
     else:
-        context.scene.node_links.clear()
-    ndh = nha()
-    ndh.refresh_shader_links(context)
-    propper.clean_input_sockets(context)
+        node_links().clear()
+    propper.refresh_shader_links(context)
     propper.guess_sockets(context)
 
 def enum_sockets_cb(self, context):
-    propper = ph()
     return propper.get_sockets_enum_items(context)
 
 def enum_sockets_up(self, context):
     context.view_layer.update()
 
-def map_label_up(self, context):
+def line_name_up(self, context):
     if not self.manual:
-        propper = ph()
         propper.detect_a_map(context,self)
 
 def shaders_list_cb(self, context):
-    propper = ph()
     return propper.get_shaders_list(context)
 
 def shaders_list_up(self, context):
-    propper = ph()
     if self.replace_shader:
-        propper.clean_input_sockets(context)
         propper.guess_sockets(context)
     context.view_layer.update()
 
 def manual_up(self, context):
     if self.manual:
-        bsmprops = context.scene.bsmprops
-        bsmprops.only_active_mat = True
-        bsmprops.apply_to_all = False
-        bsmprops.only_active_obj = True
+        props().target = 'active_obj'
+        props().only_active_mat = True
+        props().apply_to_all_objs = False
+        props().only_active_obj = True
+        props().apply_to_all_mats = False
     else:
-        propper = ph()
         propper.detect_a_map(context,self)
 
 def advanced_mode_up(self, context):
-    ndh = nha()
-    ndh.refresh_shader_links(context)
+    propper.refresh_shader_links(context)
     if not self.advanced_mode:
-        props = context.scene.bsmprops
-        lines = props.texture_importer.textures
-        for line in lines:
+        for line in lines():
             line.manual = False
-        apply_to_all_up(self,context)
-    else:
-        self.apply_to_all = False
+            line.split_rgb = False
 
 def usr_dir_up(self, context):
-    propper = ph()
     self.dir_content = ""
-    #in case a file path is manually entered instead of a folder path
     if not Path(self.usr_dir).is_dir():
         self.usr_dir = str(Path(self.usr_dir).parent)
         if not Path(self.usr_dir).is_dir():
-            #reverting to addon folder by default if no valid texture folder is set
             self.usr_dir = f"{(Path(__file__).parent)}"
     dir_content = [x.name for x in Path(self.usr_dir).glob('*.*') ]
     if len(dir_content) :
         self.dir_content = json.dumps((dict(zip(range(len(dir_content)), dir_content))))
-    propper.detect_relevant_maps(context)
+    if self.match_sockets:
+        replace_shader_up(props(),bpy.context)
 
 def dup_mat_compatible_up(self,context):
-    propper = ph()
     propper.detect_relevant_maps(context)
 
 def clear_nodes_up(self, context):
@@ -129,24 +175,22 @@ def clear_nodes_up(self, context):
         self.replace_shader = True
 
 def only_active_mat_up(self, context):
-    ndh = nha()
-    ndh.refresh_shader_links(context)
+    if "all_materials" in self.target and self.only_active_mat:
+        self.target = "selected_objects"
+    propper.refresh_shader_links(context)
 
 def replace_shader_up(self, context):
-    scene = bpy.context.scene
-    propper = ph()
     propper.clean_input_sockets(context)
     if self.include_ngroups:
-        scene.node_links.clear()
+        node_links().clear()
         include_ngroups_up(self,context)
-    ndh = nha()
-    ndh.refresh_shader_links(context)
+    propper.refresh_shader_links(context)
     propper.guess_sockets(context)
     context.view_layer.update()
 
 def only_active_obj_up(self, context):
     if self.only_active_obj:
-        self.apply_to_all = False
+        self.apply_to_all_objs = False
 
 class ShaderLinks(PropertyGroup):
     # shaders_links
@@ -221,14 +265,37 @@ class NodesLinks(PropertyGroup):
     )
 
 
-class PanelLines(PropertyGroup):
-
-    map_label: StringProperty(
-        name="Map name",
-        description="Keyword identifier of the texture map to import",
-        default="Metallic",
-        update=map_label_up
+class ChannelSocket(PropertyGroup):
+    input_sockets: EnumProperty(
+        name="Input socket",
+        description="Target shader input sockets for this texture node",
+        items=enum_sockets_cb,
+        #update=enum_sockets_up
     )
+
+
+class ChannelSockets(PropertyGroup):
+    socket: CollectionProperty(type=ChannelSocket)
+    sockets_index: IntProperty(default=0)
+
+def get_name_up(self):
+    return self.get("name","")
+
+def set_name_up(self, value):
+    self["name"] = value
+    if not self.manual and props().match_sockets:
+        replace_shader_up(props(),bpy.context)
+
+class PanelLines(PropertyGroup):
+    name: StringProperty(
+        name="name",
+        description="Keyword identifier of the texture map to import",
+        get=get_name_up,
+        set=set_name_up
+    )
+
+    channels: PointerProperty(type=ChannelSockets)
+
     file_name: StringProperty(
         name="File",
         subtype='FILE_PATH',
@@ -257,16 +324,21 @@ class PanelLines(PropertyGroup):
         default=True,
         update=line_on_up
     )
+    split_rgb: BoolProperty(
+        name="Split rgb channels",
+        description="Split the RGB channels of the target image to plug them into individual sockets",
+        default=False,
+        update=split_rgb_up
+    )
 
 
 class PanelLiner(PropertyGroup):
     textures: CollectionProperty(type=PanelLines)
-    texture_index: IntProperty(default=0)
+    texture_index: IntProperty(default=0,update=initialize_defaults)
 
 
-class BSMprops(PropertyGroup):
+class StmProps(PropertyGroup):
     texture_importer: PointerProperty(type=PanelLiner)
-
     include_ngroups: BoolProperty(
         name="Enable or Disable",
         description=" Append your own Nodegroups in the 'Replace Shader' list above \
@@ -278,11 +350,23 @@ class BSMprops(PropertyGroup):
         default=False,
         update=include_ngroups_up
     )
-    apply_to_all: BoolProperty(
+    apply_to_all_objs: BoolProperty(
         name="Enable or Disable",
         description="Apply Operations to all visible objects ",
         default=False,
-        update=apply_to_all_up
+        update=apply_to_all_objs_up
+    )
+
+    custom_preset_name: StringProperty(
+        name="Preset name",
+        description="New preset name",
+        default="preset name"
+    )
+    apply_to_all_mats: BoolProperty(
+        name="Enable or Disable",
+        description="Apply Operations to all materials ",
+        default=False,
+        update=apply_to_all_mats_up
     )
     only_active_obj: BoolProperty(
         name="Enable or Disable",
@@ -297,6 +381,23 @@ class BSMprops(PropertyGroup):
                      \n before setting up the nodes trees",
         default=False,
         update=clear_nodes_up
+    )
+    target: EnumProperty(
+        name="Target ",
+        description=" Objects or materials affected by the operations ",
+        items=target_list_cb,
+        update=target_list_up
+    )
+    match_sockets: BoolProperty(
+        name="Enable or Disable",
+        description=" Auto-detect sockets\
+                        \n\
+                        \n The addon attempts to match each texture map to its corresponding\
+                        \n shader socket according to its keyword defined in the panel lines.\
+                        \n Disable this if you want to skip this detection in order to plug \
+                        \n the textures in non-matching sockets(ex:Metallic into Roughness etc.)",
+        default=True,
+        update=match_sockets_up
     )
     tweak_levels: BoolProperty(
         name="Enable or Disable",
@@ -316,11 +417,11 @@ class BSMprops(PropertyGroup):
     usr_dir: StringProperty(
         name="",
         description="Folder containing the Textures Images to be imported",
-        subtype='DIR_PATH',
-        default=str(Path(__file__).parent),
+        subtype="DIR_PATH",
+        default=bpy.utils.extension_path_user(f'{__package__}', create=True),
         update=usr_dir_up
     )
-    bsm_all: StringProperty(
+    stm_all: StringProperty(
         name="allsettings",
         description="Json string of all settings, used internally for preset saving",
         default="{'0':'0'}"
@@ -338,7 +439,7 @@ class BSMprops(PropertyGroup):
         description=" Enable to replace the Material Shader with the one in the list \
                        \n\
                        \n (Enabled by default if 'Apply to all' is activated)",
-        default=False,
+        default=True,
         update=replace_shader_up
     )
     shaders_list: EnumProperty(

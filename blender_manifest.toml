@@ -1,0 +1,12 @@
+schema_version = "1.0.0"
+id = "substance_textures_importer"
+version = "6.0.0"
+name = "Substance Textures Importer"
+tagline = "Import & autoassign images from 3D painting tools like Substance"
+maintainer = "Cosmin Planchon <info@kosmin.fr>"
+type = "add-on"
+website = "https://github.com/Kos-Design/substance_textures_importer"
+tags = ["Material","Import-Export","Node"]
+blender_version_min = "4.2.0"
+license = ["SPDX:GPL-3.0-or-later",]
+

@@ -26,7 +26,7 @@ Installation:
 
 https://youtu.be/lumrnhikSOg
 
-`Download the latest git release of Substance Texture Importer from here <https://github.com/Kos-Design/materials_substance/releases/download/0.5.0/Substance_Texture_Importer.zip>`__
+`Download the latest git release of Substance Texture Importer from here <https://github.com/Kos-Design/substance_textures_importer/releases/download/0.5.0/Substance_Texture_Importer.zip>`__
 and install it in Blender via Edit > Preferences > Add-ons > Install an Addon.
 
 Note : if you download the files manually copy the folder inside your Blender Add-Ons directory.
@@ -123,7 +123,10 @@ Manual Mode:
 Use this to be able to manually select a texture file instead of relying on the pattern detection algorithm of the addon.
 When enabled, a new line labelled 'Overwrite file name' will appear under the maps table.
 You can then activate it for each line and the texture map name will change to an individual file selection field that you can use to set the path of a texture file to import.
-Note: When "Manual" is enabled in one of the Panel lines for a given map, the addon will skip the name pattern detection and will use the path you select instead. Also the "Only Active Material" and "Apply to active object only" should be activated when 'Overwrite file name' is used (otherwise the Importer would load the same file for each material & objects in the selected shader input node).
+Note: When "Manual" and "Overwrite file name" are enabled in one of the Panel lines, 
+the addon will skip the name pattern detection and will use the path you select instead. 
+Also the target will switch to "Only active Object" and enable the option "Only Active Material" when "Overwrite file name" is used. 
+(otherwise the Importer would load the same file for each material & objects in the selected shader input node).
 
 .. figure:: http://kos-design.com/images/wikipics/manual.png
    :align: left
@@ -138,5 +141,5 @@ The icon in the top-right corner allows you to store and loads the parameters us
 License
 -------
 
-This add-on is released under the `GNU/GPL v3.0 license <https://github.com/Kos-Design/materials_substance/blob/master/LICENSE>`__
+This add-on is released under the `GNU/GPL v3.0 license <https://github.com/Kos-Design/substance_textures_importer/blob/master/LICENSE>`__
 

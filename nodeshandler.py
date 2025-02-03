@@ -1,178 +1,93 @@
 import bpy
 from pathlib import Path
-from . propertieshandler import PropertiesHandler as ph
+from . propertieshandler import props, shader_links, node_links, PropertiesHandler,lines
 import json
 
+propper = PropertiesHandler()
+
 class SelectionSet():
-    """
-    Selection saved and restored after script execution
-
-    """
-
     def __init__(self):
-        """Stores selection safely"""
         bpy.context.view_layer.update()
-        self.selection = [obj.name for obj in bpy.context.selected_objects]
-        self.active = bpy.context.active_object
+        self.selection = [obj.name for obj in bpy.context.view_layer.objects.selected]
+        self.last_active = bpy.context.view_layer.objects.active
+        self.active = bpy.context.view_layer.objects.active if bpy.context.view_layer.objects.active in list(bpy.context.view_layer.objects.selected) else None
         self.materials = bpy.data.materials
 
     def __enter__(self):
-        """Clears original selection"""
         for obj in self.selection:
             bpy.context.view_layer.objects[obj].select_set(False)
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
-        """Restoring selection"""
-        bpy.context.view_layer.objects.active = self.active
         for obj in self.selection :
             bpy.context.view_layer.objects[obj].select_set(True)
-        self.active.select_set(True)
+        if self.active:
+            self.active.select_set(True)
+        bpy.context.view_layer.objects.active = self.last_active
 
 
 class NodeHandler():
 
     def handle_nodes(self,context,create=False):
-        self.refresh_shader_links(context)
-        selected = self.selector(context)
-        props = context.scene.bsmprops
-        lines = props.texture_importer.textures
-        p_lines = [line for line in lines if line.line_on]
+        propper.refresh_shader_links(context)
+        selected = self.get_target_mats(context)
+        p_lines = [line for line in lines() if line.line_on]
         out_args = {'already_done':[],'report':""}
         with SelectionSet():
-            for obj in selected:
-                obj.select_set(True)
-                context.view_layer.objects.active = obj
-
-                out_args = self.process_materials(context,**{'out_args':out_args,'create':create,'p_lines':p_lines,'selection':obj})
-                obj.select_set(False)
-            SelectionSet.materials = bpy.data.materials
+            for mat in selected:
+                out_args = self.process_materials(context,**{'out_args':out_args,'create':create,'p_lines':p_lines,'mat':mat})
         return out_args
 
+    def get_target_mats(self,context):
+        mat_list = []
+        validtypes = ['SURFACE', 'CURVE', 'META', 'MESH', 'GPENCIL']
+        match props().target:
+            case "selected_objects":
+                if len(context.view_layer.objects):
+                    mat_list = list({mat.material for obj in context.view_layer.objects.selected if obj.type in validtypes for mat in obj.material_slots if mat.material is not None})
+            case "all_visible":
+                if len(context.view_layer.objects):
+                    mat_list = list({mat.material for obj in context.view_layer.objects if obj.visible_get() and obj.type in validtypes for mat in obj.material_slots if mat.material is not None})
+            case "all_objects":
+                if len(bpy.data.objects):
+                    mat_list = list({mat.material for obj in bpy.data.objects if obj.type in validtypes for mat in obj.material_slots if mat.material is not None})
+            case "all_materials":
+                mat_list = bpy.data.materials
+            case "active_obj":
+                obj = context.view_layer.objects.active if context.view_layer.objects.active in list(context.view_layer.objects.selected) else None
+                if obj and obj.type in validtypes:
+                    mat_list = list({mat.material for mat in obj.material_slots if mat.material is not None})
+        return mat_list
+
     def get_mat_params(self,context):
-        """dictionary generator {maps, channels, index}
-
-        `helper` dict generated from properties stored in context.scene.bsmprops. Used by the method process_materials .
-        For each panel_rows (rows in the ui panel) returns the string value of the map and the channel associated
-        as well as bool representing the state of that line in the UI panel:
-
-        Args:
-            self (self): The first parameter.
-            context (context): The second parameter.
-
-        Returns:
-            [dict]: dictionary of of Maps and Channels names and the index of their line in the UI panel:
-            {"maps":maps, "chans":chans, "indexer":indexer}
-
-        .. More:
-            https://www.python.org/dev/peps/pep-0484/
-
-        """
-        props = context.scene.bsmprops
-        lines = props.texture_importer.textures
         maps = []
         chans = []
-        p_lines = [line for line in lines if line.line_on]
+        p_lines = [line for line in lines() if line.line_on]
         for line in p_lines:
             chans.append(line.input_sockets)
             if line.manual:
                 maps.append(str(Path(line.file_name).name))
             else:
-                maps.append(line.map_label)
+                maps.append(line.name)
         return {"maps":maps, "chans":chans, "p_lines":p_lines}
 
-    def make_tree(self, context):
-        """Method used to repopulate the enum items for the Shader list dropdown and associated sockets
-
-        `helper`  Creates a temporary material, adds various shader nodes to it to get their sockets names
-                  and stores them in the shader_links CollectionPoperty.
-
-        """
-        context.scene.shader_links.clear()
-        propper = ph()
-        mat_tmp = bpy.data.materials.new(name="tmp_mat")
-        mat_tmp.use_nodes = True
-        for shader_enum in propper.get_shaders_list_eve(context):
-            node_type = str(shader_enum[0])
-            if node_type is not None and node_type != '0' :
-                if node_type in bpy.data.node_groups.keys():
-                    new_node = mat_tmp.node_tree.nodes.new(type='ShaderNodeGroup')
-                    new_node.node_tree = bpy.data.node_groups[str(shader_enum[1])]
-                else:
-                    new_node = mat_tmp.node_tree.nodes.new(type=node_type)
-                context.scene.node_links
-                new_shader_link = context.scene.shader_links.add()
-                new_shader_link.name = str(shader_enum[1])
-                new_shader_link.shadertype = node_type
-                new_shader_link.input_sockets = json.dumps((dict(zip(range(len(new_node.inputs)), [inputs for inputs in new_node.inputs.keys() if not inputs == 'Weight']))))
-                new_shader_link.outputsockets = json.dumps((dict(zip(range(len(new_node.outputs)), [outputs.name for outputs in new_node.outputs]))))
-        for shader_enum in propper.get_shaders_list_cycles(context):
-            node_type = str(shader_enum[0])
-            if node_type is not None and node_type != '0' :
-                if node_type in bpy.data.node_groups.keys():
-                    new_node = mat_tmp.node_tree.nodes.new(type='ShaderNodeGroup')
-                    new_node.node_tree = bpy.data.node_groups[str(shader_enum[1])]
-                else:
-                    new_node = mat_tmp.node_tree.nodes.new(type=node_type)
-                new_shader_link = context.scene.shader_links.add()
-                new_shader_link.name = str(shader_enum[1])
-                new_shader_link.shadertype = node_type
-                new_shader_link.input_sockets = json.dumps((dict(zip(range(len(new_node.inputs)), [inputs for inputs in new_node.inputs.keys() if not inputs == 'Weight' ]))))
-                new_shader_link.outputsockets = json.dumps((dict(zip(range(len(new_node.outputs)), [outputs.name for outputs in new_node.outputs]))))
-
-        mat_tmp.node_tree.nodes.clear()
-        bpy.data.materials.remove(mat_tmp)
-
-    def refresh_shader_links(self,context):
-        self.make_tree(context)
-
     def process_materials(self,context,**params):
-        """helper function used to manipulate nodes
-
-        `helper`  Used by the function BSM_OT_make_nodes and BSM_OT_assign_nodes.
-        Set the nodes for each material in the material slots according to the maps and channels defined in the Ui panel:
-
-        Args:
-            self (self): The first parameter.
-            context (context): The second parameter.
-            params (array): [selected object, already_done]
-
-        Returns:
-            already_done : list of materials already processed
-
-        .. More:
-            https://www.python.org/dev/peps/pep-0484/
-
-        """
         out_args = params['out_args']
         already_done = out_args['already_done']
         method = self.create_nodes if params['create'] else self.setup_nodes
-        obj = params['selection']
-        mat_slots = [mat.material for mat in obj.material_slots]
-        props = context.scene.bsmprops
+        mat = params['mat']
         p_lines = params['p_lines']
-        og_mat = obj.active_material
-        if props.only_active_mat:
-            mat_slots = [obj.active_material]
-        for mat_active in mat_slots:
-            if mat_active is not None :
-                obj.active_material = mat_active
-                if mat_active.name not in out_args['already_done']:
-                    mat_active.use_nodes = True
-                    out_args = method(context,**{'selection':obj,'out_args':out_args,'p_lines':p_lines,'mat_active':mat_active,'tree_nodes':mat_active.node_tree.nodes,'tree_links':mat_active.node_tree.links})
-                    out_args['already_done'].append(mat_active.name)
-                else :
-                    out_args['report'] = out_args['report'] + "\n" + f"skipping {mat_active.name} as it has already been processed"
-                    continue
-        obj.active_material = og_mat
+        mat.use_nodes = True
+        out_args = method(context,**{'out_args':out_args,'p_lines':p_lines,
+                                    'mat':mat,'tree_nodes':mat.node_tree.nodes,
+                                    'tree_links':mat.node_tree.links})
+        out_args['already_done'].append(mat.name)
         return out_args
 
     def get_shader_node(self,context,**params):
-        propper = ph()
-        props = params['props']
         shader_node = params['first_node']
-        if params['inv'] or props.replace_shader or props.clear_nodes:
-            substitute_shader = props.shaders_list
+        if params['inv'] or props().replace_shader or props().clear_nodes:
+            substitute_shader = props().shaders_list
             #handles custom shaders
             if substitute_shader in bpy.data.node_groups.keys():
                 shader_node = params['tree_nodes'].new('ShaderNodeGroup')
@@ -180,23 +95,22 @@ class NodeHandler():
             elif hasattr(bpy.types,substitute_shader) :
                 shader_node = params['tree_nodes'].new(substitute_shader)
             else :
-                context.scene.node_links.clear()
+                node_links().clear()
                 propper.set_nodes_groups(context)
-                self.refresh_shader_links(context)
-                propper.clean_input_sockets(context)
+                propper.refresh_shader_links(context)
                 propper.guess_sockets(context)
                 if substitute_shader in bpy.data.node_groups.keys():
                     shader_node = params['tree_nodes'].new('ShaderNodeGroup')
                     shader_node.node_tree = bpy.data.node_groups[substitute_shader]
                 else:
-                    print("Unexpected behaviour")
+                    print("Error during custom shaders gathering")
                     return
-            shader_node.name = "BSM_" + shader_node.name
+            shader_node.name = "NODE_" + shader_node.name
             params['tree_links'].new(shader_node.outputs[0], params['mat_output'].inputs[0])
             context.view_layer.update()
-        if not (params['inv'] or props.clear_nodes):
+        if not (params['inv'] or props().clear_nodes):
             self.copy_bsdf_parameters(params['first_node'], shader_node)
-            if props.replace_shader:
+            if props().replace_shader:
                 params['tree_nodes'].remove(params['first_node'])
         return shader_node
 
@@ -221,14 +135,13 @@ class NodeHandler():
         return first_node,invalid_shader
 
     def make_tex_mapping_nodes(self,context,**params):
-        propper = ph()
         mat_name = propper.mat_name_cleaner(context)[1]
         map_node = params['tree_nodes'].new('ShaderNodeMapping')
         map_node.label = f"{mat_name} Mapping"
-        map_node.name = f"BSM_{map_node.name}"
+        map_node.name = f"NODE_{map_node.name}"
         tex_coord_node = params['tree_nodes'].new('ShaderNodeTexCoord')
         tex_coord_node.label = f"{mat_name} Coordinates"
-        tex_coord_node.name = f"BSM_{tex_coord_node.name}"
+        tex_coord_node.name = f"NODE_{tex_coord_node.name}"
         if not tex_coord_node.outputs[0].is_linked:
             params['tree_links'].new(tex_coord_node.outputs['UV'], map_node.inputs['Vector'])
         return map_node,tex_coord_node
@@ -236,7 +149,7 @@ class NodeHandler():
     def make_new_image_node(self,context,**params):
         line = params['line']
         new_image_node = params['tree_nodes'].new(type="ShaderNodeTexImage")
-        new_image_node.name = "BSM_" + Path(line.file_name).name
+        new_image_node.name = "NODE_" + Path(line.file_name).name
         new_image_node.label = params['map_name']
         params['tree_links'].new(params['map_node'].outputs[0], new_image_node.inputs['Vector'])
         return new_image_node
@@ -245,15 +158,15 @@ class NodeHandler():
         line = params['line']
         socket = line.input_sockets
         map_name = params['map_name']
-        props = params['props']
         displaced = ("displacement" in socket.lower())
         has_normal = ("normal" in map_name.lower())
         has_height = ("height" in map_name.lower())
-        add_extras = props.tweak_levels and not (has_normal or has_height)
+        add_extras = props().tweak_levels and not (has_normal or has_height)
         skip_ramps = len([x for x in ["subsurface radius", "normal", "tangent"] if map_name.lower() in x]) > 0
         add_curve = ((("color" in socket.lower()) or ("emission" in socket.lower())) and not displaced)
         add_ramp = (not (("color" in socket.lower()) or ("emission" in socket.lower())) and (not skip_ramps)) or (displaced and has_height)
-        return {'skip_normals':props.skip_normals,'displaced':displaced,'has_normal':has_normal,'has_height':has_height,'add_extras':add_extras,'add_curve':add_curve,'add_ramp':add_ramp}
+        return {'skip_normals':props().skip_normals,'displaced':displaced,'has_normal':has_normal,
+                'has_height':has_height,'add_extras':add_extras,'add_curve':add_curve,'add_ramp':add_ramp}
 
     def check_add_extras(self,context,**params):
         bools = params['bools']
@@ -268,14 +181,14 @@ class NodeHandler():
                 params['tree_links'].new(params['new_image_node'].outputs[0], ramp.inputs[0])
             if bools['add_ramp'] or bools['add_curve']:
                 extra_node.label = f"{extra_node.name}{params['map_name']}"
-                extra_node.name = f"BSM_{extra_node.name}"
+                extra_node.name = f"NODE_{extra_node.name}"
             return extra_node
         return None
 
     def handle_disp_nodes_1(self,context,**params):
         bools = params['bools']
         params['bump_map_node'] = params['tree_nodes'].new('ShaderNodeBump')
-        params['bump_map_node'].name = f"BSM_{params['bump_map_node'].name}"
+        params['bump_map_node'].name = f"NODE_{params['bump_map_node'].name}"
         params['tree_links'].new(params['new_image_node'].outputs[0], params['bump_map_node'].inputs[2])
         params['bump_map_node'].inputs[0].default_value = .5
         if bools['add_extras']:
@@ -285,6 +198,7 @@ class NodeHandler():
     def handle_disp_nodes_2(self,context,**params):
         bools = params['bools']
         socket = params['line'].input_sockets
+        multi_sockets = params['line'].channels.socket
         if bools['has_normal'] and not bools['skip_normals']:
             if bools['displaced']:
                 params['tree_links'].new(params['normal_map_node'].outputs[0], params['mat_output'].inputs[2])
@@ -298,13 +212,21 @@ class NodeHandler():
         if not (bools['has_height'] or bools['has_normal']) or bools['skip_normals']:
             if bools['add_extras']:
                 params['tree_links'].new(params['extra_node'].outputs[0], params['shader_node'].inputs[socket])
+            elif params['line'].split_rgb:
+                separate_rgb = params['tree_nodes'].new(type="ShaderNodeSeparateColor")
+                separate_rgb.location = params['shader_node'].location
+                separate_rgb.location.x -= 69
+                params['tree_links'].new(params['new_image_node'].outputs[0], separate_rgb.inputs[0])
+                for i,sock in enumerate(params['line'].channels.socket):
+                    if '0' not in sock.input_sockets :
+                        params['tree_links'].new(separate_rgb.outputs[i], params['shader_node'].inputs[sock.input_sockets])
             else:
                 params['tree_links'].new(params['new_image_node'].outputs[0], params['shader_node'].inputs[socket])
 
     def handle_disp_nodes_3(self,context,**params):
         bools = params['bools']
         disp_map_node = params['tree_nodes'].new('ShaderNodeDisplacement')
-        disp_map_node.name = f"BSM_{disp_map_node.name}"
+        disp_map_node.name = f"NODE_{disp_map_node.name}"
         disp_map_node.location = (params['mat_output'].location[0] - 256, params['mat_output'].location[1])
         params['tree_links'].new(disp_map_node.outputs[0], params['mat_output'].inputs['Displacement'])
         if bools['add_extras']:
@@ -319,7 +241,7 @@ class NodeHandler():
     def handle_disp_nodes_4(self,context,**params):
         bools = params['bools']
         disp_vec_node = params['tree_nodes'].new('ShaderNodeVectorDisplacement')
-        disp_vec_node.name = f"BSM_{disp_vec_node.name}"
+        disp_vec_node.name = f"NODE_{disp_vec_node.name}"
         disp_vec_node.location = (params['mat_output'].location[0] - 256, params['mat_output'].location[1])
         params['tree_links'].new(disp_vec_node.outputs[0], params['mat_output'].inputs['Displacement'])
         if bools['add_extras']:
@@ -342,10 +264,13 @@ class NodeHandler():
                                   )
         if bools['has_normal'] and not bools['skip_normals']:
             params['normal_map_node'] = params['tree_nodes'].new('ShaderNodeNormalMap')
-            params['normal_map_node'].name = f"BSM_{params['normal_map_node'].name}"
+            params['normal_map_node'].name = f"NODE_{params['normal_map_node'].name}"
+            """
+            #need object using this mat to get uv map name, but I think it is fine to let it blank
             uvs = [uv.name for uv in params['selection'].data.uv_layers if uv.active_render]
             if len(uvs) > 0:
                 params['normal_map_node'].uv_map = next(iter(uvs))
+            """
             params['tree_links'].new(params['new_image_node'].outputs[0], params['normal_map_node'].inputs[1])
 
         if bools['has_height'] and not bools['skip_normals']:
@@ -360,7 +285,7 @@ class NodeHandler():
         if ('Disp Vector' in socket):
             self.handle_disp_nodes_4(context,**params)
 
-        if bools['add_extras']:  # again to be sure
+        if bools['add_extras']:
             params['extra_node'].location = (
                 (params['base_x'] + params['offsetter_x'] * (int(bools['has_normal'] or bools['has_height']) + 1)), (params['base_y'] + params['offsetter_y'] * iterator))
         if bools['has_height'] and not bools['skip_normals']:
@@ -393,11 +318,11 @@ class NodeHandler():
     def get_map_name(self,context,**params):
         if params['line'].manual:
             return Path(params['line'].file_name).name
-        return params['line'].map_label
+        return params['line'].name
 
-    def clean_bsm_nodes(self,context,**params):
+    def clean_stm_nodes(self,context,**params):
         for node in params['tree_nodes']:
-            if node.name.startswith("BSM_") and not node.bl_idname in params['props'].shaders_list:
+            if node.name.startswith("NODE_") and not node.bl_idname in props().shaders_list:
                 params['tree_nodes'].remove(node)
 
     def copy_bsdf_parameters(self,source_node, target_node):
@@ -409,24 +334,20 @@ class NodeHandler():
                     input_target.default_value = input_source.default_value
 
     def create_nodes(self,context,**params):
-
         out_args = params['out_args']
-        propper = ph()
-        scene = context.scene
-        props = scene.bsmprops
-        if props.clear_nodes:
+        if props().clear_nodes:
             params['tree_nodes'].clear()
             context.view_layer.update()
-            params['tree_nodes'] = params['mat_active'].node_tree.nodes
-
+            params['tree_nodes'] = params['mat'].node_tree.nodes
         m_params = self.get_mat_params(context)
-        args = {'selection':params['selection'],'tree_nodes':params['tree_nodes'],'tree_links':params['tree_links'],'offsetter_x':-312,'offsetter_y':-312,'mat_active':params['mat_active'],'props':props,'p_lines':params['p_lines'],'maps':m_params['maps']}
-        self.clean_bsm_nodes(context,**args)
+        args = {'tree_nodes':params['tree_nodes'],'tree_links':params['tree_links'],
+                'offsetter_x':-312,'offsetter_y':-312,'mat':params['mat'],
+                'p_lines':params['p_lines'],'maps':m_params['maps']}
+        self.clean_stm_nodes(context,**args)
         args['mat_output'] = self.get_output_node(context,**args)
         first_node,invalid_shader = self.get_first_node(context,**args)
         args['first_node'] = first_node
         args['inv'] = invalid_shader
-
         args['shader_node'] = self.get_shader_node(context,**args)
         args['base_x'] = args['mat_output'].location[0] - 404 * 2
         args['base_y'] = args['mat_output'].location[1]
@@ -449,18 +370,13 @@ class NodeHandler():
             args['new_image_node'] = self.make_new_image_node(context,**args)
             args['iterator'] = iterator
             iterator = self.handle_bumps(context,**args)
-            out_args['report'] = f"{out_args['report']} \n Image texture node created in {args['mat_active'].name} for {args['line'].map_label} map "
+            out_args['report'] = f"{out_args['report']} \n Image texture node created in {args['mat'].name} for {args['line'].name} map "
         self.arrange_last_nodes(context,**args)
         return out_args
 
     def setup_nodes(self,context,**params):
-        props = context.scene.bsmprops
-        propper = ph()
         out_args = params['out_args']
-        lines = props.texture_importer.textures
-        p_lines = [line for line in lines if line.line_on]
-
-
+        p_lines = [line for line in lines() if line.line_on]
         out_args['img_loaded'] = 0
         mat_name = propper.mat_name_cleaner(context)[1]
         for line in p_lines:
@@ -468,31 +384,29 @@ class NodeHandler():
             active_filepath = propper.find_file(context,**args)
             if active_filepath != "" :
                 image_name = Path(active_filepath).name
-
-                if params['mat_active'].node_tree.nodes.find(f"BSM_{image_name}") > 0:
+                if params['mat'].node_tree.nodes.find(f"NODE_{image_name}") > 0:
                     if Path(active_filepath).is_file():
                         file_path = Path(active_filepath).name
                         image = bpy.data.images.load(filepath=active_filepath) if not image_name in bpy.data.images else bpy.data.images[image_name]
-                        nodes_to_fill = [nod for nod in params['mat_active'].node_tree.nodes if self.strip_digits(nod.name).replace(" ", "").lower() in image_name.replace(" ", "").lower()]
+                        nodes_to_fill = [nod for nod in params['mat'].node_tree.nodes if self.strip_digits(nod.name).replace(" ", "").lower() in image_name.replace(" ", "").lower()]
                         for node in nodes_to_fill:
                             node.image = bpy.data.images[image.name]
                             if image_name.lower() in ["normal", "nor", "norm", "normale", "normals"]:
                                 node.image.colorspace_settings.name = 'Non-Color'
                             out_args['img_loaded'] += 1
-                        out_args['report'] = f"{out_args['report']} \n Texture file {image_name} assigned to {line.map_label} node in {params['mat_active'].name} "
+                        out_args['report'] = f"{out_args['report']} \n Texture file {image_name} assigned to {line.name} node in {params['mat'].name} "
                     else:
                         out_args['report'] = f"{out_args['report']} \n Texture {image_name} not found "
                 else:
                     out_args['report'] = f"{out_args['report']} \n node {image_name} not found, run Setup Nodes before "
             else:
-                out_args['report'] = f"{out_args['report']} \n No image found matching {line.map_label} for material: {params['mat_active'].name} in folder {props.usr_dir}"
+                out_args['report'] = f"{out_args['report']} \n No image found matching {line.name} for material: {params['mat'].name} in folder {props().usr_dir}"
         return out_args
 
     def strip_digits(self,_text):
-        if "BSM_" in _text :
-            _text = _text.replace("BSM_", "")
+        if "NODE_" in _text :
+            _text = _text.replace("NODE_", "")
         if _text[-3:].isdigit():
-            # Remove the last 4 characters (including the dot and 3 digits)
             _text = _text[:-4]
         return _text
 
@@ -509,33 +423,16 @@ class NodeHandler():
         center = (locs_y[0] + locs_y[-1]) / 2
         return center
 
-    def selector(self,context):
-        viewl = context.view_layer
-        props = context.scene.bsmprops
-        only_active_obj = props.only_active_obj
-        applytoall = props.apply_to_all
-        selection = viewl.objects.selected
-        selected = []
-        validtypes = ['SURFACE', 'CURVE', 'META', 'MESH', 'GPENCIL']
-        if applytoall:
-            selection = viewl.objects
-        if only_active_obj:
-            selection = [context.object]
-        for obj in selection:
-            if obj.type in validtypes:
-                selected.append(obj)
-        return selected
-
     def move_nodes(self,context,**params):
         params['shader_node'].location = (params['base_x'],params['base_y'])
-        replace = params['props'].replace_shader
+        replace = props().replace_shader
         imgs = [nod for nod in params['tree_nodes'] if nod.type == 'TEX_IMAGE']
-        lines = len(params['p_lines'])
+        not_empty = len(params['p_lines'])
         new_cluster_height = 0
-        if lines and replace:
+        if not_empty and replace:
             existing = [nod for nod in params['tree_nodes'] if nod.type != "OUTPUT_MATERIAL" and not nod == params['shader_node']]
-            new_cluster_height = 888 * (lines / 2)
-            if not lines > 0 and replace:
+            new_cluster_height = 888 * (not_empty / 2)
+            if not not_empty > 0 and replace:
                 new_cluster_height = 1024
             params['offsetter_y'] = new_cluster_height
             for node in existing:
@@ -549,7 +446,7 @@ class NodeHandler():
             for linked in connected:
                 locs_y.append(linked.links[0].from_node.location[1])
         else:
-            for node in params['mat_active'].node_tree.nodes:
+            for node in params['mat'].node_tree.nodes:
                 locs_y.append(node.location[1])
         locs_y.sort()
         center = (locs_y[0] + locs_y[-1]) / 2
