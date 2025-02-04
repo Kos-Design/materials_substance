@@ -1,10 +1,8 @@
 import bpy
-
-from bpy.types import Panel
-
+from bpy.types import Panel, AddonPreferences
 from bl_ui.utils import PresetPanel
-
 from . propertieshandler import props, texture_importer, texture_index, lines
+from . preferences import NODE_UL_stm_list
 
 class TexImporterPanel():
     bl_context = "material"
@@ -26,7 +24,7 @@ class NODE_PT_stm_importpanel(TexImporterPanel, Panel):
 
     def draw_header_preset(self, _context):
         layout = self.layout
-        layout.operator("node.stm_presets_dialog", text="",icon='COLLAPSEMENU',emboss=False)  # Opens the persistent dialog
+        layout.operator("node.stm_presets_dialog", text="",icon='PRESET',emboss=False)  # Opens the persistent dialog
 
 
     def draw(self, context):
@@ -44,18 +42,6 @@ class NODE_PT_stm_params(TexImporterPanel, Panel):
         row = layout.row()
         row.prop(props(), "usr_dir")
 
-class WORKAROUND_UL_List(bpy.types.UIList):
-    """
-    Same behaviour as normal UI list but this workaround allows the triggering
-    of an update function when changing item names in UI Panel by double-clicking on it,
-    whereas normal UI list does not!
-    --could be a candidate for a bugreport--
-    """
-    bl_idname = "WORKAROUND_UL_List"
-
-    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
-        if item:
-            layout.prop(item, "name", text="", emboss=False, icon=f"SEQUENCE_COLOR_0{(index%9+1)}")
 
 class NODE_PT_stm_panel_liner(TexImporterPanel,Panel):
     bl_label = "Textures:"
@@ -66,17 +52,19 @@ class NODE_PT_stm_panel_liner(TexImporterPanel,Panel):
         layout = self.layout
         row = layout.row()
         row.template_list(
-            "WORKAROUND_UL_List", "Textures",
+            "NODE_UL_stm_list", "Textures",
             texture_importer(), "textures",
             texture_importer(), "texture_index",
             type="GRID",
-            columns = 1,
+            columns=1,
         )
-
-        col = row.column(align=True)
-        col.operator("node.stm_add_item", icon="ADD", text="")
-        col.operator("node.stm_remove_item", icon="REMOVE", text="")
-
+        button_col = row.column(align=True)
+        button_col.operator("node.stm_add_item", icon="ADD", text="")
+        button_col.operator("node.stm_remove_item", icon="REMOVE", text="")
+        button_col.separator(factor=3)
+        button_col.separator(factor=3)
+        button_col.separator(factor=3)
+        button_col.operator("node.stm_reset_substance_textures", icon="FILE_REFRESH", text="")
         if lines() and texture_index() < len(lines()):
             item = lines()[texture_index()]
             layout.prop(item, "line_on")
@@ -93,7 +81,6 @@ class NODE_PT_stm_panel_liner(TexImporterPanel,Panel):
                     if item.channels.socket and item.channels.sockets_index < len(item.channels.socket):
                         for i,sock in enumerate(item.channels.socket):
                             sub_sub_layout.prop(sock, "input_sockets",text=sock.name,icon=f"SEQUENCE_COLOR_0{((i*3)%9+1)}")
-
             if not item.split_rgb:
                 sub_layout.prop(item, "input_sockets")
 

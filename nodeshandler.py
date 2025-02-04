@@ -5,27 +5,6 @@ import json
 
 propper = PropertiesHandler()
 
-class SelectionSet():
-    def __init__(self):
-        bpy.context.view_layer.update()
-        self.selection = [obj.name for obj in bpy.context.view_layer.objects.selected]
-        self.last_active = bpy.context.view_layer.objects.active
-        self.active = bpy.context.view_layer.objects.active if bpy.context.view_layer.objects.active in list(bpy.context.view_layer.objects.selected) else None
-        self.materials = bpy.data.materials
-
-    def __enter__(self):
-        for obj in self.selection:
-            bpy.context.view_layer.objects[obj].select_set(False)
-        return self
-
-    def __exit__(self, exc_type, exc_value, exc_traceback):
-        for obj in self.selection :
-            bpy.context.view_layer.objects[obj].select_set(True)
-        if self.active:
-            self.active.select_set(True)
-        bpy.context.view_layer.objects.active = self.last_active
-
-
 class NodeHandler():
 
     def handle_nodes(self,context,create=False):
@@ -33,9 +12,8 @@ class NodeHandler():
         selected = self.get_target_mats(context)
         p_lines = [line for line in lines() if line.line_on]
         out_args = {'already_done':[],'report':""}
-        with SelectionSet():
-            for mat in selected:
-                out_args = self.process_materials(context,**{'out_args':out_args,'create':create,'p_lines':p_lines,'mat':mat})
+        for mat in selected:
+            out_args = self.process_materials(context,**{'out_args':out_args,'create':create,'p_lines':p_lines,'mat':mat})
         return out_args
 
     def get_target_mats(self,context):

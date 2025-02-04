@@ -6,13 +6,13 @@ def props():
     return getattr(bpy.context.scene, "stm_props", None)
 
 def node_links():
-    return getattr(bpy.context.scene, "node_links", None)
+    return getattr(bpy.context.preferences.addons[__package__].preferences, "node_links", None)
 
 def shader_links():
-    return getattr(bpy.context.scene, "shader_links", None)
+    return getattr(bpy.context.preferences.addons[__package__].preferences, "shader_links", None)
 
 def texture_importer():
-    return getattr(props(), "texture_importer", None)
+    return getattr(bpy.context.preferences.addons[__package__].preferences, "maps", None)
 
 def texture_index():
     return getattr(texture_importer(), "texture_index", None)
@@ -49,6 +49,15 @@ class PropertiesHandler():
             return self.get_shaders_list_eve(context)
         if bpy.context.scene.render.engine == 'CYCLES' :
             return self.get_shaders_list_cycles(context)
+    
+    def initialize_defaults(self, context):
+        lines().clear()
+        maps = ["Color","Roughness","Metallic","Normal"]
+        for i in range(4):
+            item = lines().add()
+            item.name = f"{maps[i]} map"
+            item.name = f"{maps[i]}"
+            self.default_sockets(bpy.context,item)
 
     def get_shaders_list_cycles(self,context):
         shaders_list = [
@@ -128,8 +137,8 @@ class PropertiesHandler():
             line.name = line_names[i]
             try :
                 line.input_sockets = args[line.name]['input_sockets']
-            except TypeError as e:
-                line['input_sockets'] = '0'
+            except (Exception,TypeError):
+                pass
             line['line_on'] = 'True' in args[line.name]['line_on']
             line['file_name'] = args[line.name]['file_name']
             line['manual'] = 'True' in args[line.name]['manual']
@@ -194,7 +203,7 @@ class PropertiesHandler():
     def refresh_inputs(self,context):
         self.clean_input_sockets(context)
         if props().include_ngroups:
-            context.scene.node_links.clear()
+            node_links().clear()
             self.set_nodes_groups(context)
         self.refresh_shader_links(context)
 

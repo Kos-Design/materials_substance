@@ -123,9 +123,10 @@ Manual Mode:
 Use this to be able to manually select a texture file instead of relying on the pattern detection algorithm of the addon.
 When enabled, a new line labelled 'Overwrite file name' will appear under the maps table.
 You can then activate it for each line and the texture map name will change to an individual file selection field that you can use to set the path of a texture file to import.
-Note: When "Manual" and "Overwrite file name" are enabled in one of the Panel lines, 
-the addon will skip the name pattern detection and will use the path you select instead. 
-Also the target will switch to "Only active Object" and enable the option "Only Active Material" when "Overwrite file name" is used. 
+Note: When "Manual" and "Overwrite file name" are enabled in one of the Panel lines,
+the addon will skip the name pattern detection and will use the path you select instead.
+(TODO: OUTDATED)
+Also the target will switch to "Only active Object" and enable the option "Only Active Material" when "Overwrite file name" is used.
 (otherwise the Importer would load the same file for each material & objects in the selected shader input node).
 
 .. figure:: http://kos-design.com/images/wikipics/manual.png

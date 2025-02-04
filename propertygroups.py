@@ -25,17 +25,6 @@ def line_on_up(self, context):
     propper.refresh_shader_links(context)
     return
 
-def initialize_defaults(self, context):
-    if len(self.textures) != 0:
-        return
-    maps = ["Color","Roughness","Metallic","Normal"]
-    for i in range(4):
-        item = self.textures.add()
-        item.name = f"{maps[i]} map"
-        item.name = f"{maps[i]}"
-        propper.default_sockets(bpy.context,item)
-    return
-
 def apply_to_all_objs_up(self, context):
     target = "selected objects"
     if self.advanced_mode:
@@ -121,7 +110,10 @@ def include_ngroups_up(self, context):
     propper.guess_sockets(context)
 
 def enum_sockets_cb(self, context):
-    return propper.get_sockets_enum_items(context)
+    try:
+        return propper.get_sockets_enum_items(context)
+    except AttributeError :
+        return [('0', '-- Select Socket --', ''), ('Base Color', 'Base Color', ''), ('Metallic', 'Metallic', ''), ('Roughness', 'Roughness', ''), ('IOR', 'IOR', ''), ('Alpha', 'Alpha', ''), ('Normal', 'Normal', ''), ('Diffuse Roughness', 'Diffuse Roughness', ''), ('Subsurface Weight', 'Subsurface Weight', ''), ('Subsurface Radius', 'Subsurface Radius', ''), ('Subsurface Scale', 'Subsurface Scale', ''), ('Subsurface IOR', 'Subsurface IOR', ''), ('Subsurface Anisotropy', 'Subsurface Anisotropy', ''), ('Specular IOR Level', 'Specular IOR Level', ''), ('Specular Tint', 'Specular Tint', ''), ('Anisotropic', 'Anisotropic', ''), ('Anisotropic Rotation', 'Anisotropic Rotation', ''), ('Tangent', 'Tangent', ''), ('Transmission Weight', 'Transmission Weight', ''), ('Coat Weight', 'Coat Weight', ''), ('Coat Roughness', 'Coat Roughness', ''), ('Coat IOR', 'Coat IOR', ''), ('Coat Tint', 'Coat Tint', ''), ('Coat Normal', 'Coat Normal', ''), ('Sheen Weight', 'Sheen Weight', ''), ('Sheen Roughness', 'Sheen Roughness', ''), ('Sheen Tint', 'Sheen Tint', ''), ('Emission Color', 'Emission Color', ''), ('Emission Strength', 'Emission Strength', ''), ('Thin Film Thickness', 'Thin Film Thickness', ''), ('Thin Film IOR', 'Thin Film IOR', ''), ('Disp Vector', 'Disp Vector', ''), ('Displacement', 'Displacement', '')]
 
 def enum_sockets_up(self, context):
     context.view_layer.update()
@@ -193,27 +185,27 @@ def only_active_obj_up(self, context):
         self.apply_to_all_objs = False
 
 class ShaderLinks(PropertyGroup):
-    # shaders_links
+    
     ID: IntProperty(
         name="ID",
         default=0
     )
     name: StringProperty(
         name="named",
-        default="Unknown name"
+        default="Principled BSDF"
     )
     shadertype: StringProperty(
         name="internal name",
-        default="{'0':''}"
+        default='ShaderNodeBsdfPrincipled'
     )
     input_sockets: StringProperty(
         name="",
         description="Shader input sockets for this texture node",
-        default="{'0':''}"
+        default='{"0": "Base Color", "1": "Metallic", "2": "Roughness", "3": "IOR", "4": "Alpha", "5": "Normal", "6": "Diffuse Roughness", "7": "Subsurface Weight", "8": "Subsurface Radius", "9": "Subsurface Scale", "10": "Subsurface IOR", "11": "Subsurface Anisotropy", "12": "Specular IOR Level", "13": "Specular Tint", "14": "Anisotropic", "15": "Anisotropic Rotation", "16": "Tangent", "17": "Transmission Weight", "18": "Coat Weight", "19": "Coat Roughness", "20": "Coat IOR", "21": "Coat Tint", "22": "Coat Normal", "23": "Sheen Weight", "24": "Sheen Roughness", "25": "Sheen Tint", "26": "Emission Color", "27": "Emission Strength", "28": "Thin Film Thickness", "29": "Thin Film IOR"}'
     )
     outputsockets: StringProperty(
         name="lint of output sockets",
-        default="{'0':''}"
+        default='{"0": "BSDF"}'
     )
     hasoutputs: BoolProperty(
         name="hasoutputs",
@@ -230,7 +222,7 @@ class ShaderLinks(PropertyGroup):
 
 
 class NodesLinks(PropertyGroup):
-    # nodes_links
+
     ID: IntProperty(
         name="ID",
         default=0
@@ -265,80 +257,8 @@ class NodesLinks(PropertyGroup):
     )
 
 
-class ChannelSocket(PropertyGroup):
-    input_sockets: EnumProperty(
-        name="Input socket",
-        description="Target shader input sockets for this texture node",
-        items=enum_sockets_cb,
-        #update=enum_sockets_up
-    )
-
-
-class ChannelSockets(PropertyGroup):
-    socket: CollectionProperty(type=ChannelSocket)
-    sockets_index: IntProperty(default=0)
-
-def get_name_up(self):
-    return self.get("name","")
-
-def set_name_up(self, value):
-    self["name"] = value
-    if not self.manual and props().match_sockets:
-        replace_shader_up(props(),bpy.context)
-
-class PanelLines(PropertyGroup):
-    name: StringProperty(
-        name="name",
-        description="Keyword identifier of the texture map to import",
-        get=get_name_up,
-        set=set_name_up
-    )
-
-    channels: PointerProperty(type=ChannelSockets)
-
-    file_name: StringProperty(
-        name="File",
-        subtype='FILE_PATH',
-        description="Complete filepath of the texture map",
-        default="Select a file"
-    )
-    input_sockets: EnumProperty(
-        name="",
-        description="Target shader input sockets for this texture node",
-        items=enum_sockets_cb,
-        update=enum_sockets_up
-    )
-    file_is_real: BoolProperty(
-        description="Associated file exists",
-        default=False
-    )
-    manual: BoolProperty(
-        name='Overwrite file name',
-        description="Manual mode switch",
-        default=False,
-        update=manual_up
-    )
-    line_on: BoolProperty(
-        name="Active",
-        description="Enable/Disable line",
-        default=True,
-        update=line_on_up
-    )
-    split_rgb: BoolProperty(
-        name="Split rgb channels",
-        description="Split the RGB channels of the target image to plug them into individual sockets",
-        default=False,
-        update=split_rgb_up
-    )
-
-
-class PanelLiner(PropertyGroup):
-    textures: CollectionProperty(type=PanelLines)
-    texture_index: IntProperty(default=0,update=initialize_defaults)
-
-
 class StmProps(PropertyGroup):
-    texture_importer: PointerProperty(type=PanelLiner)
+
     include_ngroups: BoolProperty(
         name="Enable or Disable",
         description=" Append your own Nodegroups in the 'Replace Shader' list above \

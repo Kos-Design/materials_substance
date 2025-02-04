@@ -62,6 +62,16 @@ class NODE_OT_stm_del_substance_texture(SubOperatorPoll,Operator):
         propper.del_panel_line(context)
         return {'FINISHED'}
 
+class NODE_OT_stm_reset_substance_textures(SubOperatorPoll,Operator):
+    bl_idname = "node.stm_reset_substance_textures"
+    bl_label = "Reset textures names"
+    bl_description = "Resets the textures lines to a default set of values.\
+                    \n (Color, Roughness, Metallic, Normal)"
+    
+    def execute(self, context):
+        propper.initialize_defaults(context)
+        return {'FINISHED'}
+
 
 class NODE_OT_stm_make_nodes(OperatorPoll,Operator):
     bl_idname = "node.stm_make_nodes"
