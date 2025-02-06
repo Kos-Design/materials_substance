@@ -17,12 +17,14 @@ from bpy.utils import (register_class,
                        unregister_class
                        )
 from . propertieshandler import PropertiesHandler, props, node_links, lines, texture_importer
+from . nodeshandler import NodeHandler
 
 propper = PropertiesHandler()
+ndh = NodeHandler()
 
 def line_on_up(self, context):
-    propper.default_sockets(context, self)
-    propper.refresh_shader_links(context)
+    propper.default_sockets(self)
+    propper.refresh_shader_links()
     return
 
 def apply_to_all_objs_up(self, context):
@@ -59,6 +61,20 @@ def match_sockets_up(self,context):
     if self.match_sockets:
         replace_shader_up(self,context)
 
+def get_presets(self, context):
+    presets = [('0','-Select Preset-', ''),]
+    preset_directory = Path(bpy.utils.extension_path_user(f'{__package__}',path="stm_presets", create=True))
+    for file in sorted(preset_directory.glob("*.py")):
+        presets.append((f"{file}", f"{file.stem}", ""))
+    return presets
+
+def apply_preset(self,context):
+    propper.read_preset()
+
+def custom_preset_enum_up(self, context):
+    print(self.custom_preset_enum)
+    apply_preset(self,context)
+
 def target_list_up(self,context):
     match self.target:
         case "selected_objects":
@@ -91,27 +107,23 @@ def apply_to_all_mats_up(self, context):
         register_class(laclasse)
     return
 
-def make_clean_channels(self,context):
-    self.channels.socket.clear()
-    for i in range(3):
-        item = self.channels.socket.add()
-        item.name = ['R','G','B'][i]
+
 
 def split_rgb_up(self,context):
     if not (len(self.channels.socket) and len(self.channels.socket) == 3):
-        make_clean_channels(self,context)
+        propper.make_clean_channels(self)
 
 def include_ngroups_up(self, context):
     if props().include_ngroups:
-        propper.set_nodes_groups(context)
+        propper.set_nodes_groups()
     else:
         node_links().clear()
-    propper.refresh_shader_links(context)
-    propper.guess_sockets(context)
+    propper.refresh_shader_links()
+    propper.guess_sockets()
 
 def enum_sockets_cb(self, context):
     try:
-        return propper.get_sockets_enum_items(context)
+        return propper.get_sockets_enum_items()
     except AttributeError :
         return [('0', '-- Select Socket --', ''), ('Base Color', 'Base Color', ''), ('Metallic', 'Metallic', ''), ('Roughness', 'Roughness', ''), ('IOR', 'IOR', ''), ('Alpha', 'Alpha', ''), ('Normal', 'Normal', ''), ('Diffuse Roughness', 'Diffuse Roughness', ''), ('Subsurface Weight', 'Subsurface Weight', ''), ('Subsurface Radius', 'Subsurface Radius', ''), ('Subsurface Scale', 'Subsurface Scale', ''), ('Subsurface IOR', 'Subsurface IOR', ''), ('Subsurface Anisotropy', 'Subsurface Anisotropy', ''), ('Specular IOR Level', 'Specular IOR Level', ''), ('Specular Tint', 'Specular Tint', ''), ('Anisotropic', 'Anisotropic', ''), ('Anisotropic Rotation', 'Anisotropic Rotation', ''), ('Tangent', 'Tangent', ''), ('Transmission Weight', 'Transmission Weight', ''), ('Coat Weight', 'Coat Weight', ''), ('Coat Roughness', 'Coat Roughness', ''), ('Coat IOR', 'Coat IOR', ''), ('Coat Tint', 'Coat Tint', ''), ('Coat Normal', 'Coat Normal', ''), ('Sheen Weight', 'Sheen Weight', ''), ('Sheen Roughness', 'Sheen Roughness', ''), ('Sheen Tint', 'Sheen Tint', ''), ('Emission Color', 'Emission Color', ''), ('Emission Strength', 'Emission Strength', ''), ('Thin Film Thickness', 'Thin Film Thickness', ''), ('Thin Film IOR', 'Thin Film IOR', ''), ('Disp Vector', 'Disp Vector', ''), ('Displacement', 'Displacement', '')]
 
@@ -120,14 +132,14 @@ def enum_sockets_up(self, context):
 
 def line_name_up(self, context):
     if not self.manual:
-        propper.detect_a_map(context,self)
+        ndh.detect_a_map(self)
 
 def shaders_list_cb(self, context):
-    return propper.get_shaders_list(context)
+    return propper.get_shaders_list()
 
 def shaders_list_up(self, context):
     if self.replace_shader:
-        propper.guess_sockets(context)
+        propper.guess_sockets()
     context.view_layer.update()
 
 def manual_up(self, context):
@@ -138,10 +150,10 @@ def manual_up(self, context):
         props().only_active_obj = True
         props().apply_to_all_mats = False
     else:
-        propper.detect_a_map(context,self)
+        ndh.detect_a_map(self)
 
 def advanced_mode_up(self, context):
-    propper.refresh_shader_links(context)
+    propper.refresh_shader_links()
     if not self.advanced_mode:
         for line in lines():
             line.manual = False
@@ -160,7 +172,7 @@ def usr_dir_up(self, context):
         replace_shader_up(props(),bpy.context)
 
 def dup_mat_compatible_up(self,context):
-    propper.detect_relevant_maps(context)
+    ndh.detect_relevant_maps()
 
 def clear_nodes_up(self, context):
     if self.clear_nodes:
@@ -169,15 +181,15 @@ def clear_nodes_up(self, context):
 def only_active_mat_up(self, context):
     if "all_materials" in self.target and self.only_active_mat:
         self.target = "selected_objects"
-    propper.refresh_shader_links(context)
+    propper.refresh_shader_links()
 
 def replace_shader_up(self, context):
-    propper.clean_input_sockets(context)
+    propper.clean_input_sockets()
     if self.include_ngroups:
         node_links().clear()
         include_ngroups_up(self,context)
-    propper.refresh_shader_links(context)
-    propper.guess_sockets(context)
+    propper.refresh_shader_links()
+    propper.guess_sockets()
     context.view_layer.update()
 
 def only_active_obj_up(self, context):
@@ -185,7 +197,7 @@ def only_active_obj_up(self, context):
         self.apply_to_all_objs = False
 
 class ShaderLinks(PropertyGroup):
-    
+
     ID: IntProperty(
         name="ID",
         default=0
@@ -329,6 +341,16 @@ class StmProps(PropertyGroup):
                         \n during Nodes Trees setup",
         default=False
     )
+    mode_opengl: BoolProperty(
+        name="OpenGL Normals",
+        description=" Disable to use DirectX™ normal map format instead of OpenGL.\
+                        \n\
+                        \n When this option is disabled, the script inverts the Y channel\
+                        \n of the normal map to match blender format by adding a RGBCurve\
+                        \n node with the green channel curve inverted before a normal map\
+                        \n is plugged during Nodes Trees setup",
+        default=True
+    )
     dir_content: StringProperty(
         name="Setavalue",
         description="content of selected texture folder",
@@ -391,3 +413,9 @@ class StmProps(PropertyGroup):
                         \n  as the original ones (ignores the .00x suffix)",
         default=True
     )
+    custom_preset_name: StringProperty(
+        name="Preset Name",
+        description="Name of the preset.",
+        default="New Preset"
+    )
+    custom_preset_enum: EnumProperty(name="Presets",items=get_presets,update=custom_preset_enum_up)

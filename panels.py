@@ -10,6 +10,13 @@ class TexImporterPanel():
     bl_region_type = 'UI'
     bl_category = "STM"
 
+    @classmethod
+    def poll(cls, context):
+        try:
+            return context.preferences.addons[__package__].preferences.display_in_shadernodes_editor
+        except:
+            return False
+
 
 class NODE_PT_stm_presets(PresetPanel, Panel):
     bl_label = 'Presets'
@@ -29,6 +36,8 @@ class NODE_PT_stm_importpanel(TexImporterPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
+        row = layout.row()
+        row.prop(props(), "target")
 
 
 class NODE_PT_stm_params(TexImporterPanel, Panel):
@@ -84,6 +93,7 @@ class NODE_PT_stm_panel_liner(TexImporterPanel,Panel):
             if not item.split_rgb:
                 sub_layout.prop(item, "input_sockets")
 
+
 class NODE_PT_stm_prefs(TexImporterPanel,Panel):
 
     bl_idname = "NODE_PT_stm_prefs"
@@ -135,10 +145,9 @@ class NODE_PT_stm_options(TexImporterPanel, Panel):
         if props().replace_shader :
             row.prop(props(), "shaders_list", text="")
         row = layout.row()
-        row = layout.row()
-        row.prop(props(), "target")
-        row = layout.row()
         row.prop(props(), "skip_normals", )
+        row = layout.row()
+        row.prop(props(), "mode_opengl", )
         row = layout.row()
         row.prop(props(), "include_ngroups", text="Enable Custom Shaders", )
         row = layout.row()

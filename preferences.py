@@ -121,6 +121,8 @@ class StmAddonPreferences(AddonPreferences):
     maps: bpy.props.PointerProperty(type=StmPanelLiner)
     node_links: CollectionProperty(type=NodesLinks)
     shader_links: CollectionProperty(type=ShaderLinks)
+    display_in_shadernodes_editor: BoolProperty(default=True,description="uncheck this option to not display the Extension panel in the Shader Nodes Editor Sidebar. It will remain accessible via the File > Import > Substance Textures menu ")
+
 
     def draw(self, context):
         layout = self.layout
@@ -131,5 +133,12 @@ class StmAddonPreferences(AddonPreferences):
             self.maps, "textures",
             self.maps, "texture_index",
             type="GRID",
-            columns = 1,
+            columns=4,
         )
+        button_col = row.column(align=True)
+        button_col.operator("node.stm_add_item", icon="ADD", text="")
+        button_col.operator("node.stm_remove_item", icon="REMOVE", text="")
+        button_col.separator(factor=3)
+
+        button_col.operator("node.stm_reset_substance_textures", icon="FILE_REFRESH", text="")
+        layout.prop(self,'display_in_shadernodes_editor',text="Display Panel in Shader Nodes Editor")
