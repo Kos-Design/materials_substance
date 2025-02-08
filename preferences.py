@@ -51,7 +51,7 @@ class StmPanelLines(PropertyGroup):
     )
 
     channels: PointerProperty(type=StmChannelSockets)
-
+    idx: IntProperty(default=0)
     file_name: StringProperty(
         name="File",
         subtype='FILE_PATH',

@@ -23,6 +23,12 @@ def lines():
 def p_lines():
     return [line for line in lines() if line.line_on]
 
+def line_index(line):
+    for i,liner in enumerate(lines()) :
+        if liner == line:
+            return i
+    return
+
 class MaterialHolder():
     def __init__(self):
         self._mat = None
@@ -270,6 +276,11 @@ class PropertiesHandler(MaterialHolder):
 
     def get_sockets_enum_items(self):
         selectedshader = props().shaders_list
+        if not self.mat :
+            try:
+                self.mat = bpy.context.object.active_material
+            except:
+                pass
         rawdata = []
         for i in range(len(shader_links())):
             if shader_links()[i].shadertype in selectedshader :
@@ -279,12 +290,35 @@ class PropertiesHandler(MaterialHolder):
                 rawdata = [v for (k,v) in json.loads(node_links()[i].input_sockets).items()]
         if not props().replace_shader:
             rawdata = self.get_shader_inputs(self.mat)
+        rawdata.append('Ambient Occlusion')
         return self.format_enum(rawdata)
 
+    def detect_multi_socket(self,line):
+        sockets_list = []
+        splitted = line.name.split(',')
+        if len(splitted) > 1:
+            props().advanced_mode = True
+            line.split_rgb = True
+            for i,map_name in enumerate(splitted):
+                sockets_list.clear()
+                for sock in self.get_sockets_enum_items():
+                    match_1 = map_name.strip().replace(" ", "").lower() in sock[0].replace(" ", "").lower()
+                    match_2 = map_name.strip().replace(" ", "").lower() in ('').join(sock[0].split()).lower()
+                    if match_1 or match_2 :
+                        sockets_list.append(sock)
+                if not len(sockets_list):
+                    sockets_list = [sock[0].replace(" ", "").lower() for sock in self.get_sockets_enum_items()]
+                line.channels.socket[i].input_sockets = sockets_list[0][0]
+            return True
+        return False
+
+        #ao = ["ambient occlusion","ambientocclusion","ambient","occlusion","ao","ambocc","ambient_occlusion"]
+
     def default_sockets(self,line):
-        if not props().match_sockets:
+        if not props().match_sockets or self.detect_multi_socket(line):
             return
         sockets_list = []
+        ao = ["ambient occlusion","ambientocclusion","ambient","occlusion","ao","ambocc","ambient_occlusion"]
         for sock in self.get_sockets_enum_items():
             match_1 = line.name.strip().replace(" ", "").lower() in sock[0].replace(" ", "").lower()
             match_2 = line.name.strip().replace(" ", "").lower() in ('').join(sock[0].split()).lower()
