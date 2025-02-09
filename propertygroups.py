@@ -57,10 +57,6 @@ def target_list_cb(self,context):
             ]
     return targets
 
-def match_sockets_up(self,context):
-    if self.match_sockets:
-        replace_shader_up(self,context)
-
 def get_presets(self, context):
     presets = [('0','-Select Preset-', ''),]
     preset_directory = Path(bpy.utils.extension_path_user(f'{__package__}',path="stm_presets", create=True))
@@ -110,6 +106,8 @@ def apply_to_all_mats_up(self, context):
 def split_rgb_up(self,context):
     if not (len(self.channels.socket) and len(self.channels.socket) == 3):
         propper.make_clean_channels(self)
+    if self.auto_mode:
+        replace_shader_up(props(),bpy.context)
 
 def include_ngroups_up(self, context):
     if props().include_ngroups:
@@ -123,7 +121,7 @@ def enum_sockets_cb(self, context):
     try:
         return propper.get_sockets_enum_items()
     except AttributeError :
-        return [('0', '-- Select Socket --', ''), ('Base Color', 'Base Color', ''), ('Metallic', 'Metallic', ''), ('Roughness', 'Roughness', ''), ('IOR', 'IOR', ''), ('Alpha', 'Alpha', ''), ('Normal', 'Normal', ''), ('Diffuse Roughness', 'Diffuse Roughness', ''), ('Subsurface Weight', 'Subsurface Weight', ''), ('Subsurface Radius', 'Subsurface Radius', ''), ('Subsurface Scale', 'Subsurface Scale', ''), ('Subsurface IOR', 'Subsurface IOR', ''), ('Subsurface Anisotropy', 'Subsurface Anisotropy', ''), ('Specular IOR Level', 'Specular IOR Level', ''), ('Specular Tint', 'Specular Tint', ''), ('Anisotropic', 'Anisotropic', ''), ('Anisotropic Rotation', 'Anisotropic Rotation', ''), ('Tangent', 'Tangent', ''), ('Transmission Weight', 'Transmission Weight', ''), ('Coat Weight', 'Coat Weight', ''), ('Coat Roughness', 'Coat Roughness', ''), ('Coat IOR', 'Coat IOR', ''), ('Coat Tint', 'Coat Tint', ''), ('Coat Normal', 'Coat Normal', ''), ('Sheen Weight', 'Sheen Weight', ''), ('Sheen Roughness', 'Sheen Roughness', ''), ('Sheen Tint', 'Sheen Tint', ''), ('Emission Color', 'Emission Color', ''), ('Emission Strength', 'Emission Strength', ''), ('Thin Film Thickness', 'Thin Film Thickness', ''), ('Thin Film IOR', 'Thin Film IOR', ''), ('Disp Vector', 'Disp Vector', ''), ('Displacement', 'Displacement', ''),('Ambient Occlusion','Ambient Occlusion',''),]
+        return [('0', '-- Unmatched Socket --', ''), ('Base Color', 'Base Color', ''), ('Metallic', 'Metallic', ''), ('Roughness', 'Roughness', ''), ('IOR', 'IOR', ''), ('Alpha', 'Alpha', ''), ('Normal', 'Normal', ''), ('Diffuse Roughness', 'Diffuse Roughness', ''), ('Subsurface Weight', 'Subsurface Weight', ''), ('Subsurface Radius', 'Subsurface Radius', ''), ('Subsurface Scale', 'Subsurface Scale', ''), ('Subsurface IOR', 'Subsurface IOR', ''), ('Subsurface Anisotropy', 'Subsurface Anisotropy', ''), ('Specular IOR Level', 'Specular IOR Level', ''), ('Specular Tint', 'Specular Tint', ''), ('Anisotropic', 'Anisotropic', ''), ('Anisotropic Rotation', 'Anisotropic Rotation', ''), ('Tangent', 'Tangent', ''), ('Transmission Weight', 'Transmission Weight', ''), ('Coat Weight', 'Coat Weight', ''), ('Coat Roughness', 'Coat Roughness', ''), ('Coat IOR', 'Coat IOR', ''), ('Coat Tint', 'Coat Tint', ''), ('Coat Normal', 'Coat Normal', ''), ('Sheen Weight', 'Sheen Weight', ''), ('Sheen Roughness', 'Sheen Roughness', ''), ('Sheen Tint', 'Sheen Tint', ''), ('Emission Color', 'Emission Color', ''), ('Emission Strength', 'Emission Strength', ''), ('Thin Film Thickness', 'Thin Film Thickness', ''), ('Thin Film IOR', 'Thin Film IOR', ''), ('Disp Vector', 'Disp Vector', ''), ('Displacement', 'Displacement', ''),('Ambient Occlusion','Ambient Occlusion',''),]
 
 def enum_sockets_up(self, context):
     context.view_layer.update()
@@ -166,8 +164,7 @@ def usr_dir_up(self, context):
     dir_content = [x.name for x in Path(self.usr_dir).glob('*.*') ]
     if len(dir_content) :
         self.dir_content = json.dumps((dict(zip(range(len(dir_content)), dir_content))))
-    if self.match_sockets:
-        replace_shader_up(props(),bpy.context)
+    replace_shader_up(props(),bpy.context)
 
 def dup_mat_compatible_up(self,context):
     ndh.detect_relevant_maps()
@@ -175,6 +172,10 @@ def dup_mat_compatible_up(self,context):
 def clear_nodes_up(self, context):
     if self.clear_nodes:
         self.replace_shader = True
+
+def auto_mode_up(self,context):
+    if self.auto_mode:
+        replace_shader_up(props(),bpy.context)
 
 def only_active_mat_up(self, context):
     if "all_materials" in self.target and self.only_active_mat:
@@ -318,17 +319,7 @@ class StmProps(PropertyGroup):
         items=target_list_cb,
         update=target_list_up
     )
-    match_sockets: BoolProperty(
-        name="Enable or Disable",
-        description=" Auto-detect sockets\
-                        \n\
-                        \n The addon attempts to match each texture map to its corresponding\
-                        \n shader socket according to its keyword defined in the panel lines.\
-                        \n Disable this if you want to skip this detection in order to plug \
-                        \n the textures in non-matching sockets(ex:Metallic into Roughness etc.)",
-        default=True,
-        update=match_sockets_up
-    )
+    
     tweak_levels: BoolProperty(
         name="Enable or Disable",
         description=" Attach RGB Curves and Color Ramps nodes\

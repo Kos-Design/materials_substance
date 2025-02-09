@@ -38,15 +38,21 @@ class MaterialHolder():
 
     @property
     def mat(self):
+        if self._mat is None and bpy.context.object.active_material:
+            try :
+                self.mat = bpy.context.object.active_material
+                return bpy.context.object.active_material
+            except:
+                pass
         return self._mat
 
     @mat.setter
     def mat(self, value):
         if value is None or isinstance(value, bpy.types.Material):
             self._mat = value
-            self._update_tree_and_nodes()
         else:
             raise ValueError("mat must be a bpy.types.Material or None")
+        self._update_tree_and_nodes()
 
     @property
     def tree(self):
@@ -293,46 +299,64 @@ class PropertiesHandler(MaterialHolder):
         rawdata.append('Ambient Occlusion')
         return self.format_enum(rawdata)
 
+    def check_special_keywords(self,term):
+        if "," in term:
+            return None
+        matcher = {"Ambient Occlusion":["ambient occlusion","ambientocclusion","ambient","occlusion","ao","ambocc","ambient_occlusion"],
+                    "Displacement":["disp","displacement","displace"],
+                    "Disp Vect":["disp vect","disp vector","disp_vector","vector_disp","vector displacement","displacementvector", "displacement_vector", "vector_displacement"],
+                    "Normal":["normal","normalmap","normal map", "norm", "tangent"],
+                    "bump":["bump","bumpmap","bump map", "height", "heightmap","weight","weight map"]
+                    }
+        for k,v in matcher.items():
+            if self.find_in_sockets(term,v):
+                return k
+        return None
+
+    def find_in_sockets(self,term,target_list=None):
+        if not target_list:
+            target_list = [sock[0] for sock in self.get_sockets_enum_items()]
+        for sock in target_list:
+            match_1 = term.strip().replace(" ", "").lower() in sock.replace(" ", "").lower()
+            match_2 = term.strip().replace(" ", "").lower() in ("").join(sock.split()).lower()
+            if match_1 or match_2 :
+                return sock
+        return None
+
     def detect_multi_socket(self,line):
-        sockets_list = []
         splitted = line.name.split(',')
-        if len(splitted) > 1:
-            props().advanced_mode = True
-            line.split_rgb = True
-            for i,map_name in enumerate(splitted):
-                sockets_list.clear()
-                for sock in self.get_sockets_enum_items():
-                    match_1 = map_name.strip().replace(" ", "").lower() in sock[0].replace(" ", "").lower()
-                    match_2 = map_name.strip().replace(" ", "").lower() in ('').join(sock[0].split()).lower()
-                    if match_1 or match_2 :
-                        sockets_list.append(sock)
-                if not len(sockets_list):
-                    sockets_list = [sock[0].replace(" ", "").lower() for sock in self.get_sockets_enum_items()]
-                line.channels.socket[i].input_sockets = sockets_list[0][0]
+        if len(splitted) > 1 or line.split_rgb:
+            if not (props().advanced_mode and line.split_rgb):
+                props().advanced_mode = True
+                line.split_rgb = True
+
+            for i,_sock in enumerate(splitted):
+                sock = self.find_in_sockets(_sock)
+                if not sock:
+                    sock = self.check_special_keywords(_sock)
+                    if not sock:
+                        sock = [sock[0].replace(" ", "").lower() for sock in self.get_sockets_enum_items()][0][0]
+                    if sock in "bump" :
+                        sock = 'Normal'
+                line.channels.socket[i].input_sockets = sock
             return True
         return False
 
-        #ao = ["ambient occlusion","ambientocclusion","ambient","occlusion","ao","ambocc","ambient_occlusion"]
-
     def default_sockets(self,line):
-        if not props().match_sockets or self.detect_multi_socket(line):
+        if not line.auto_mode or self.detect_multi_socket(line):
             return
-        sockets_list = []
-        ao = ["ambient occlusion","ambientocclusion","ambient","occlusion","ao","ambocc","ambient_occlusion"]
-        for sock in self.get_sockets_enum_items():
-            match_1 = line.name.strip().replace(" ", "").lower() in sock[0].replace(" ", "").lower()
-            match_2 = line.name.strip().replace(" ", "").lower() in ('').join(sock[0].split()).lower()
-            if match_1 or match_2 :
-                sockets_list.append(sock)
-        if not len(sockets_list):
-            sockets_list = [sock[0].replace(" ", "").lower() for sock in self.get_sockets_enum_items()]
-        line.input_sockets = sockets_list[0][0]
+        sock = self.find_in_sockets(line.name)
+        if not sock:
+            sock = self.check_special_keywords(line.name)
+            if not sock:
+                sock = [sock[0].replace(" ", "").lower() for sock in self.get_sockets_enum_items()][0][0]
+            if "bump" in sock:
+                sock = 'Normal'
+        line.input_sockets = sock
 
     def guess_sockets(self):
-        if props().match_sockets:
-            self.clean_input_sockets()
-            for line in lines():
-                self.default_sockets(line)
+        for line in lines():
+            self.default_sockets(line)
 
     def fill_settings(self):
         args = {}

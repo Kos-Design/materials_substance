@@ -77,8 +77,10 @@ class NODE_PT_stm_panel_liner(TexImporterPanel,Panel):
         if lines() and texture_index() < len(lines()):
             item = lines()[texture_index()]
             layout.prop(item, "line_on")
+            
             sub_layout = layout.column()
             sub_layout.enabled = item.line_on
+            sub_layout.prop(item, "auto_mode")
             if props().advanced_mode :
                 sub_sub_layout = sub_layout.column()
                 sub_sub_layout.prop(item, "manual")
@@ -88,10 +90,14 @@ class NODE_PT_stm_panel_liner(TexImporterPanel,Panel):
                 sub_sub_layout.prop(item, "split_rgb")
                 if item.split_rgb:
                     if item.channels.socket and item.channels.sockets_index < len(item.channels.socket):
+                        sub_layout_1 = sub_sub_layout.column()
+                        sub_layout_1.enabled = not item.auto_mode and item.line_on
                         for i,sock in enumerate(item.channels.socket):
-                            sub_sub_layout.prop(sock, "input_sockets",text=sock.name,icon=f"SEQUENCE_COLOR_0{((i*3)%9+1)}")
+                            sub_layout_1.prop(sock, "input_sockets",text=sock.name,icon=f"SEQUENCE_COLOR_0{((i*3)%9+1)}")
             if not item.split_rgb:
-                sub_layout.prop(item, "input_sockets")
+                sub_layout_2 = layout.column()
+                sub_layout_2.enabled = not item.auto_mode and item.line_on
+                sub_layout_2.prop(item, "input_sockets")
 
 
 class NODE_PT_stm_prefs(TexImporterPanel,Panel):
@@ -150,8 +156,6 @@ class NODE_PT_stm_options(TexImporterPanel, Panel):
         row.prop(props(), "mode_opengl", )
         row = layout.row()
         row.prop(props(), "include_ngroups", text="Enable Custom Shaders", )
-        row = layout.row()
-        row.prop(props(), "match_sockets", text="Auto-detect sockets", )
         row = layout.row()
         row.prop(props(), "clear_nodes", text="Clear nodes from material", )
         row = layout.row()
