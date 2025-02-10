@@ -13,7 +13,7 @@ from bpy.types import (PropertyGroup, UIList,AddonPreferences,
 
 from . propertieshandler import PropertiesHandler, props
 
-from . propertygroups import enum_sockets_cb,auto_mode_up, enum_sockets_up, manual_up, split_rgb_up, line_on_up, replace_shader_up, NodesLinks, ShaderLinks
+from . propertygroups import enum_sockets_cb, auto_mode_up, ch_sockets_up, enum_sockets_up, manual_up, split_rgb_up, line_on_up, replace_shader_up, NodesLinks, ShaderLinks
 
 propper = PropertiesHandler()
 
@@ -23,8 +23,8 @@ def get_name_up(self):
 def set_name_up(self, value):
     self["name"] = value
     try:
-        if not self.manual and self.auto_mode:
-            replace_shader_up(props(),bpy.context)
+        if self.auto_mode and not self.manual :
+            propper.default_sockets(self)
     except AttributeError:
         pass
 
@@ -32,9 +32,9 @@ class StmChannelSocket(PropertyGroup):
     input_sockets: EnumProperty(
         name="Input socket",
         description="Target shader input sockets for this texture node.\
-                    \n Selected automaticaly if Autodetect sockets is enabled",
+                    \n Selected automaticaly if -Detect target sockets- is enabled",
         items=enum_sockets_cb,
-        update=enum_sockets_up
+        update=ch_sockets_up
     )
 
 

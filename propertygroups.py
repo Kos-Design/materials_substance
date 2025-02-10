@@ -16,7 +16,7 @@ from bpy.types import (PropertyGroup, UIList,
 from bpy.utils import (register_class,
                        unregister_class
                        )
-from . propertieshandler import PropertiesHandler, props, node_links, lines, texture_importer
+from . propertieshandler import PropertiesHandler, props, node_links, lines,p_lines, texture_importer
 from . nodeshandler import NodeHandler
 
 propper = PropertiesHandler()
@@ -107,7 +107,7 @@ def split_rgb_up(self,context):
     if not (len(self.channels.socket) and len(self.channels.socket) == 3):
         propper.make_clean_channels(self)
     if self.auto_mode:
-        replace_shader_up(props(),bpy.context)
+        propper.default_sockets(self)
 
 def include_ngroups_up(self, context):
     if props().include_ngroups:
@@ -121,9 +121,49 @@ def enum_sockets_cb(self, context):
     try:
         return propper.get_sockets_enum_items()
     except AttributeError :
-        return [('0', '-- Unmatched Socket --', ''), ('Base Color', 'Base Color', ''), ('Metallic', 'Metallic', ''), ('Roughness', 'Roughness', ''), ('IOR', 'IOR', ''), ('Alpha', 'Alpha', ''), ('Normal', 'Normal', ''), ('Diffuse Roughness', 'Diffuse Roughness', ''), ('Subsurface Weight', 'Subsurface Weight', ''), ('Subsurface Radius', 'Subsurface Radius', ''), ('Subsurface Scale', 'Subsurface Scale', ''), ('Subsurface IOR', 'Subsurface IOR', ''), ('Subsurface Anisotropy', 'Subsurface Anisotropy', ''), ('Specular IOR Level', 'Specular IOR Level', ''), ('Specular Tint', 'Specular Tint', ''), ('Anisotropic', 'Anisotropic', ''), ('Anisotropic Rotation', 'Anisotropic Rotation', ''), ('Tangent', 'Tangent', ''), ('Transmission Weight', 'Transmission Weight', ''), ('Coat Weight', 'Coat Weight', ''), ('Coat Roughness', 'Coat Roughness', ''), ('Coat IOR', 'Coat IOR', ''), ('Coat Tint', 'Coat Tint', ''), ('Coat Normal', 'Coat Normal', ''), ('Sheen Weight', 'Sheen Weight', ''), ('Sheen Roughness', 'Sheen Roughness', ''), ('Sheen Tint', 'Sheen Tint', ''), ('Emission Color', 'Emission Color', ''), ('Emission Strength', 'Emission Strength', ''), ('Thin Film Thickness', 'Thin Film Thickness', ''), ('Thin Film IOR', 'Thin Film IOR', ''), ('Disp Vector', 'Disp Vector', ''), ('Displacement', 'Displacement', ''),('Ambient Occlusion','Ambient Occlusion',''),]
+        return [('no_socket', '-- Unmatched Socket --', ''), ('Base Color', 'Base Color', ''), ('Metallic', 'Metallic', ''), ('Roughness', 'Roughness', ''), ('IOR', 'IOR', ''), ('Alpha', 'Alpha', ''), ('Normal', 'Normal', ''), ('Diffuse Roughness', 'Diffuse Roughness', ''), ('Subsurface Weight', 'Subsurface Weight', ''), ('Subsurface Radius', 'Subsurface Radius', ''), ('Subsurface Scale', 'Subsurface Scale', ''), ('Subsurface IOR', 'Subsurface IOR', ''), ('Subsurface Anisotropy', 'Subsurface Anisotropy', ''), ('Specular IOR Level', 'Specular IOR Level', ''), ('Specular Tint', 'Specular Tint', ''), ('Anisotropic', 'Anisotropic', ''), ('Anisotropic Rotation', 'Anisotropic Rotation', ''), ('Tangent', 'Tangent', ''), ('Transmission Weight', 'Transmission Weight', ''), ('Coat Weight', 'Coat Weight', ''), ('Coat Roughness', 'Coat Roughness', ''), ('Coat IOR', 'Coat IOR', ''), ('Coat Tint', 'Coat Tint', ''), ('Coat Normal', 'Coat Normal', ''), ('Sheen Weight', 'Sheen Weight', ''), ('Sheen Roughness', 'Sheen Roughness', ''), ('Sheen Tint', 'Sheen Tint', ''), ('Emission Color', 'Emission Color', ''), ('Emission Strength', 'Emission Strength', ''), ('Thin Film Thickness', 'Thin Film Thickness', ''), ('Thin Film IOR', 'Thin Film IOR', ''), ('Disp Vector', 'Disp Vector', ''), ('Displacement', 'Displacement', ''),('Ambient Occlusion','Ambient Occlusion',''),]
 
 def enum_sockets_up(self, context):
+    for line in p_lines():
+        if line.split_rgb:
+            for sock in line.channels.socket:
+                if sock.input_sockets in self.input_sockets and not 'no_socket' in self.input_sockets and line.auto_mode:
+                    try:
+                        setattr(sock,'input_sockets', 'no_socket')
+                        line.auto_mode = False
+                        #print(f"reseted {sock.name} in {line.name}")
+                    except:
+                        print(f'cannot assign {[sock[0].replace(" ", "").lower() for sock in propper.get_sockets_enum_items()][0]} to {sock.name}, keeping as {sock.input_sockets}')
+        else:
+            if line.input_sockets in self.input_sockets and not 'no_socket' in self.input_sockets and not line == self and line.auto_mode:
+                try:
+                    setattr(line,'input_sockets', 'no_socket')
+                    #print(f"reseted {line.name} to no_socket")
+                    line.auto_mode = False
+                except:
+                    print(f'cannot assign {[sock[0].replace(" ", "").lower() for sock in propper.get_sockets_enum_items()][0]} to {line.name}, keeping as {line.input_sockets}')
+    context.view_layer.update()
+
+def ch_sockets_up(self, context):
+    for line in p_lines():
+        if line.split_rgb:
+            for sock in line.channels.socket:
+                if sock.input_sockets in self.input_sockets and not 'no_socket' in self.input_sockets and not self == sock and line.auto_mode:
+                    try:
+                        setattr(sock,'input_sockets', 'no_socket')
+                        line.auto_mode = False
+                        #print(f"reseted {sock.name} in {line.name}")
+                    except:
+                        print(f'cannot assign {[sock[0].replace(" ", "").lower() for sock in propper.get_sockets_enum_items()][0]} to {sock.name}, keeping as {sock.input_sockets}')
+        else:
+            if line.input_sockets in self.input_sockets and not 'no_socket' in self.input_sockets and line.auto_mode:
+                #print(f"{line.name} , {self.input_sockets} from {self.name}")
+                try:
+                    setattr(line,'input_sockets', 'no_socket')
+                    line.auto_mode = False
+                    #print(f"reseted {line.name} to  no_socket")
+                except:
+                    print(f'cannot assign {[sock[0].replace(" ", "").lower() for sock in propper.get_sockets_enum_items()][0]} to {line.name}, keeping as {line.input_sockets}')
     context.view_layer.update()
 
 def line_name_up(self, context):
@@ -175,7 +215,7 @@ def clear_nodes_up(self, context):
 
 def auto_mode_up(self,context):
     if self.auto_mode:
-        replace_shader_up(props(),bpy.context)
+        propper.default_sockets(self)
 
 def only_active_mat_up(self, context):
     if "all_materials" in self.target and self.only_active_mat:
@@ -183,7 +223,7 @@ def only_active_mat_up(self, context):
     propper.refresh_shader_links()
 
 def replace_shader_up(self, context):
-    propper.clean_input_sockets()
+    #propper.clean_input_sockets()
     if self.include_ngroups:
         node_links().clear()
         include_ngroups_up(self,context)

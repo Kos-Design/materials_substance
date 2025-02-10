@@ -230,7 +230,7 @@ class PropertiesHandler(MaterialHolder):
         texture = lines().add()
         texture.name = self.get_available_name()
         texture_importer().texture_index = len(lines()) - 1
-        make_clean_channels(texture)
+        self.make_clean_channels(texture)
 
     def get_available_name(self):
         new_index = 0
@@ -331,11 +331,13 @@ class PropertiesHandler(MaterialHolder):
                 line.split_rgb = True
 
             for i,_sock in enumerate(splitted):
+                if i > 2:
+                    return False
                 sock = self.find_in_sockets(_sock)
                 if not sock:
                     sock = self.check_special_keywords(_sock)
                     if not sock:
-                        sock = [sock[0].replace(" ", "").lower() for sock in self.get_sockets_enum_items()][0][0]
+                        sock = [sock[0].replace(" ", "").lower() for sock in self.get_sockets_enum_items()][0]
                     if sock in "bump" :
                         sock = 'Normal'
                 line.channels.socket[i].input_sockets = sock
@@ -349,7 +351,7 @@ class PropertiesHandler(MaterialHolder):
         if not sock:
             sock = self.check_special_keywords(line.name)
             if not sock:
-                sock = [sock[0].replace(" ", "").lower() for sock in self.get_sockets_enum_items()][0][0]
+                sock = [sock[0].replace(" ", "").lower() for sock in self.get_sockets_enum_items()][0]
             if "bump" in sock:
                 sock = 'Normal'
         line.input_sockets = sock
@@ -386,7 +388,7 @@ class PropertiesHandler(MaterialHolder):
                     # no inputs sockets neither...
                     print(f"{args[line.name]}{args[line.name]['channels']['RGB'[i]]}{args[line.name]['channels']['RGB'[i]].items()}")
                     #no line['channels']...
-                    print(f"{dir(line)}     ")
+                    #print(f"{dir(line)}     ")
         try:        #{line['channels']['RGB'[i]]}     {getattr(line['channels'],'RGB'[i])} {getattr(line['channels']['RGB'[i]],'input_sockets')}
             return json.dumps(args)
         except (TypeError, OverflowError) as e:
@@ -395,7 +397,7 @@ class PropertiesHandler(MaterialHolder):
 
     def clean_input_sockets(self):
         for line in lines():
-            line.input_sockets = '0'
+            line.input_sockets = 'no_socket'
 
     def get_shader_inputs(self,mat_used):
         if mat_used != None:
@@ -424,7 +426,7 @@ class PropertiesHandler(MaterialHolder):
         return "Error"
 
     def format_enum(self,rawdata):
-        default = ('0', '-- Select Socket --', '')
+        default = ('no_socket', '-- Unmatched Socket --', '')
         if rawdata == []:
             return [default]
         dispitem = [('Disp Vector', 'Disp Vector', ''), ('Displacement', 'Displacement', '')]

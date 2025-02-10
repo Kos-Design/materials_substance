@@ -265,7 +265,7 @@ class IMPORT_OT_stm_window(Operator):
         
         layout.label(text=f"Textures Directory: {Path(current_directory.decode('utf-8')).name}")
         
-        layout.label(text="<<--- Select the textures folder to import _Î")
+        layout.label(text="<<--- Select the textures folder to import")
         if self.preset_directory.exists():
             row = layout.row(align=True)
             row.alignment = 'LEFT'
@@ -335,7 +335,7 @@ class IMPORT_OT_stm_window(Operator):
                 row.prop(props(), "shaders_list", text="")
             row = box.row()
             row.prop(props(), "skip_normals", )
-            row = layout.row()
+            row = box.row()
             row.prop(props(), "mode_opengl", )
             row = box.row()
             row.prop(props(), "include_ngroups", text="Enable Custom Shaders", )
