@@ -201,7 +201,7 @@ class NODE_OT_stm_execute_preset(SubOperatorPoll,Operator):
         except Exception:
             return {'CANCELLED'}
 
-class NODE_OT_add_preset_popup(bpy.types.Operator):
+class NODE_OT_add_preset_popup(SubOperatorPoll,Operator):
     bl_idname = "node.add_preset_popup"
     bl_label = "Add Preset"
     bl_description = "Add a new preset"
@@ -245,6 +245,13 @@ class IMPORT_OT_stm_window(Operator):
     show_options: bpy.props.BoolProperty(name="Options", default=True)
     preset_directory = NODE_OT_stm_presets_dialog.preset_directory
     
+    @classmethod
+    def poll(cls, context):
+        try:
+            return len(bpy.data.materials) and props()
+        except:
+            return False
+
     def execute(self, context):
         for i in range (2):
             ndh.handle_nodes(not i)
@@ -265,7 +272,7 @@ class IMPORT_OT_stm_window(Operator):
         
         layout.label(text=f"Textures Directory: {Path(current_directory.decode('utf-8')).name}")
         
-        layout.label(text="<<--- Select the textures folder to import")
+        layout.label(text="<<--- Select a folder to import textures")
         if self.preset_directory.exists():
             row = layout.row(align=True)
             row.alignment = 'LEFT'

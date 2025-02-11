@@ -68,7 +68,7 @@ def apply_preset(self,context):
     propper.read_preset()
 
 def custom_preset_enum_up(self, context):
-    print(self.custom_preset_enum)
+    #print(self.custom_preset_enum)
     apply_preset(self,context)
 
 def target_list_up(self,context):

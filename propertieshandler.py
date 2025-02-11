@@ -302,23 +302,26 @@ class PropertiesHandler(MaterialHolder):
     def check_special_keywords(self,term):
         if "," in term:
             return None
-        matcher = {"Ambient Occlusion":["ambient occlusion","ambientocclusion","ambient","occlusion","ao","ambocc","ambient_occlusion"],
-                    "Displacement":["disp","displacement","displace"],
-                    "Disp Vect":["disp vect","disp vector","disp_vector","vector_disp","vector displacement","displacementvector", "displacement_vector", "vector_displacement"],
-                    "Normal":["normal","normalmap","normal map", "norm", "tangent"],
+        #no spaces
+        matcher = {"Ambient Occlusion":["ambientocclusion","ambientocclusion","ambient","occlusion","ao","ambocc","ambient_occlusion"],
+                    "Displacement":["relief","displacement","displace","displace_map"],
+                    "Disp Vect":["dispvect","dispvector","disp_vector","vector_disp","vectordisplacement","displacementvector", "displacement_vector", "vector_displacement"],
+                    "Normal":["normal","normalmap","normalmap", "norm", "tangent"],
                     "bump":["bump","bumpmap","bump map", "height", "heightmap","weight","weight map"]
                     }
         for k,v in matcher.items():
-            if self.find_in_sockets(term,v):
+            if self.find_in_sockets(term.strip(),v):
                 return k
         return None
 
     def find_in_sockets(self,term,target_list=None):
+        if term in "":
+            return None
         if not target_list:
             target_list = [sock[0] for sock in self.get_sockets_enum_items()]
         for sock in target_list:
-            match_1 = term.strip().replace(" ", "").lower() in sock.replace(" ", "").lower()
-            match_2 = term.strip().replace(" ", "").lower() in ("").join(sock.split()).lower()
+            match_1 = term.replace(" ", "").lower() in sock.replace(" ", "").lower()
+            match_2 = term.replace(" ", "").lower() in ("").join(sock.split()).lower()
             if match_1 or match_2 :
                 return sock
         return None
@@ -329,7 +332,9 @@ class PropertiesHandler(MaterialHolder):
             if not (props().advanced_mode and line.split_rgb):
                 props().advanced_mode = True
                 line.split_rgb = True
-
+            if len(splitted) != 3 :
+                for i in range(3-len(splitted)):
+                    splitted.append("no_socket")
             for i,_sock in enumerate(splitted):
                 if i > 2:
                     return False
@@ -386,7 +391,7 @@ class PropertiesHandler(MaterialHolder):
                 except KeyError:
                     # no ['RGB'[i]].name on 284???
                     # no inputs sockets neither...
-                    print(f"{args[line.name]}{args[line.name]['channels']['RGB'[i]]}{args[line.name]['channels']['RGB'[i]].items()}")
+                    print(f"Error during preset {args[line.name]}{args[line.name]['channels']['RGB'[i]]}{args[line.name]['channels']['RGB'[i]].items()}")
                     #no line['channels']...
                     #print(f"{dir(line)}     ")
         try:        #{line['channels']['RGB'[i]]}     {getattr(line['channels'],'RGB'[i])} {getattr(line['channels']['RGB'[i]],'input_sockets')}

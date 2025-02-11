@@ -32,7 +32,7 @@ class StmChannelSocket(PropertyGroup):
     input_sockets: EnumProperty(
         name="Input socket",
         description="Target shader input sockets for this texture node.\
-                    \n Selected automaticaly if -Detect target sockets- is enabled",
+                    \n Selected automaticaly if -Detect target socket- is enabled",
         items=enum_sockets_cb,
         update=ch_sockets_up
     )
