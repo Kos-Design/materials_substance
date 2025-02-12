@@ -120,7 +120,7 @@ class PropertiesHandler(MaterialHolder):
             return self.get_shaders_list_eve()
         if bpy.context.scene.render.engine == 'CYCLES' :
             return self.get_shaders_list_cycles()
-    
+
     def make_clean_channels(self,line):
         line.channels.socket.clear()
         for i in range(3):
@@ -213,7 +213,7 @@ class PropertiesHandler(MaterialHolder):
             line['manual'] = 'True' in args[line.name]['manual']
             line['split_rgb'] = 'True' in args[line.name]['split_rgb']
             for i in range(3):
-                line['channels']["RGB"[i]].input_sockets = args[line.name]['channels']["RGB"[i]]['input_sockets'] 
+                line['channels']["RGB"[i]].input_sockets = args[line.name]['channels']["RGB"[i]]['input_sockets']
         bpy.context.view_layer.update()
 
     def adjust_lines_count(self,difference):
@@ -281,23 +281,44 @@ class PropertiesHandler(MaterialHolder):
         self.refresh_shader_links()
 
     def get_sockets_enum_items(self):
-        selectedshader = props().shaders_list
         if not self.mat :
             try:
                 self.mat = bpy.context.object.active_material
             except:
                 pass
         rawdata = []
-        for i in range(len(shader_links())):
-            if shader_links()[i].shadertype in selectedshader :
-                rawdata = [v for (k,v) in json.loads(shader_links()[i].input_sockets).items()]
-        for i in range(len(node_links())):
-            if node_links()[i].nodetype in selectedshader:
-                rawdata = [v for (k,v) in json.loads(node_links()[i].input_sockets).items()]
         if not props().replace_shader:
-            rawdata = self.get_shader_inputs(self.mat)
+            rawdata = self.get_shader_inputs()
+        else:
+            selectedshader = props().shaders_list
+            for i in range(len(shader_links())):
+                if shader_links()[i].shadertype in selectedshader :
+                    rawdata = [v for (k,v) in json.loads(shader_links()[i].input_sockets).items()]
+            for i in range(len(node_links())):
+                if node_links()[i].nodetype in selectedshader:
+                    rawdata = [v for (k,v) in json.loads(node_links()[i].input_sockets).items()]
         rawdata.append('Ambient Occlusion')
         return self.format_enum(rawdata)
+
+    def get_shader_node(self):
+        shader_node = None
+        output_node = self.get_output_node()
+        if output_node :
+            out_links = output_node.inputs['Surface']
+            if out_links.is_linked and out_links.links[0].from_node.type not in ['HOLDOUT']:
+                shader_node = out_links.links[0].from_node
+            while shader_node and shader_node.type in {"MIX_SHADER", "ADD_SHADER"}:
+                linked_inputs = [inp for inp in shader_node.inputs if inp.links]
+                if linked_inputs:
+                    shader_node = linked_inputs[0].links[0].from_node
+        return shader_node
+
+    def get_output_node(self):
+        out_nodes = [n for n in list(self.nodes) if n.type in "OUTPUT_MATERIAL"]
+        for node in list(self.nodes):
+            if node.is_active_output:
+                return node
+        return None
 
     def check_special_keywords(self,term):
         if "," in term:
@@ -342,10 +363,11 @@ class PropertiesHandler(MaterialHolder):
                 if not sock:
                     sock = self.check_special_keywords(_sock)
                     if not sock:
-                        sock = [sock[0].replace(" ", "").lower() for sock in self.get_sockets_enum_items()][0]
+                        sock = [sock[0] for sock in self.get_sockets_enum_items()][0]
                     if sock in "bump" :
                         sock = 'Normal'
-                line.channels.socket[i].input_sockets = sock
+                if sock in [sock[0] for sock in self.get_sockets_enum_items()]:
+                    line.channels.socket[i].input_sockets = sock
             return True
         return False
 
@@ -356,13 +378,14 @@ class PropertiesHandler(MaterialHolder):
         if not sock:
             sock = self.check_special_keywords(line.name)
             if not sock:
-                sock = [sock[0].replace(" ", "").lower() for sock in self.get_sockets_enum_items()][0]
+                sock = [sock[0] for sock in self.get_sockets_enum_items()][0]
             if "bump" in sock:
                 sock = 'Normal'
-        line.input_sockets = sock
+        if sock in [sock[0] for sock in self.get_sockets_enum_items()]:
+            line.input_sockets = sock
 
     def guess_sockets(self):
-        for line in lines():
+        for line in p_lines():
             self.default_sockets(line)
 
     def fill_settings(self):
@@ -402,19 +425,20 @@ class PropertiesHandler(MaterialHolder):
 
     def clean_input_sockets(self):
         for line in lines():
-            line.input_sockets = 'no_socket'
+            #method to avoid warning errors
+            line['input_sockets'] = 0
+            #setattr(line,'input_sockets','no_socket')
+            #line.input_sockets = 'no_socket'
+            for ch in line.channels.socket:
+                ch['input_sockets'] = 0
+                #setattr(ch,'input_sockets','no_socket')
 
-    def get_shader_inputs(self,mat_used):
-        if mat_used != None:
-            for nd in mat_used.node_tree.nodes:
-                validoutput = nd.type == "OUTPUT_MATERIAL" and nd.is_active_output and nd.inputs['Surface'].is_linked
-                if validoutput:
-                    shd = nd.inputs['Surface'].links[0].from_node
-                    input_sockets = mat_used.node_tree.nodes[shd.name].inputs
-                    if len(input_sockets) != 0:
-                        return input_sockets.keys()
+    def get_shader_inputs(self):
+        shd = self.get_shader_node()
+        if shd and shd.inputs:
+            return shd.inputs.keys()
         return []
-    
+
     def read_preset(self):
         print(f'preset is {props().custom_preset_enum}')
         if not props().custom_preset_enum in '0':

@@ -103,37 +103,47 @@ class NodeHandler(MaterialHolder):
     def set_shader_node(self):
         shader_node = self.get_first_node()
         if self.node_invalid(shader_node) or props().replace_shader or props().clear_nodes:
-            substitute_shader = props().shaders_list
-            #handles custom shaders
-            if substitute_shader in bpy.data.node_groups.keys():
-                shader_node = self.nodes.new('ShaderNodeGroup')
-                shader_node.node_tree = bpy.data.node_groups[substitute_shader]
-            elif hasattr(bpy.types,substitute_shader) :
-                shader_node = self.nodes.new(substitute_shader)
-            else :
-                node_links().clear()
-                propper.set_nodes_groups()
-                propper.refresh_shader_links()
-                propper.guess_sockets()
+            if props().replace_shader or not shader_node:
+                substitute_shader = props().shaders_list
+            else:
+                substitute_shader = shader_node.bl_idname
+            if props().include_ngroups:
+                #handles custom shaders
                 if substitute_shader in bpy.data.node_groups.keys():
                     shader_node = self.nodes.new('ShaderNodeGroup')
                     shader_node.node_tree = bpy.data.node_groups[substitute_shader]
-                else:
-                    print("Error during custom shaders gathering")
-                    return
+                else :
+                    node_links().clear()
+                    propper.set_nodes_groups()
+                    propper.refresh_shader_links()
+                    propper.guess_sockets()
+                    if substitute_shader in bpy.data.node_groups.keys():
+                        shader_node = self.nodes.new('ShaderNodeGroup')
+                        shader_node.node_tree = bpy.data.node_groups[substitute_shader]
+                    else:
+                        print("Error during custom shaders gathering")
+                        return
+            if hasattr(bpy.types,substitute_shader) :
+                shader_node = self.nodes.new(substitute_shader)
             shader_node.name = "NODE_" + shader_node.name
             self.links.new(shader_node.outputs[0], self.output_node.inputs[0])
         if not (self.node_invalid(shader_node) or props().clear_nodes):
             self.copy_bsdf_parameters(self.get_first_node(), shader_node)
-            if props().replace_shader:
-                self.nodes.remove(self.get_first_node())
+            #if props().replace_shader:
+            #    self.nodes.remove(self.get_first_node())
         self.shader_node = shader_node
-        self.shader_node.location = (10.0,300.0)
+
+    def get_first_node(self):
+        sur_node = self.output_node.inputs['Surface']
+        first_node = None
+        if sur_node.is_linked:
+            first_node = sur_node.links[0].from_node
+        return first_node
 
     def set_output_node(self):
         self.output_node = None
-        out_nodes = [n for n in self.nodes if n.type == "OUTPUT_MATERIAL"]
-        for node in out_nodes:
+        out_nodes = [n for n in list(self.nodes) if n.type in "OUTPUT_MATERIAL"]
+        for node in list(self.nodes):
             if node.is_active_output:
                 self.output_node = node
                 break
@@ -146,25 +156,16 @@ class NodeHandler(MaterialHolder):
         invalidtypes = ["ADD_SHADER", "MIX_SHADER", "HOLDOUT"]
         return (node.type in invalidtypes if node else True) or not self.output_node.inputs['Surface'].is_linked
 
-    def get_first_node(self):
-        sur_node = self.output_node.inputs['Surface']
-        first_node = None
-        if sur_node.is_linked:
-            first_node = sur_node.links[0].from_node
-        return first_node
-
     def create_coords_nodes(self):
         self.coord_node = self.nodes.new('ShaderNodeTexCoord')
         self.coord_node.label = f"{self.mat_name_cleaner()} Coordinates"
         self.coord_node.name = f"NODE_{self.coord_node.name}"
-        self.coord_node.location = (-630.0, 260.0)
 
     def make_tex_mapping_nodes(self):
         mat_name = self.mat_name_cleaner()
         self.mapping_node = self.nodes.new('ShaderNodeMapping')
         self.mapping_node.label = f"{mat_name} Mapping"
         self.mapping_node.name = f"NODE_{self.mapping_node.name}"
-        self.mapping_node.location = (-450.0, 260.0)
         self.create_coords_nodes()
         self.links.new(self.coord_node.outputs['UV'], self.mapping_node.inputs['Vector'])
 
@@ -173,7 +174,6 @@ class NodeHandler(MaterialHolder):
             self.separate_rgb = self.nodes.new(type="ShaderNodeSeparateColor")
             self.separate_rgb.name=f"NODE_split_{line.name}"
             self.separate_rgb.label=f"split_{line.name}"
-            self.separate_rgb.location = self.shader_node.location
 
     def make_new_image_node(self,line):
         self.new_image_node = self.nodes.new(type="ShaderNodeTexImage")
@@ -181,7 +181,6 @@ class NodeHandler(MaterialHolder):
         self.new_image_node.label = line.name
         self.new_image_node.use_custom_color = True
         self.new_image_node.color = self.get_colors()[line_index(line)]
-        self.new_image_node.location = (-270.0, 260.0)
         self.links.new(self.mapping_node.outputs[0], self.new_image_node.inputs['Vector'])
         self.check_split_rgb(line)
 
@@ -222,14 +221,13 @@ class NodeHandler(MaterialHolder):
 
     def check_ao_mix(self,line):
         if self.has_ao:
-            self.prepare_ao()
+            self.prepare_ao(line)
 
     def check_shader_displacement(self,line):
         if not self.displaced or ('Disp Vector' in line.input_sockets) or ('Disp Vector' in [propper.check_special_keywords(w) for w in line.name.lower().strip().split(",") ]) :
             return
         self.disp_map_node = self.nodes.new('ShaderNodeDisplacement')
         self.disp_map_node.name = f"NODE_{self.disp_map_node.name}"
-        self.disp_map_node.location = (self.output_node.location[0] - 256, self.output_node.location[1])
         self.links.new(self.disp_map_node.outputs[0], self.output_node.inputs['Displacement'])
         if props().tweak_levels:
             self.links.new(self.extra_node.outputs[0], self.disp_map_node.inputs['Height'])
@@ -245,22 +243,20 @@ class NodeHandler(MaterialHolder):
             return
         self.disp_vec_node = self.nodes.new('ShaderNodeVectorDisplacement')
         self.disp_vec_node.name = f"NODE_{self.disp_vec_node.name}"
-        self.disp_vec_node.location = (self.output_node.location[0] - 256, self.output_node.location[1])
         self.links.new(self.disp_vec_node.outputs[0], self.output_node.inputs['Displacement'])
         if props().tweak_levels:
             if self.extra_node:
-
                 self.links.new(self.extra_node.outputs[0], self.disp_vec_node.inputs['Vector'])
         if self.has_normal and not props().skip_normals:
             self.links.new(self.normal_map_node.outputs[0], self.disp_vec_node.inputs['Vector'])
         if (not self.has_normal or props().skip_normals) and not props().tweak_levels:
             self.links.new(self.new_image_node.outputs[0], self.disp_vec_node.inputs['Vector'])
 
-    def prepare_ao(self):
+    def prepare_ao(self,line):
         if not len([nod for nod in self.nodes if "NODES_Ambient_Occlusion_mixer" in nod.name]):
             self.ao_mix = self.nodes.new('ShaderNodeMixShader')
             self.ao_mix.name = "NODES_Ambient_Occlusion_mixer"
-            self.ao_mix.label = "AO converter"
+            self.ao_mix.label = f"AO converter {line.name}"
             self.links.new(self.ao_mix.outputs['Shader'], self.output_node.inputs['Surface'])
             self.links.new(self.shader_node.outputs[0], self.ao_mix.inputs[2])
 
@@ -306,7 +302,7 @@ class NodeHandler(MaterialHolder):
                     self.plug_node(self.separate_rgb.outputs[i],sock.input_sockets)
             if self.has_ao and 'Ambient Occlusion' in sock.input_sockets:
                 self.links.new(self.separate_rgb.outputs[i], self.ao_mix.inputs[0])
-            if 'Displacement' in sock.input_sockets:
+            if 'Displacement' in sock.input_sockets and self.disp_map_node:
                 self.links.new(self.separate_rgb.outputs[i], self.disp_map_node.inputs[0])
 
         if self.add_curve:
@@ -330,23 +326,15 @@ class NodeHandler(MaterialHolder):
                 self.plug_node(self.bump_map_node.outputs[0],line.input_sockets)
         if not (self.has_height or self.has_normal) or props().skip_normals:
             if self.ao_mix:
-                self.links.new(self.new_image_node.outputs[0], self.ao_mix.inputs[0])
+                if line.name in self.ao_mix.label and "Ambient Occlusion" in line.input_sockets:
+                    self.links.new(self.new_image_node.outputs[0], self.ao_mix.inputs[0])
             elif not self.disp_vec_node and not self.disp_map_node :
                 self.plug_node(self.new_image_node.outputs[0],line.input_sockets)
-              
-
-        self.new_image_node.location = (
-                                  (self.new_image_node.location.x + self.offsetter_x * (int(props().tweak_levels) + int(self.has_normal or self.has_height))),
-                                  (self.new_image_node.location.y + self.offsetter_y * self.iterator)
-                                  )
-
         if not props().tweak_levels:
             if self.has_normal:
                 if self.normal_map_node:
                     self.links.new(self.new_image_node.outputs[0], self.normal_map_node.inputs[1])
                     self.plug_node(self.normal_map_node.outputs[0],line.input_sockets)
-                
-                    
                 if props().skip_normals:
                     if self.normal_map_node:
                         self.nodes.remove(self.normal_map_node)
@@ -363,7 +351,6 @@ class NodeHandler(MaterialHolder):
                 if self.bump_map_node:
                     self.links.new(self.extra_node.outputs[0], self.bump_map_node.inputs[2])
                     self.plug_node(self.bump_map_node.outputs[0],line.input_sockets)
-
 
         if props().tweak_levels and self.extra_node and not self.has_height and not self.normal_map_node and not self.disp_map_node and not self.disp_vec_node and not self.ao_mix:
             self.plug_node(self.extra_node.outputs[0],line.input_sockets)
@@ -390,23 +377,13 @@ class NodeHandler(MaterialHolder):
             if node.name.startswith("NODE_") and not node.bl_idname in props().shaders_list:
                 self.nodes.remove(node)
 
-    def arrange_last_nodes(self):
-        nod = self.shader_node
-        nod.location[1] = self.get_sockets_center() + 128
-        nod.location[0] += 128
-        self.output_node.location[1] = nod.location[1]
-        map_names = [line.name for line in p_lines()]
-        bumped = int(len([x for x in map_names if "height" in x.lower()]) + len([y for y in map_names if "normal" in y.lower()]) > 0)
-        self.mapping_node.location = (self.base_loc.x + self.offsetter_x * (int(props().tweak_levels) + bumped + 2) + self.offsetter_x, self.base_loc.y)
-        self.coord_node.location = (self.mapping_node.location[0] + self.offsetter_x, self.mapping_node.location[1])
-        self.mapping_node.location[1] = self.map_links()
-        self.coord_node.location[1] = self.mapping_node.location[1]
-
     def copy_bsdf_parameters(self,source_node, target_node):
         if source_node.bl_idname == target_node.bl_idname :
             for input_source, input_target in zip(source_node.inputs, target_node.inputs):
                 if hasattr(input_source, 'default_value'):
                     input_target.default_value = input_source.default_value
+        else:
+            print(f"cant copy {source_node.name} to {target_node.name}")
 
     def make_rgb_green_inverted(self):
         material = self.mat
@@ -414,7 +391,6 @@ class NodeHandler(MaterialHolder):
             material.use_nodes = True
             nodes = self.nodes
             rgb_curves_node = nodes.new(type="ShaderNodeRGBCurve")
-            rgb_curves_node.location = (0, 0)
             green_curve = rgb_curves_node.mapping.curves[1]
             for i,point in enumerate(green_curve.points):
                 point.location = (point.location.x, (1.0-point.location.y)*(1-i))
@@ -422,16 +398,17 @@ class NodeHandler(MaterialHolder):
         return None
 
     def setup_nodes(self):
-        if props().clear_nodes:
-            self.nodes.clear()
         self.offsetter_x=-312
         self.offsetter_y=-312
         self.clean_stm_nodes()
         self.set_output_node()
         self.set_shader_node()
-        #self.move_nodes()
         if len(p_lines()) == 0:
             return
+        keep_nodes = [self.output_node,self.shader_node]
+        if props().clear_nodes:
+            for nodes in [nd for nd in self.nodes if nd not in keep_nodes]:
+                self.nodes.remove(nodes)
         self.make_tex_mapping_nodes()
         for line in p_lines():
             self.clean_line_params()
@@ -444,7 +421,6 @@ class NodeHandler(MaterialHolder):
             self.iterator += 1
             self.report_content.append(f"Image texture node created in {self.mat.name} for {line.name} map ")
         self.move_nodes()
-        #self.arrange_last_nodes()
 
     def detect_relevant_maps(self):
         for line in p_lines():
@@ -498,6 +474,7 @@ class NodeHandler(MaterialHolder):
                 image = bpy.data.images.load(filepath=line.file_name) if not image_name in bpy.data.images else bpy.data.images[image_name]
                 if not line.name.replace(" ","").lower() in ["color", "basecolor", "emit", "emission", "albedo"]:
                     image.colorspace_settings.name = 'Non-Color'
+                    print (f"{line.name.replace(' ','').lower()} not in color ? {line.name.replace(' ','').lower() in 'color'}")
                 nodes[0].image = bpy.data.images[image.name]
                 self.report_content.append(f"Texture file {image_name} assigned to {line.name} node in {self.mat.name} ")
 
@@ -508,21 +485,7 @@ class NodeHandler(MaterialHolder):
             _text = _text[:-4]
         return _text
 
-    def map_links(self):
-        locs_y = []
-        connected = list(linked for linked in self.mapping_node.outputs[0].links if linked.is_valid)
-        if len(connected) > 0:
-            for linked in connected:
-                locs_y.append(linked.to_node.location[1])
-        else:
-            for nod in self.nodes:
-                locs_y.append(nod.location[1])
-        locs_y.sort()
-        center = (locs_y[0] + locs_y[-1]) / 2
-        return center
-
     def move_nodes(self):
-        #props().replace_shader
         imgs = [nod for nod in self.nodes if nod.type == 'TEX_IMAGE']
         node_set = set([nod.bl_idname for nod in self.nodes])
         aos = [nod for nod in self.nodes if nod.bl_idname in ["ShaderNodeMixShader","ShaderNodeDisplacement","ShaderNodeVectorDisplacement"]]
@@ -548,17 +511,21 @@ class NodeHandler(MaterialHolder):
         if len(splitters):
             cols += 0.5
         self.mapping_node.location.x = self.output_node.location.x + delta*(cols+3) + delta*ao -1.5*spacer
+        self.mapping_node.location.y += 250
         self.coord_node.location.x = self.output_node.location.x + delta*(cols+3) + delta*ao +2*spacer
-        self.shader_node.location.x = self.output_node.location.x + delta + delta*ao
+        self.coord_node.location.y += 250
+        self.shader_node.location.x = self.output_node.location.x + delta*(1+ao) - 0.5*spacer - 1.5*spacer*ao
+        self.shader_node.location.y += 250
         remaining_nodes = [nod for nod in self.nodes if not nod in [self.output_node,self.shader_node,self.coord_node,self.mapping_node]]
         for nod in remaining_nodes:
+            nod.location.y += 250
             nod.location = self.shader_node.location
             if nod.bl_idname in ["ShaderNodeMixShader","ShaderNodeDisplacement","ShaderNodeVectorDisplacement"]:
-                nod.location.x += -delta/2 - 2*spacer -0.5*spacer
+                nod.location.x += -delta/2 - 3*spacer
             if nod.bl_idname in ["ShaderNodeNormalMap","ShaderNodeBump"]:
-                nod.location.x += delta - 2.5*spacer
+                nod.location.x += delta - 2.25*spacer
             if nod.bl_idname in "ShaderNodeSeparateColor":
-                nod.location.x += delta*(cols) - 6*spacer*int(bool(len(ramps) or len(curves))) + cols*spacer -spacer*int(bool(len(bumps) or len(norm)))
+                nod.location.x += delta*(cols) - 6*spacer*int(bool(len(ramps) or len(curves))) + cols*spacer -0.75*spacer*int(bool(len(bumps) or len(norm)))
                 nod.location.x += spacer*int(1-bool(len(ramps) or len(curves)))
             if nod.bl_idname in ["ShaderNodeRGBCurve","ShaderNodeValToRGB"]:
                 nod.location.x += delta*(max(1,cols))+spacer
@@ -567,7 +534,7 @@ class NodeHandler(MaterialHolder):
 
         for i,nod in enumerate(imgs):
             nod.location.y += (len(imgs)*150)/2 -50
-            nod.location.y += i*-250
+            nod.location.y += i*-300
         for i,nod in enumerate(bumps+norm):
             nod.location.y += 100 -(nod.height + 150) + i*-250
         for i,nod in enumerate(aos):
@@ -582,39 +549,6 @@ class NodeHandler(MaterialHolder):
         for i,nod in enumerate(ramps):
             nod.location.y += -(nod.height + 250)*len(curves) + ((len(curves) + len(ramps))*150)/2
             nod.location.y += i*-(nod.height + 150)
-
-        """
-        if self.extra_node and props().tweak_levels and not self.directx_converter:
-            self.extra_node.location = (
-                (self.base_loc.x + self.offsetter_x * (int(self.has_normal or self.has_height) + 1)), (self.base_loc.y + self.offsetter_y * self.iterator))
-        if self.has_height and not props().skip_normals:
-            self.bump_map_node.location = (self.base_loc.x + self.offsetter_x, self.base_loc.y + self.offsetter_y * self.iterator)
-        if self.has_normal and not props().skip_normals:
-            self.normal_map_node.location = (self.base_loc.x + self.offsetter_x, self.base_loc.y + self.offsetter_y * self.iterator)
-
-        if not_empty and replace:
-            existing = [nod for nod in self.nodes if nod.type != "OUTPUT_MATERIAL" and not nod == self.shader_node]
-            #new_cluster_height = 888 * (not_empty / 2)
-            if not not_empty > 0 and replace:
-                new_cluster_height = 1024
-            self.offsetter_y = new_cluster_height
-            for node in existing:
-                node.location = (node.location[0] - 512, node.location[1] + self.offsetter_y)
-        """
-
-    def get_sockets_center(self):
-        self.shader_node.location = self.base_loc
-        locs_y = []
-        connected = list(linked for linked in self.shader_node.inputs if linked.is_linked)
-        if len(connected) > 0:
-            for linked in connected:
-                locs_y.append(linked.links[0].from_node.location[1])
-        else:
-            for node in self.mat.node_tree.nodes:
-                locs_y.append(node.location[1])
-        locs_y.sort()
-        center = (locs_y[0] + locs_y[-1]) / 2
-        return center
 
     def get_colors(self):
         return [(0.8,0.353,0.352),(0.8,0.541,0.282),(0.702,0.639,0.247),(0.361,0.600,0.361),(0.318,0.624,0.8),

@@ -131,7 +131,7 @@ class NODE_OT_stm_add_preset(SubOperatorPoll,Operator):
 
 class NODE_OT_stm_presets_dialog(SubOperatorPoll,Operator):
     bl_idname = "node.stm_presets_dialog"
-    bl_label = "STM Presets"
+    bl_label = "STM Presets..."
     bl_description = 'Open preset panel'
 
     preset_directory = Path(bpy.utils.extension_path_user(f'{package}',path="stm_presets", create=True))
@@ -203,7 +203,7 @@ class NODE_OT_stm_execute_preset(SubOperatorPoll,Operator):
 
 class NODE_OT_add_preset_popup(SubOperatorPoll,Operator):
     bl_idname = "node.add_preset_popup"
-    bl_label = "Add Preset"
+    bl_label = "Add Preset..."
     bl_description = "Add a new preset"
 
     preset_name: bpy.props.StringProperty(name="Preset Name")
@@ -238,7 +238,7 @@ def set_directory(self,value):
 
 class IMPORT_OT_stm_window(Operator):
     bl_idname = "import.stm_window"
-    bl_label = "Import Substance Textures"
+    bl_label = "Import Substance Textures..."
     bl_description = "Open a substance textures importer panel"
 
     directory: bpy.props.StringProperty(subtype="DIR_PATH",set=set_directory)

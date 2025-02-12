@@ -120,7 +120,7 @@ def include_ngroups_up(self, context):
 def enum_sockets_cb(self, context):
     try:
         return propper.get_sockets_enum_items()
-    except AttributeError :
+    except :
         return [('no_socket', '-- Unmatched Socket --', ''), ('Base Color', 'Base Color', ''), ('Metallic', 'Metallic', ''), ('Roughness', 'Roughness', ''), ('IOR', 'IOR', ''), ('Alpha', 'Alpha', ''), ('Normal', 'Normal', ''), ('Diffuse Roughness', 'Diffuse Roughness', ''), ('Subsurface Weight', 'Subsurface Weight', ''), ('Subsurface Radius', 'Subsurface Radius', ''), ('Subsurface Scale', 'Subsurface Scale', ''), ('Subsurface IOR', 'Subsurface IOR', ''), ('Subsurface Anisotropy', 'Subsurface Anisotropy', ''), ('Specular IOR Level', 'Specular IOR Level', ''), ('Specular Tint', 'Specular Tint', ''), ('Anisotropic', 'Anisotropic', ''), ('Anisotropic Rotation', 'Anisotropic Rotation', ''), ('Tangent', 'Tangent', ''), ('Transmission Weight', 'Transmission Weight', ''), ('Coat Weight', 'Coat Weight', ''), ('Coat Roughness', 'Coat Roughness', ''), ('Coat IOR', 'Coat IOR', ''), ('Coat Tint', 'Coat Tint', ''), ('Coat Normal', 'Coat Normal', ''), ('Sheen Weight', 'Sheen Weight', ''), ('Sheen Roughness', 'Sheen Roughness', ''), ('Sheen Tint', 'Sheen Tint', ''), ('Emission Color', 'Emission Color', ''), ('Emission Strength', 'Emission Strength', ''), ('Thin Film Thickness', 'Thin Film Thickness', ''), ('Thin Film IOR', 'Thin Film IOR', ''), ('Disp Vector', 'Disp Vector', ''), ('Displacement', 'Displacement', ''),('Ambient Occlusion','Ambient Occlusion',''),]
 
 def enum_sockets_up(self, context):
@@ -204,7 +204,11 @@ def usr_dir_up(self, context):
     dir_content = [x.name for x in Path(self.usr_dir).glob('*.*') ]
     if len(dir_content) :
         self.dir_content = json.dumps((dict(zip(range(len(dir_content)), dir_content))))
-    replace_shader_up(props(),bpy.context)
+    if self.include_ngroups:
+        node_links().clear()
+        include_ngroups_up(self,context)
+    propper.guess_sockets()
+    context.view_layer.update()
 
 def dup_mat_compatible_up(self,context):
     ndh.detect_relevant_maps()
@@ -223,7 +227,9 @@ def only_active_mat_up(self, context):
     propper.refresh_shader_links()
 
 def replace_shader_up(self, context):
-    #propper.clean_input_sockets()
+    sh = propper.get_shader_node()
+    if not sh or sh.bl_idname not in self.shaders_list:
+        propper.clean_input_sockets()
     if self.include_ngroups:
         node_links().clear()
         include_ngroups_up(self,context)
