@@ -3,7 +3,7 @@ from pathlib import Path
 import json
 
 def props():
-    return getattr(bpy.context.scene, "stm_props", None)
+    return getattr(bpy.context.preferences.addons[__package__].preferences, "props", None)
 
 def node_links():
     return getattr(bpy.context.preferences.addons[__package__].preferences, "node_links", None)
@@ -29,8 +29,38 @@ def line_index(line):
             return i
     return
 
+def set_wish(self):
+    print("wish set")
+    self.wish = {line.name: (line['input_sockets'],[getattr(ch,'input_sockets') for ch in line.channels.socket]) for line in lines()}
+
+def get_wish(self):
+    for name, value in self.wish.items():
+        try:
+            print("wishing line")
+            lines()[name]['input_sockets'] = value[0]
+        except:
+            print("reset line")
+            lines()[name]['input_sockets'] = 0
+        for i,ch in enumerate(lines()[name].channels.socket):
+            try:
+                print("wish ch")
+                setattr(ch,'input_sockets',value[1][i])
+            except:
+                print("reset ch")
+                setattr(ch,'input_sockets','no_socket')
+
+def sockets_holder(func):
+    def wrapper(self, *args, **kwargs):  # Ensure `self` is passed
+        set_wish(self)
+        print('whisher')
+        result = func(self, *args, **kwargs)  # Call the original method
+        get_wish(self)
+        return result
+    return wrapper
+
 class MaterialHolder():
     def __init__(self):
+        self.wish = {}
         self._mat = None
         self._tree = None
         self._nodes = None
@@ -64,6 +94,8 @@ class MaterialHolder():
 
     @property
     def nodes(self):
+        if not self._nodes :
+            self._nodes = self.mat.node_tree.nodes
         return self._nodes
 
     @nodes.setter
@@ -132,10 +164,14 @@ class PropertiesHandler(MaterialHolder):
         maps = ["Color","Roughness","Metallic","Normal"]
         for i in range(4):
             item = lines().add()
-            item.name = f"{maps[i]} map"
             item.name = f"{maps[i]}"
             self.make_clean_channels(item)
             self.default_sockets(item)
+
+    @sockets_holder
+    def safe_refresh(self,context=None):
+        self.clean_input_sockets()
+        self.refresh_shader_links()
 
     def get_shaders_list_cycles(self):
         shaders_list = [
@@ -280,14 +316,19 @@ class PropertiesHandler(MaterialHolder):
             self.set_nodes_groups()
         self.refresh_shader_links()
 
-    def get_sockets_enum_items(self):
+    def set_enum_sockets_items(self):
         if not self.mat :
             try:
                 self.mat = bpy.context.object.active_material
             except:
-                pass
+                print("No material")
         rawdata = []
+        #if not self.wish:
+            #set_wish(self)
         if not props().replace_shader:
+            #get_wish(self)
+            print(f"got wish {self.wish}")
+            print(lines()['Normal'].channels.socket['R'].input_sockets)
             rawdata = self.get_shader_inputs()
         else:
             selectedshader = props().shaders_list
@@ -297,27 +338,53 @@ class PropertiesHandler(MaterialHolder):
             for i in range(len(node_links())):
                 if node_links()[i].nodetype in selectedshader:
                     rawdata = [v for (k,v) in json.loads(node_links()[i].input_sockets).items()]
-        rawdata.append('Ambient Occlusion')
-        return self.format_enum(rawdata)
+        if not rawdata:
+            self.clean_input_sockets()
+            rawdata = [v for (k,v) in json.loads(props().sockets).items()]
+        else:
+            rawdata.append('Ambient Occlusion')
 
-    def get_shader_node(self):
+        props().sockets = json.dumps((dict(zip(range(len(rawdata)), rawdata))))
+
+    def get_sockets_enum_items(self):
+        if not len(json.loads(props().sockets)):
+            self.set_enum_sockets_items()
+        return self.format_enum([v for (k,v) in json.loads(props().sockets).items()])
+
+    def get_linked_node(self, _socket):
+        if _socket and _socket.is_linked:
+            return _socket.links[0].from_node
+        return None
+
+    def trace_shader_node(self, node):
+        if not node:
+            return None
+        if node.type in {"MIX_SHADER", "ADD_SHADER"}:
+            return self.trace_shader_node(self.get_linked_node(node.inputs[1])) or \
+                   self.trace_shader_node(self.get_linked_node(node.inputs[2]))
+        elif node.type == "SEPARATE_COLOR":
+            return None
+        return node
+
+    def get_shader_node(self,origin):
+        print(f"from:{origin}")
         shader_node = None
         output_node = self.get_output_node()
         if output_node :
-            out_links = output_node.inputs['Surface']
-            if out_links.is_linked and out_links.links[0].from_node.type not in ['HOLDOUT']:
-                shader_node = out_links.links[0].from_node
-            while shader_node and shader_node.type in {"MIX_SHADER", "ADD_SHADER"}:
-                linked_inputs = [inp for inp in shader_node.inputs if inp.links]
-                if linked_inputs:
-                    shader_node = linked_inputs[0].links[0].from_node
+            shader_node = self.trace_shader_node(self.get_linked_node(output_node.inputs["Surface"]))
+        print(f"sha is {shader_node.name if shader_node else 'found squat'}")
         return shader_node
 
     def get_output_node(self):
-        out_nodes = [n for n in list(self.nodes) if n.type in "OUTPUT_MATERIAL"]
-        for node in list(self.nodes):
+        if not self.nodes:
+            print("aborted no nodes")
+            return None
+        out_nodes = [n for n in self.nodes if n.type in "OUTPUT_MATERIAL"]
+        for node in out_nodes:
+            print(f"found {node.name}")
             if node.is_active_output:
                 return node
+        print("aborted no node returned")
         return None
 
     def check_special_keywords(self,term):
@@ -415,8 +482,6 @@ class PropertiesHandler(MaterialHolder):
                     # no ['RGB'[i]].name on 284???
                     # no inputs sockets neither...
                     print(f"Error during preset {args[line.name]}{args[line.name]['channels']['RGB'[i]]}{args[line.name]['channels']['RGB'[i]].items()}")
-                    #no line['channels']...
-                    #print(f"{dir(line)}     ")
         try:        #{line['channels']['RGB'[i]]}     {getattr(line['channels'],'RGB'[i])} {getattr(line['channels']['RGB'[i]],'input_sockets')}
             return json.dumps(args)
         except (TypeError, OverflowError) as e:
@@ -424,20 +489,19 @@ class PropertiesHandler(MaterialHolder):
         return json.dumps({'0':''})
 
     def clean_input_sockets(self):
+        #required to avoid warning errors
         for line in lines():
-            #method to avoid warning errors
             line['input_sockets'] = 0
-            #setattr(line,'input_sockets','no_socket')
             #line.input_sockets = 'no_socket'
             for ch in line.channels.socket:
                 ch['input_sockets'] = 0
-                #setattr(ch,'input_sockets','no_socket')
+                #ch.input_sockets = 'no_socket'
 
     def get_shader_inputs(self):
-        shd = self.get_shader_node()
+        shd = self.get_shader_node("get_shader_inputs")
         if shd and shd.inputs:
             return shd.inputs.keys()
-        return []
+        return None
 
     def read_preset(self):
         print(f'preset is {props().custom_preset_enum}')
@@ -447,7 +511,6 @@ class PropertiesHandler(MaterialHolder):
                 with open(f"{props().custom_preset_enum}", "r", encoding="utf-8") as w:
                     props().stm_all = w.read()
                     self.load_props()
-                    print(f"loaded")
                     return f"Applied preset: {Path(props().custom_preset_enum).stem}"
             except Exception as e:
                 print(e)

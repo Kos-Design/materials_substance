@@ -194,7 +194,6 @@ class NODE_OT_stm_execute_preset(SubOperatorPoll,Operator):
             self.report({'ERROR'}, "Preset name cannot be empty")
             return {'CANCELLED'}
         filer = f"{Path(NODE_OT_stm_presets_dialog.preset_directory).joinpath(self.preset_file)}"
-        print(filer)
         try:
             props().custom_preset_enum = filer
             return {'FINISHED'}

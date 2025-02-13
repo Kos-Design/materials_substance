@@ -13,7 +13,7 @@ from bpy.types import (PropertyGroup, UIList,AddonPreferences,
 
 from . propertieshandler import PropertiesHandler, props
 
-from . propertygroups import enum_sockets_cb, auto_mode_up, ch_sockets_up, enum_sockets_up, manual_up, split_rgb_up, line_on_up, replace_shader_up, NodesLinks, ShaderLinks
+from . propertygroups import StmProps, enum_sockets_cb, auto_mode_up, ch_sockets_up, enum_sockets_up, manual_up, split_rgb_up, line_on_up, replace_shader_up, NodesLinks, ShaderLinks
 
 propper = PropertiesHandler()
 
@@ -27,6 +27,18 @@ def set_name_up(self, value):
             propper.default_sockets(self)
     except AttributeError:
         pass
+
+def init_prefs():
+    prefs = bpy.context.preferences.addons[__package__].preferences
+    if not len(prefs.shader_links):
+        prefs.shader_links.add()
+    if not len(prefs.maps.textures):
+        maps = ["Color","Roughness","Metallic","Normal"]
+        for i in range(4):
+            item = prefs.maps.textures.add()
+            item.name = f"{maps[i]}"
+            item.input_sockets = f"{'' if i else 'Base '}{maps[i]}"
+            propper.make_clean_channels(item)
 
 class StmChannelSocket(PropertyGroup):
     input_sockets: EnumProperty(
@@ -52,7 +64,7 @@ class StmPanelLines(PropertyGroup):
     )
 
     channels: PointerProperty(type=StmChannelSockets)
-    idx: IntProperty(default=0)
+
     file_name: StringProperty(
         name="File",
         subtype='FILE_PATH',
@@ -100,9 +112,11 @@ class StmPanelLiner(PropertyGroup):
     textures: CollectionProperty(type=StmPanelLines)
     texture_index: IntProperty(default=0)
 
+
 class StmNodes(PropertyGroup):
     node_links: CollectionProperty(type=NodesLinks)
     node_index: IntProperty(default=0)
+
 
 class StmShaders(PropertyGroup):
     shader_links: CollectionProperty(type=ShaderLinks)
@@ -130,7 +144,7 @@ class StmAddonPreferences(AddonPreferences):
     node_links: CollectionProperty(type=NodesLinks)
     shader_links: CollectionProperty(type=ShaderLinks)
     display_in_shadernodes_editor: BoolProperty(default=True,description="uncheck this option to not display the Extension panel in the Shader Nodes Editor Sidebar. It will remain accessible via the File > Import > Substance Textures menu ")
-
+    props: bpy.props.PointerProperty(type=StmProps)
 
     def draw(self, context):
         layout = self.layout

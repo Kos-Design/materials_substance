@@ -19,7 +19,7 @@ from bpy.props import (
     EnumProperty,
 )
 
-from . propertygroups import ( ShaderLinks, NodesLinks, StmProps, )
+from . propertygroups import ( ShaderLinks, NodesLinks, StmProps,register_msgbus,unregister_msgbus)
 
 from . operators import ( NODE_OT_stm_execute_preset,NODE_OT_stm_reset_substance_textures,
                           NODE_OT_stm_make_nodes, NODE_OT_stm_assign_nodes,menu_func,
@@ -31,11 +31,9 @@ from . operators import ( NODE_OT_stm_execute_preset,NODE_OT_stm_reset_substance
 from . panels import (  NODE_PT_stm_presets, NODE_PT_stm_importpanel, NODE_PT_stm_panel_liner,
                         NODE_PT_stm_prefs, NODE_PT_stm_options, NODE_PT_stm_params, NODE_PT_stm_buttons,
                         )
-from . propertieshandler import PropertiesHandler
-from . preferences import (StmAddonPreferences, StmPanelLiner, NODE_UL_stm_list, StmPanelLines,
-                             StmChannelSocket, StmChannelSockets,StmShaders, StmNodes)
 
-propper = PropertiesHandler()
+from . preferences import (StmAddonPreferences, StmPanelLiner, NODE_UL_stm_list, StmPanelLines,init_prefs,
+                             StmChannelSocket, StmChannelSockets,StmShaders, StmNodes,)
 
 classes = (
     StmProps,
@@ -70,28 +68,19 @@ classes = (
     NODE_OT_stm_reset_substance_textures,
     )
 
+
 def register():
     from bpy.utils import register_class
     for cls in classes:
         register_class(cls)
-    bpy.types.Scene.stm_props = PointerProperty(type=StmProps)
-    prefs = bpy.context.preferences.addons[__package__].preferences
-    if not len(prefs.shader_links):
-        prefs.shader_links.add()
-    if not len(prefs.maps.textures):
-        maps = ["Color","Roughness","Metallic","Normal"]
-        for i in range(4):
-            item = prefs.maps.textures.add()
-            item.name = f"{maps[i]}"
-            item.input_sockets = f"{'' if i else 'Base '}{maps[i]}"
-            propper.make_clean_channels(item)
-
+    init_prefs()
     bpy.types.TOPBAR_MT_file_import.append(menu_func)
+    register_msgbus()
 
 def unregister():
     from bpy.utils import unregister_class
+    unregister_msgbus()
     bpy.types.TOPBAR_MT_file_import.remove(menu_func)
-    del bpy.types.Scene.stm_props
     for cls in reversed(classes):
         unregister_class(cls)
 

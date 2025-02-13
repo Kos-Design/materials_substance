@@ -34,12 +34,15 @@ class NodeHandler(MaterialHolder):
         self.has_ao = False
 
     def handle_nodes(self,only_setup_nodes=False):
-        propper.refresh_shader_links()
         selected = self.get_target_mats(bpy.context)
-
         self.report_content.clear()
         for mat in selected:
             self.mat = mat
+            propper.mat = mat
+            if not propper.get_shader_node("handle_nodes") and not props().replace_shader:
+                self.report_content.append(f"Connect a shader node to {self.mat.name} output node or enable Replace Shader in the STM panel Options")
+                continue
+            propper.safe_refresh()
             self.process_materials(only_setup_nodes)
 
     def get_target_mats(self,context):
@@ -62,7 +65,6 @@ class NodeHandler(MaterialHolder):
                 if obj and obj.type in validtypes:
                     mat_list = list({mat.material for mat in obj.material_slots if mat.material is not None})
         return mat_list
-
 
     def process_materials(self,only_setup_nodes=False):
         self.clean_props()
@@ -101,12 +103,14 @@ class NodeHandler(MaterialHolder):
         self.has_ao = False
 
     def set_shader_node(self):
-        shader_node = self.get_first_node()
+        print(self.nodes.keys())
+        shader_node = propper.get_shader_node("set_shader_node first")
         if self.node_invalid(shader_node) or props().replace_shader or props().clear_nodes:
             if props().replace_shader or not shader_node:
                 substitute_shader = props().shaders_list
             else:
                 substitute_shader = shader_node.bl_idname
+            print(f"substituting for {substitute_shader}")
             if props().include_ngroups:
                 #handles custom shaders
                 if substitute_shader in bpy.data.node_groups.keys():
@@ -128,28 +132,21 @@ class NodeHandler(MaterialHolder):
             shader_node.name = "NODE_" + shader_node.name
             self.links.new(shader_node.outputs[0], self.output_node.inputs[0])
         if not (self.node_invalid(shader_node) or props().clear_nodes):
-            self.copy_bsdf_parameters(self.get_first_node(), shader_node)
+            self.copy_bsdf_parameters(propper.get_shader_node("set_shader_node last"), shader_node)
             #if props().replace_shader:
-            #    self.nodes.remove(self.get_first_node())
+            #    self.nodes.remove(propper.get_shader_node())
         self.shader_node = shader_node
-
-    def get_first_node(self):
-        sur_node = self.output_node.inputs['Surface']
-        first_node = None
-        if sur_node.is_linked:
-            first_node = sur_node.links[0].from_node
-        return first_node
+        print(self.shader_node.type)
 
     def set_output_node(self):
-        self.output_node = None
-        out_nodes = [n for n in list(self.nodes) if n.type in "OUTPUT_MATERIAL"]
-        for node in list(self.nodes):
-            if node.is_active_output:
-                self.output_node = node
-                break
-        if not self.output_node :
+        shd = propper.get_shader_node("setting output")
+        self.output_node = propper.get_output_node()
+        if props().replace_shader or props().clear_nodes:
+            if self.output_node:
+                self.nodes.remove(self.output_node)
             self.output_node = self.nodes.new("ShaderNodeOutputMaterial")
         self.output_node.location = self.base_loc
+        self.links.new(shd.outputs[0], self.output_node.inputs[0])
         self.base_loc = self.output_node.location
 
     def node_invalid(self,node):
@@ -301,6 +298,7 @@ class NodeHandler(MaterialHolder):
                 else:
                     self.plug_node(self.separate_rgb.outputs[i],sock.input_sockets)
             if self.has_ao and 'Ambient Occlusion' in sock.input_sockets:
+                print(f"plugging ao in multi {sock.name}")
                 self.links.new(self.separate_rgb.outputs[i], self.ao_mix.inputs[0])
             if 'Displacement' in sock.input_sockets and self.disp_map_node:
                 self.links.new(self.separate_rgb.outputs[i], self.disp_map_node.inputs[0])
@@ -327,7 +325,9 @@ class NodeHandler(MaterialHolder):
         if not (self.has_height or self.has_normal) or props().skip_normals:
             if self.ao_mix:
                 if line.name in self.ao_mix.label and "Ambient Occlusion" in line.input_sockets:
+                    print(f"plugging ao in {self.new_image_node.name} for {line.name}")
                     self.links.new(self.new_image_node.outputs[0], self.ao_mix.inputs[0])
+                    self.links.new(self.ao_mix.outputs['Shader'], self.output_node.inputs['Surface'])
             elif not self.disp_vec_node and not self.disp_map_node :
                 self.plug_node(self.new_image_node.outputs[0],line.input_sockets)
         if not props().tweak_levels:
@@ -351,7 +351,7 @@ class NodeHandler(MaterialHolder):
                 if self.bump_map_node:
                     self.links.new(self.extra_node.outputs[0], self.bump_map_node.inputs[2])
                     self.plug_node(self.bump_map_node.outputs[0],line.input_sockets)
-
+        print(f"plugging {line.name}")
         if props().tweak_levels and self.extra_node and not self.has_height and not self.normal_map_node and not self.disp_map_node and not self.disp_vec_node and not self.ao_mix:
             self.plug_node(self.extra_node.outputs[0],line.input_sockets)
         if props().tweak_levels and self.extra_node and self.normal_map_node :
@@ -365,6 +365,7 @@ class NodeHandler(MaterialHolder):
             self.links.new(self.new_image_node.outputs[0], self.directx_converter.inputs[0])
             if self.normal_map_node :
                 self.links.new(self.directx_converter.outputs[0], self.normal_map_node.inputs[1])
+                print("plugging normal")
                 self.plug_node(self.normal_map_node.outputs[0],line.input_sockets)
             else :
                 self.plug_node(self.directx_converter.outputs[0],line.input_sockets)
@@ -373,9 +374,13 @@ class NodeHandler(MaterialHolder):
             self.links.new(self.new_image_node.outputs[0], self.directx_converter.inputs[0])
 
     def clean_stm_nodes(self):
+        og_node = None
+        if not props().replace_shader:
+            og_node = propper.get_shader_node("pre clean ")
         for node in reversed(self.nodes):
-            if node.name.startswith("NODE_") and not node.bl_idname in props().shaders_list:
+            if node.name.startswith("NODE_") and not node.bl_idname in props().shaders_list and not node == og_node:
                 self.nodes.remove(node)
+        propper.get_shader_node("post clean ")
 
     def copy_bsdf_parameters(self,source_node, target_node):
         if source_node.bl_idname == target_node.bl_idname :

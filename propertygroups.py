@@ -21,32 +21,60 @@ from . nodeshandler import NodeHandler
 
 propper = PropertiesHandler()
 ndh = NodeHandler()
+_msgbus_owner = None
 
 def line_on_up(self, context):
     propper.default_sockets(self)
     propper.refresh_shader_links()
     return
 
-def apply_to_all_objs_up(self, context):
-    target = "selected objects"
-    if self.advanced_mode:
-        target = "active object"
-    if self.apply_to_all_objs:
-        target = "all visible objects"
-        self.only_active_obj = False
-    bpy.types.NODE_OT_stm_import_textures.bl_description = "Setup nodes and load textures maps on " + target
-    bpy.types.NODE_OT_stm_make_nodes.bl_description = "Setup Nodes on " + target
-    bpy.types.NODE_OT_stm_assign_nodes.bl_description = "Load textures maps on " + target
-    liste = [
-        bpy.types.NODE_OT_stm_import_textures,
-        bpy.types.NODE_OT_stm_make_nodes,
-        bpy.types.NODE_OT_stm_assign_nodes
-    ]
-    for cls in liste:
-        laclasse = cls
-        unregister_class(cls)
-        register_class(laclasse)
-    return
+def material_update_callback():
+    try:
+        propper.mat = ndh.mat = bpy.context.object.active_material
+        replace_shader_up(props(),bpy.context)
+    except :
+        print("pouet")
+
+def unregister_msgbus():
+    global _msgbus_owner
+    if _msgbus_owner:
+        bpy.msgbus.clear_by_owner(_msgbus_owner)
+        _msgbus_owner = None
+
+def register_msgbus():
+    global _msgbus_owner
+    _msgbus_owner = object()
+    bpy.msgbus.subscribe_rna(
+        key=(bpy.types.Object, "active_material"),
+        owner=_msgbus_owner,
+        args=(),
+        notify=material_update_callback
+    )
+    bpy.msgbus.subscribe_rna(
+        key=(bpy.types.Object, "active_material_index"),
+        owner=_msgbus_owner,
+        args=(),
+        notify=material_update_callback
+    )
+    bpy.msgbus.subscribe_rna(
+        key=(bpy.types.LayerObjects, "active"),
+        owner=_msgbus_owner,
+        args=(),
+        notify=material_update_callback
+    )
+    bpy.msgbus.subscribe_rna(
+        key=(bpy.types.MaterialSlot, "link"),
+        owner=_msgbus_owner,
+        args=(),
+        notify=material_update_callback
+    )
+    bpy.msgbus.subscribe_rna(
+        key=(bpy.types.Object, "material_slots"),
+        owner=_msgbus_owner,
+        args=(),
+        notify=material_update_callback
+    )
+
 
 def target_list_cb(self,context):
     targets = [('selected_objects', 'Selected Objects materials', '',0),
@@ -68,7 +96,6 @@ def apply_preset(self,context):
     propper.read_preset()
 
 def custom_preset_enum_up(self, context):
-    #print(self.custom_preset_enum)
     apply_preset(self,context)
 
 def target_list_up(self,context):
@@ -80,14 +107,13 @@ def target_list_up(self,context):
         case "all_objects":
             pass
         case "all_materials":
-            self.apply_to_all_mats = True
             self.only_active_mat = False
         case "active_obj":
             pass
     #if self.advanced_mode:
     return
 
-def apply_to_all_mats_up(self, context):
+def set_operator_description(self, context):
     target = "selected objects"
     bpy.types.NODE_OT_stm_import_textures.bl_description = "Setup nodes and load textures maps on " + target
     bpy.types.NODE_OT_stm_make_nodes.bl_description = "Setup Nodes on " + target
@@ -118,31 +144,33 @@ def include_ngroups_up(self, context):
     propper.guess_sockets()
 
 def enum_sockets_cb(self, context):
-    try:
-        return propper.get_sockets_enum_items()
-    except :
+    inp_list = propper.get_sockets_enum_items()
+    if not inp_list or len(inp_list) < 5:
+        print('reverting to default list')
         return [('no_socket', '-- Unmatched Socket --', ''), ('Base Color', 'Base Color', ''), ('Metallic', 'Metallic', ''), ('Roughness', 'Roughness', ''), ('IOR', 'IOR', ''), ('Alpha', 'Alpha', ''), ('Normal', 'Normal', ''), ('Diffuse Roughness', 'Diffuse Roughness', ''), ('Subsurface Weight', 'Subsurface Weight', ''), ('Subsurface Radius', 'Subsurface Radius', ''), ('Subsurface Scale', 'Subsurface Scale', ''), ('Subsurface IOR', 'Subsurface IOR', ''), ('Subsurface Anisotropy', 'Subsurface Anisotropy', ''), ('Specular IOR Level', 'Specular IOR Level', ''), ('Specular Tint', 'Specular Tint', ''), ('Anisotropic', 'Anisotropic', ''), ('Anisotropic Rotation', 'Anisotropic Rotation', ''), ('Tangent', 'Tangent', ''), ('Transmission Weight', 'Transmission Weight', ''), ('Coat Weight', 'Coat Weight', ''), ('Coat Roughness', 'Coat Roughness', ''), ('Coat IOR', 'Coat IOR', ''), ('Coat Tint', 'Coat Tint', ''), ('Coat Normal', 'Coat Normal', ''), ('Sheen Weight', 'Sheen Weight', ''), ('Sheen Roughness', 'Sheen Roughness', ''), ('Sheen Tint', 'Sheen Tint', ''), ('Emission Color', 'Emission Color', ''), ('Emission Strength', 'Emission Strength', ''), ('Thin Film Thickness', 'Thin Film Thickness', ''), ('Thin Film IOR', 'Thin Film IOR', ''), ('Disp Vector', 'Disp Vector', ''), ('Displacement', 'Displacement', ''),('Ambient Occlusion','Ambient Occlusion',''),]
+    return inp_list
 
 def enum_sockets_up(self, context):
+    if self.input_sockets not in [sock[0] for sock in propper.get_sockets_enum_items()]:
+        self['input_sockets'] = 0
+        return
     for line in p_lines():
         if line.split_rgb:
             for sock in line.channels.socket:
                 if sock.input_sockets in self.input_sockets and not 'no_socket' in self.input_sockets and line.auto_mode:
                     try:
-                        setattr(sock,'input_sockets', 'no_socket')
+                        sock['input_sockets'] = 0
                         line.auto_mode = False
-                        #print(f"reseted {sock.name} in {line.name}")
                     except:
                         print(f'cannot assign {[sock[0].replace(" ", "").lower() for sock in propper.get_sockets_enum_items()][0]} to {sock.name}, keeping as {sock.input_sockets}')
         else:
             if line.input_sockets in self.input_sockets and not 'no_socket' in self.input_sockets and not line == self and line.auto_mode:
                 try:
-                    setattr(line,'input_sockets', 'no_socket')
-                    #print(f"reseted {line.name} to no_socket")
+                    line['input_sockets'] = 0
                     line.auto_mode = False
                 except:
                     print(f'cannot assign {[sock[0].replace(" ", "").lower() for sock in propper.get_sockets_enum_items()][0]} to {line.name}, keeping as {line.input_sockets}')
-    context.view_layer.update()
+    #context.view_layer.update()
 
 def ch_sockets_up(self, context):
     for line in p_lines():
@@ -152,16 +180,13 @@ def ch_sockets_up(self, context):
                     try:
                         setattr(sock,'input_sockets', 'no_socket')
                         line.auto_mode = False
-                        #print(f"reseted {sock.name} in {line.name}")
                     except:
                         print(f'cannot assign {[sock[0].replace(" ", "").lower() for sock in propper.get_sockets_enum_items()][0]} to {sock.name}, keeping as {sock.input_sockets}')
         else:
             if line.input_sockets in self.input_sockets and not 'no_socket' in self.input_sockets and line.auto_mode:
-                #print(f"{line.name} , {self.input_sockets} from {self.name}")
                 try:
                     setattr(line,'input_sockets', 'no_socket')
                     line.auto_mode = False
-                    #print(f"reseted {line.name} to  no_socket")
                 except:
                     print(f'cannot assign {[sock[0].replace(" ", "").lower() for sock in propper.get_sockets_enum_items()][0]} to {line.name}, keeping as {line.input_sockets}')
     context.view_layer.update()
@@ -182,9 +207,6 @@ def manual_up(self, context):
     if self.manual:
         props().target = 'active_obj'
         props().only_active_mat = True
-        props().apply_to_all_objs = False
-        props().only_active_obj = True
-        props().apply_to_all_mats = False
     else:
         ndh.detect_a_map(self)
 
@@ -227,19 +249,13 @@ def only_active_mat_up(self, context):
     propper.refresh_shader_links()
 
 def replace_shader_up(self, context):
-    sh = propper.get_shader_node()
-    if not sh or sh.bl_idname not in self.shaders_list:
-        propper.clean_input_sockets()
+    propper.set_enum_sockets_items()
     if self.include_ngroups:
         node_links().clear()
         include_ngroups_up(self,context)
-    propper.refresh_shader_links()
+    propper.safe_refresh()
     propper.guess_sockets()
     context.view_layer.update()
-
-def only_active_obj_up(self, context):
-    if self.only_active_obj:
-        self.apply_to_all_objs = False
 
 class ShaderLinks(PropertyGroup):
 
@@ -327,30 +343,6 @@ class StmProps(PropertyGroup):
         default=False,
         update=include_ngroups_up
     )
-    apply_to_all_objs: BoolProperty(
-        name="Enable or Disable",
-        description="Apply Operations to all visible objects ",
-        default=False,
-        update=apply_to_all_objs_up
-    )
-
-    custom_preset_name: StringProperty(
-        name="Preset name",
-        description="New preset name",
-        default="preset name"
-    )
-    apply_to_all_mats: BoolProperty(
-        name="Enable or Disable",
-        description="Apply Operations to all materials ",
-        default=False,
-        update=apply_to_all_mats_up
-    )
-    only_active_obj: BoolProperty(
-        name="Enable or Disable",
-        description="Apply Operations to active object only ",
-        default=False,
-        update=only_active_obj_up
-    )
     clear_nodes: BoolProperty(
         name="Enable or Disable",
         description=" Clear existing nodes \
@@ -365,7 +357,6 @@ class StmProps(PropertyGroup):
         items=target_list_cb,
         update=target_list_up
     )
-    
     tweak_levels: BoolProperty(
         name="Enable or Disable",
         description=" Attach RGB Curves and Color Ramps nodes\
@@ -399,9 +390,14 @@ class StmProps(PropertyGroup):
         update=usr_dir_up
     )
     stm_all: StringProperty(
-        name="allsettings",
+        name="all_settings",
         description="Json string of all settings, used internally for preset saving",
         default="{'0':'0'}"
+    )
+    sockets: StringProperty(
+        name="all_inputs",
+        description="Json string of all inputs sockets, used internally for preset saving",
+        default='{"0": "Base Color", "1": "Metallic", "2": "Roughness", "3": "IOR", "4": "Alpha", "5": "Normal", "6": "Diffuse Roughness", "7": "Subsurface Weight", "8": "Subsurface Radius", "9": "Subsurface Scale", "10": "Subsurface IOR", "11": "Subsurface Anisotropy", "12": "Specular IOR Level", "13": "Specular Tint", "14": "Anisotropic", "15": "Anisotropic Rotation", "16": "Tangent", "17": "Transmission Weight", "18": "Coat Weight", "19": "Coat Roughness", "20": "Coat IOR", "21": "Coat Tint", "22": "Coat Normal", "23": "Sheen Weight", "24": "Sheen Roughness", "25": "Sheen Tint", "26": "Emission Color", "27": "Emission Strength", "28": "Thin Film Thickness", "29": "Thin Film IOR"}'
     )
     skip_normals: BoolProperty(
         name="Skip normal map detection",
