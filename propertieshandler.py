@@ -29,32 +29,29 @@ def line_index(line):
             return i
     return
 
-def set_wish(self):
-    print("wish set")
-    self.wish = {line.name: (line['input_sockets'],[getattr(ch,'input_sockets') for ch in line.channels.socket]) for line in lines()}
+def set_wish():
+    wish = {line.name: (line['input_sockets'],[getattr(ch,'input_sockets') for ch in line.channels.socket]) for line in lines()}
+    #print(f"wish set : {wish.values()}")
+    return wish
 
-def get_wish(self):
-    for name, value in self.wish.items():
+def get_wish(wish):
+    for name, value in wish.items():
         try:
-            print("wishing line")
             lines()[name]['input_sockets'] = value[0]
         except:
-            print("reset line")
             lines()[name]['input_sockets'] = 0
         for i,ch in enumerate(lines()[name].channels.socket):
             try:
-                print("wish ch")
                 setattr(ch,'input_sockets',value[1][i])
             except:
-                print("reset ch")
                 setattr(ch,'input_sockets','no_socket')
 
 def sockets_holder(func):
     def wrapper(self, *args, **kwargs):  # Ensure `self` is passed
-        set_wish(self)
+        wish = set_wish()
         print('whisher')
-        result = func(self, *args, **kwargs)  # Call the original method
-        get_wish(self)
+        result = func(self,*args, **kwargs)  # Call the original method
+        get_wish(wish)
         return result
     return wrapper
 
@@ -323,11 +320,7 @@ class PropertiesHandler(MaterialHolder):
             except:
                 print("No material")
         rawdata = []
-        #if not self.wish:
-            #set_wish(self)
         if not props().replace_shader:
-            #get_wish(self)
-            print(f"got wish {self.wish}")
             print(lines()['Normal'].channels.socket['R'].input_sockets)
             rawdata = self.get_shader_inputs()
         else:

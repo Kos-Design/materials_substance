@@ -1,6 +1,6 @@
 import bpy
 from pathlib import Path
-from . propertieshandler import props, shader_links, node_links, PropertiesHandler,lines,p_lines,MaterialHolder,texture_importer,line_index
+from . propertieshandler import props, shader_links, node_links, PropertiesHandler,lines,p_lines,MaterialHolder,texture_importer,line_index,set_wish
 import json
 import colorsys
 
@@ -42,6 +42,7 @@ class NodeHandler(MaterialHolder):
             if not propper.get_shader_node("handle_nodes") and not props().replace_shader:
                 self.report_content.append(f"Connect a shader node to {self.mat.name} output node or enable Replace Shader in the STM panel Options")
                 continue
+            propper.wish = set_wish()
             propper.safe_refresh()
             self.process_materials(only_setup_nodes)
 
@@ -146,7 +147,8 @@ class NodeHandler(MaterialHolder):
                 self.nodes.remove(self.output_node)
             self.output_node = self.nodes.new("ShaderNodeOutputMaterial")
         self.output_node.location = self.base_loc
-        self.links.new(shd.outputs[0], self.output_node.inputs[0])
+        if shd :
+            self.links.new(shd.outputs[0], self.output_node.inputs[0])
         self.base_loc = self.output_node.location
 
     def node_invalid(self,node):

@@ -81,13 +81,14 @@ class NODE_PT_stm_panel_liner(TexImporterPanel,Panel):
             sub_layout = layout.column()
             sub_layout.enabled = item.line_on
             sub_layout.prop(item, "auto_mode")
+            sub_layout.prop(item, "split_rgb")
             if props().advanced_mode :
                 sub_sub_layout = sub_layout.column()
                 sub_sub_layout.prop(item, "manual")
                 if item.manual :
                     sub_sub_sub_layout = sub_sub_layout.column()
                     sub_sub_sub_layout.prop(item, "file_name")
-                sub_sub_layout.prop(item, "split_rgb")
+                
                 if item.split_rgb:
                     if item.channels.socket and item.channels.sockets_index < len(item.channels.socket):
                         sub_layout_1 = sub_sub_layout.column()

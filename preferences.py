@@ -13,7 +13,7 @@ from bpy.types import (PropertyGroup, UIList,AddonPreferences,
 
 from . propertieshandler import PropertiesHandler, props
 
-from . propertygroups import StmProps, enum_sockets_cb, auto_mode_up, ch_sockets_up, enum_sockets_up, manual_up, split_rgb_up, line_on_up, replace_shader_up, NodesLinks, ShaderLinks
+from . propertygroups import StmProps, enum_sockets_cb, auto_mode_up, ch_sockets_up, enum_sockets_up, manual_up, split_rgb_up, line_on_up, NodesLinks, ShaderLinks
 
 propper = PropertiesHandler()
 
@@ -25,8 +25,10 @@ def set_name_up(self, value):
     try:
         if self.auto_mode and not self.manual :
             propper.default_sockets(self)
+        propper.wish = set_wish()
+        print(f"set {propper.wish}" )
     except AttributeError:
-        pass
+        print(f"error with default_sockets or {self.wish}" )
 
 def init_prefs():
     prefs = bpy.context.preferences.addons[__package__].preferences

@@ -16,7 +16,7 @@ from bpy.types import (PropertyGroup, UIList,
 from bpy.utils import (register_class,
                        unregister_class
                        )
-from . propertieshandler import PropertiesHandler, props, node_links, lines,p_lines, texture_importer
+from . propertieshandler import PropertiesHandler, props, node_links, lines,p_lines, texture_importer,set_wish,get_wish
 from . nodeshandler import NodeHandler
 
 propper = PropertiesHandler()
@@ -26,14 +26,19 @@ _msgbus_owner = None
 def line_on_up(self, context):
     propper.default_sockets(self)
     propper.refresh_shader_links()
+    propper.wish = set_wish()
     return
 
 def material_update_callback():
+    if not props().replace_shader:
+        if set_wish() != propper.wish:
+            print(f"bad wish {set_wish().values()}")
+            get_wish(propper.wish)
     try:
         propper.mat = ndh.mat = bpy.context.object.active_material
-        replace_shader_up(props(),bpy.context)
+        refresh_props(props(),bpy.context)
     except :
-        print("pouet")
+        print(f"pb with wish {set_wish()}{propper.wish.values()}")
 
 def unregister_msgbus():
     global _msgbus_owner
@@ -134,14 +139,16 @@ def split_rgb_up(self,context):
         propper.make_clean_channels(self)
     if self.auto_mode:
         propper.default_sockets(self)
+    propper.wish = set_wish()
 
 def include_ngroups_up(self, context):
     if props().include_ngroups:
         propper.set_nodes_groups()
     else:
         node_links().clear()
-    propper.refresh_shader_links()
+    propper.safe_refresh()
     propper.guess_sockets()
+    propper.wish = set_wish()
 
 def enum_sockets_cb(self, context):
     inp_list = propper.get_sockets_enum_items()
@@ -154,6 +161,8 @@ def enum_sockets_up(self, context):
     if self.input_sockets not in [sock[0] for sock in propper.get_sockets_enum_items()]:
         self['input_sockets'] = 0
         return
+    #can't refresh wish since there is no way of knowing who modified the socket enum selector
+    #propper.wish = set_wish()
     for line in p_lines():
         if line.split_rgb:
             for sock in line.channels.socket:
@@ -173,6 +182,11 @@ def enum_sockets_up(self, context):
     #context.view_layer.update()
 
 def ch_sockets_up(self, context):
+    if self.input_sockets not in [sock[0] for sock in propper.get_sockets_enum_items()]:
+        self.input_sockets = 'no_socket'
+    return
+    #can't refresh wish since there is no way of knowing who modified the socket enum selector
+    #propper.wish = set_wish()
     for line in p_lines():
         if line.split_rgb:
             for sock in line.channels.socket:
@@ -191,16 +205,13 @@ def ch_sockets_up(self, context):
                     print(f'cannot assign {[sock[0].replace(" ", "").lower() for sock in propper.get_sockets_enum_items()][0]} to {line.name}, keeping as {line.input_sockets}')
     context.view_layer.update()
 
-def line_name_up(self, context):
-    if not self.manual:
-        ndh.detect_a_map(self)
-
 def shaders_list_cb(self, context):
     return propper.get_shaders_list()
 
 def shaders_list_up(self, context):
     if self.replace_shader:
         propper.guess_sockets()
+    propper.wish = set_wish()
     context.view_layer.update()
 
 def manual_up(self, context):
@@ -211,11 +222,11 @@ def manual_up(self, context):
         ndh.detect_a_map(self)
 
 def advanced_mode_up(self, context):
-    propper.refresh_shader_links()
+    propper.safe_refresh()
     if not self.advanced_mode:
         for line in lines():
             line.manual = False
-            line.split_rgb = False
+    propper.wish = set_wish()
 
 def usr_dir_up(self, context):
     self.dir_content = ""
@@ -230,31 +241,41 @@ def usr_dir_up(self, context):
         node_links().clear()
         include_ngroups_up(self,context)
     propper.guess_sockets()
+    propper.wish = set_wish()
     context.view_layer.update()
 
 def dup_mat_compatible_up(self,context):
     ndh.detect_relevant_maps()
+    propper.wish = set_wish()
 
 def clear_nodes_up(self, context):
     if self.clear_nodes:
         self.replace_shader = True
+    propper.wish = set_wish()
 
 def auto_mode_up(self,context):
     if self.auto_mode:
         propper.default_sockets(self)
+    propper.wish = set_wish()
 
 def only_active_mat_up(self, context):
     if "all_materials" in self.target and self.only_active_mat:
         self.target = "selected_objects"
-    propper.refresh_shader_links()
+    propper.safe_refresh()
+    propper.wish = set_wish()
 
-def replace_shader_up(self, context):
+def refresh_props(self,context):
     propper.set_enum_sockets_items()
     if self.include_ngroups:
         node_links().clear()
         include_ngroups_up(self,context)
     propper.safe_refresh()
     propper.guess_sockets()
+
+def replace_shader_up(self, context):
+    refresh_props(self,context)
+    propper.wish = set_wish()
+    print(f"set wish {propper.wish.values()}")
     context.view_layer.update()
 
 class ShaderLinks(PropertyGroup):
