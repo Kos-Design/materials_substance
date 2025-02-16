@@ -11,7 +11,7 @@ from bpy.types import (PropertyGroup, UIList,AddonPreferences,
                        WindowManager, Scene,
                        )
 
-from . propertieshandler import PropertiesHandler, props
+from . propertieshandler import PropertiesHandler, props,set_wish
 
 from . propertygroups import StmProps, enum_sockets_cb, auto_mode_up, ch_sockets_up, enum_sockets_up, manual_up, split_rgb_up, line_on_up, NodesLinks, ShaderLinks
 
@@ -26,7 +26,6 @@ def set_name_up(self, value):
         if self.auto_mode and not self.manual :
             propper.default_sockets(self)
         propper.wish = set_wish()
-        print(f"set {propper.wish}" )
     except AttributeError:
         print(f"error with default_sockets or {self.wish}" )
 
@@ -50,11 +49,21 @@ class StmChannelSocket(PropertyGroup):
         items=enum_sockets_cb,
         update=ch_sockets_up
     )
+    line_name: StringProperty(
+        name="Color",
+        description="name of the line owning this instance",
+        default="Select a name"
+    )
 
 
 class StmChannelSockets(PropertyGroup):
     socket: CollectionProperty(type=StmChannelSocket)
     sockets_index: IntProperty(default=0)
+    line_name: StringProperty(
+        name="Color",
+        description="name of the line owning this instance",
+        default="Select a name"
+    )
 
 
 class StmPanelLines(PropertyGroup):
@@ -136,7 +145,7 @@ class NODE_UL_stm_list(UIList):
 
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         if item:
-            layout.prop(item, "name", text="", emboss=False, icon=f"SEQUENCE_COLOR_0{(index%9+1)}")
+            layout.prop(item, "name", text="", emboss=False, icon=f"SEQUENCE_COLOR_0{((index+3)%9+1)}")
 
 
 class StmAddonPreferences(AddonPreferences):

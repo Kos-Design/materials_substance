@@ -30,7 +30,7 @@ def line_index(line):
     return
 
 def set_wish():
-    wish = {line.name: (line['input_sockets'],[getattr(ch,'input_sockets') for ch in line.channels.socket]) for line in lines()}
+    wish = {line.name: (line['input_sockets'],[ch['input_sockets'] for ch in line.channels.socket]) for line in lines()}
     #print(f"wish set : {wish.values()}")
     return wish
 
@@ -42,9 +42,9 @@ def get_wish(wish):
             lines()[name]['input_sockets'] = 0
         for i,ch in enumerate(lines()[name].channels.socket):
             try:
-                setattr(ch,'input_sockets',value[1][i])
+                ch['input_sockets'] = value[1][i]
             except:
-                setattr(ch,'input_sockets','no_socket')
+                ch['input_sockets'] = 0
 
 def sockets_holder(func):
     def wrapper(self, *args, **kwargs):  # Ensure `self` is passed
@@ -151,10 +151,13 @@ class PropertiesHandler(MaterialHolder):
             return self.get_shaders_list_cycles()
 
     def make_clean_channels(self,line):
+        line.channels.line_name = line.name
         line.channels.socket.clear()
         for i in range(3):
             item = line.channels.socket.add()
             item.name = ['R','G','B'][i]
+            item.line_name = line.name
+            item['input_sockets'] = 0
 
     def initialize_defaults(self):
         lines().clear()
@@ -321,7 +324,6 @@ class PropertiesHandler(MaterialHolder):
                 print("No material")
         rawdata = []
         if not props().replace_shader:
-            print(lines()['Normal'].channels.socket['R'].input_sockets)
             rawdata = self.get_shader_inputs()
         else:
             selectedshader = props().shaders_list
@@ -336,7 +338,6 @@ class PropertiesHandler(MaterialHolder):
             rawdata = [v for (k,v) in json.loads(props().sockets).items()]
         else:
             rawdata.append('Ambient Occlusion')
-
         props().sockets = json.dumps((dict(zip(range(len(rawdata)), rawdata))))
 
     def get_sockets_enum_items(self):
@@ -359,30 +360,25 @@ class PropertiesHandler(MaterialHolder):
             return None
         return node
 
-    def get_shader_node(self,origin):
-        print(f"from:{origin}")
+    def get_shader_node(self):
         shader_node = None
         output_node = self.get_output_node()
         if output_node :
             shader_node = self.trace_shader_node(self.get_linked_node(output_node.inputs["Surface"]))
-        print(f"sha is {shader_node.name if shader_node else 'found squat'}")
         return shader_node
 
     def get_output_node(self):
         if not self.nodes:
-            print("aborted no nodes")
             return None
         out_nodes = [n for n in self.nodes if n.type in "OUTPUT_MATERIAL"]
         for node in out_nodes:
-            print(f"found {node.name}")
             if node.is_active_output:
                 return node
-        print("aborted no node returned")
         return None
 
     def check_special_keywords(self,term):
         if "," in term:
-            return None
+            return ""
         #no spaces
         matcher = {"Ambient Occlusion":["ambientocclusion","ambientocclusion","ambient","occlusion","ao","ambocc","ambient_occlusion"],
                     "Displacement":["relief","displacement","displace","displace_map"],
@@ -393,7 +389,7 @@ class PropertiesHandler(MaterialHolder):
         for k,v in matcher.items():
             if self.find_in_sockets(term.strip(),v):
                 return k
-        return None
+        return ""
 
     def find_in_sockets(self,term,target_list=None):
         if term in "":
@@ -450,7 +446,7 @@ class PropertiesHandler(MaterialHolder):
 
     def fill_settings(self):
         args = {}
-        args['internals'] = ['type','rna_type','dir_content','poll_props','custom_preset_enum','content','bl_rna','name','stm_all','texture_importer']
+        args['internals'] = ['type','rna_type','dir_content','poll_props','custom_preset_enum','content','bl_rna','name','stm_all']
         args['attributes'] = [attr for attr in props().bl_rna.properties.keys() if attr not in args['internals'] and attr[:2] != "__"]
         args['line_names'] = []
         for attr in args['attributes']:
@@ -485,13 +481,11 @@ class PropertiesHandler(MaterialHolder):
         #required to avoid warning errors
         for line in lines():
             line['input_sockets'] = 0
-            #line.input_sockets = 'no_socket'
             for ch in line.channels.socket:
                 ch['input_sockets'] = 0
-                #ch.input_sockets = 'no_socket'
 
     def get_shader_inputs(self):
-        shd = self.get_shader_node("get_shader_inputs")
+        shd = self.get_shader_node()
         if shd and shd.inputs:
             return shd.inputs.keys()
         return None

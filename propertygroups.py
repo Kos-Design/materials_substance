@@ -30,9 +30,10 @@ def line_on_up(self, context):
     return
 
 def material_update_callback():
+    print("called update")
     if not props().replace_shader:
         if set_wish() != propper.wish:
-            print(f"bad wish {set_wish().values()}")
+            #print(f"bad wish {set_wish().values()}")
             get_wish(propper.wish)
     try:
         propper.mat = ndh.mat = bpy.context.object.active_material
@@ -74,11 +75,25 @@ def register_msgbus():
         notify=material_update_callback
     )
     bpy.msgbus.subscribe_rna(
+        key=(bpy.types.MaterialSlot, "material"),
+        owner=_msgbus_owner,
+        args=(),
+        notify=material_update_callback
+    )
+    bpy.msgbus.subscribe_rna(
         key=(bpy.types.Object, "material_slots"),
         owner=_msgbus_owner,
         args=(),
         notify=material_update_callback
     )
+    #not sure
+    bpy.msgbus.subscribe_rna(
+        key=(bpy.types.Material, "node_tree"),
+        owner=_msgbus_owner,
+        args=(),
+        notify=material_update_callback
+    )
+
 
 
 def target_list_cb(self,context):
@@ -139,6 +154,7 @@ def split_rgb_up(self,context):
         propper.make_clean_channels(self)
     if self.auto_mode:
         propper.default_sockets(self)
+    ch_sockets_up(self,context) if self.split_rgb else enum_sockets_up(self,context)
     propper.wish = set_wish()
 
 def include_ngroups_up(self, context):
@@ -160,20 +176,24 @@ def enum_sockets_cb(self, context):
 def enum_sockets_up(self, context):
     if self.input_sockets not in [sock[0] for sock in propper.get_sockets_enum_items()]:
         self['input_sockets'] = 0
+        print("aborted enum")
         return
     #can't refresh wish since there is no way of knowing who modified the socket enum selector
     #propper.wish = set_wish()
+    print("refreshing line")
     for line in p_lines():
         if line.split_rgb:
             for sock in line.channels.socket:
-                if sock.input_sockets in self.input_sockets and not 'no_socket' in self.input_sockets and line.auto_mode:
+                if sock.input_sockets in self.input_sockets and not 'no_socket' in self.input_sockets:
                     try:
                         sock['input_sockets'] = 0
                         line.auto_mode = False
                     except:
                         print(f'cannot assign {[sock[0].replace(" ", "").lower() for sock in propper.get_sockets_enum_items()][0]} to {sock.name}, keeping as {sock.input_sockets}')
+                else:
+                    print(f"line {line.name} socket {sock.name}: {sock.input_sockets} where OG ({self.name}) is {self.input_sockets}")
         else:
-            if line.input_sockets in self.input_sockets and not 'no_socket' in self.input_sockets and not line == self and line.auto_mode:
+            if line.input_sockets in self.input_sockets and not 'no_socket' in self.input_sockets and not line == self:
                 try:
                     line['input_sockets'] = 0
                     line.auto_mode = False
@@ -182,22 +202,24 @@ def enum_sockets_up(self, context):
     #context.view_layer.update()
 
 def ch_sockets_up(self, context):
-    if self.input_sockets not in [sock[0] for sock in propper.get_sockets_enum_items()]:
+    if not self.input_sockets in [sock[0] for sock in propper.get_sockets_enum_items()]:
         self.input_sockets = 'no_socket'
-    return
-    #can't refresh wish since there is no way of knowing who modified the socket enum selector
+        print("aborted ch")
+        print(f"OG ({self.line_name} : {self.name}) is {self.input_sockets} not in {[sock[0] for sock in propper.get_sockets_enum_items()]}")
+        return
+    #can't refresh wish since there is no way of knowing who modified the socket enum selector -> maybe in line iterator below ?? not sure
     #propper.wish = set_wish()
     for line in p_lines():
         if line.split_rgb:
             for sock in line.channels.socket:
-                if sock.input_sockets in self.input_sockets and not 'no_socket' in self.input_sockets and not self == sock and line.auto_mode:
+                if sock.input_sockets in self.input_sockets and not 'no_socket' in self.input_sockets and not self == sock:
                     try:
                         setattr(sock,'input_sockets', 'no_socket')
                         line.auto_mode = False
                     except:
                         print(f'cannot assign {[sock[0].replace(" ", "").lower() for sock in propper.get_sockets_enum_items()][0]} to {sock.name}, keeping as {sock.input_sockets}')
         else:
-            if line.input_sockets in self.input_sockets and not 'no_socket' in self.input_sockets and line.auto_mode:
+            if line.input_sockets in self.input_sockets and not 'no_socket' in self.input_sockets:
                 try:
                     setattr(line,'input_sockets', 'no_socket')
                     line.auto_mode = False
@@ -275,7 +297,6 @@ def refresh_props(self,context):
 def replace_shader_up(self, context):
     refresh_props(self,context)
     propper.wish = set_wish()
-    print(f"set wish {propper.wish.values()}")
     context.view_layer.update()
 
 class ShaderLinks(PropertyGroup):

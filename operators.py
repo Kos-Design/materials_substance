@@ -67,7 +67,7 @@ class NODE_OT_stm_reset_substance_textures(SubOperatorPoll,Operator):
     bl_label = "Reset textures names"
     bl_description = "Resets the textures lines to a default set of values.\
                     \n (Color, Roughness, Metallic, Normal)"
-    
+
     def execute(self, context):
         propper.initialize_defaults()
         return {'FINISHED'}
@@ -239,11 +239,12 @@ class IMPORT_OT_stm_window(Operator):
     bl_idname = "import.stm_window"
     bl_label = "Import Substance Textures..."
     bl_description = "Open a substance textures importer panel"
+    bl_options = {"REGISTER", "UNDO"}
 
     directory: bpy.props.StringProperty(subtype="DIR_PATH",set=set_directory)
     show_options: bpy.props.BoolProperty(name="Options", default=True)
     preset_directory = NODE_OT_stm_presets_dialog.preset_directory
-    
+
     @classmethod
     def poll(cls, context):
         try:
@@ -268,9 +269,9 @@ class IMPORT_OT_stm_window(Operator):
         current_directory = params.directory
         #if props().usr_dir != self.directory:
         #    props().usr_dir = self.directory
-        
+
         layout.label(text=f"Textures Directory: {Path(current_directory.decode('utf-8')).name}")
-        
+
         layout.label(text="<<--- Select a folder to import textures")
         if self.preset_directory.exists():
             row = layout.row(align=True)
@@ -306,18 +307,18 @@ class IMPORT_OT_stm_window(Operator):
             sub_layout.enabled = item.line_on
             sub_layout.prop(item, "auto_mode")
             sub_layout.prop(item, "split_rgb")
+            if item.split_rgb:
+                if item.channels.socket and item.channels.sockets_index < len(item.channels.socket):
+                    sub_layout_1 = sub_layout.column()
+                    sub_layout_1.enabled = not item.auto_mode and item.line_on
+                    for i,sock in enumerate(item.channels.socket):
+                        sub_layout_1.prop(sock, "input_sockets",text=sock.name,icon=f"SEQUENCE_COLOR_0{((i*3)%9+1)}")
             if props().advanced_mode :
                 sub_sub_layout = sub_layout.column()
                 sub_sub_layout.prop(item, "manual")
                 if item.manual :
                     sub_sub_sub_layout = sub_sub_layout.column()
                     sub_sub_sub_layout.prop(item, "file_name")
-                if item.split_rgb:
-                    if item.channels.socket and item.channels.sockets_index < len(item.channels.socket):
-                        sub_layout_1 = sub_sub_layout.column()
-                        sub_layout_1.enabled = not item.auto_mode and item.line_on
-                        for i,sock in enumerate(item.channels.socket):
-                            sub_layout_1.prop(sock, "input_sockets",text=sock.name,icon=f"SEQUENCE_COLOR_0{((i*3)%9+1)}")
             if not item.split_rgb:
                 sub_layout_2 = layout.column()
                 sub_layout_2.enabled = not item.auto_mode and item.line_on
@@ -358,5 +359,5 @@ class IMPORT_OT_stm_window(Operator):
 
 
 def menu_func(self, context):
-    self.layout.operator(IMPORT_OT_stm_window.bl_idname, text="Substance Textures")
+    self.layout.operator(IMPORT_OT_stm_window.bl_idname, text="Substance Textures...")
 
