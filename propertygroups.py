@@ -1,22 +1,10 @@
-import bpy
-from pathlib import Path
 import json
-import functools
-
-from bpy.props import (
-    StringProperty, IntProperty, BoolProperty,
-    PointerProperty, CollectionProperty,
-    FloatProperty, FloatVectorProperty,
-    EnumProperty,
-)
-
-from bpy.types import (PropertyGroup, UIList,
-                       WindowManager, Scene,
-                       )
-from bpy.utils import (register_class,
-                       unregister_class
-                       )
-from . propertieshandler import PropertiesHandler, props, node_links, lines,p_lines, texture_importer,set_wish,get_wish
+from pathlib import Path
+import bpy
+from bpy.props import (StringProperty, IntProperty, BoolProperty,EnumProperty)
+from bpy.types import PropertyGroup
+from bpy.utils import (register_class, unregister_class)
+from . propertieshandler import PropertiesHandler, props, node_links, lines,p_lines, set_wish,get_wish
 from . nodeshandler import NodeHandler
 
 propper = PropertiesHandler()
@@ -25,21 +13,19 @@ _msgbus_owner = None
 
 def line_on_up(self, context):
     propper.default_sockets(self)
-    propper.refresh_shader_links()
+    propper.safe_refresh()
     propper.wish = set_wish()
     return
 
 def material_update_callback():
-    print("called update")
     if not props().replace_shader:
         if set_wish() != propper.wish:
-            #print(f"bad wish {set_wish().values()}")
             get_wish(propper.wish)
     try:
         propper.mat = ndh.mat = bpy.context.object.active_material
         refresh_props(props(),bpy.context)
     except :
-        print(f"pb with wish {set_wish()}{propper.wish.values()}")
+        return
 
 def unregister_msgbus():
     global _msgbus_owner
@@ -50,6 +36,7 @@ def unregister_msgbus():
 def register_msgbus():
     global _msgbus_owner
     _msgbus_owner = object()
+
     bpy.msgbus.subscribe_rna(
         key=(bpy.types.Object, "active_material"),
         owner=_msgbus_owner,
@@ -130,7 +117,6 @@ def target_list_up(self,context):
             self.only_active_mat = False
         case "active_obj":
             pass
-    #if self.advanced_mode:
     return
 
 def set_operator_description(self, context):
@@ -162,6 +148,7 @@ def include_ngroups_up(self, context):
         propper.set_nodes_groups()
     else:
         node_links().clear()
+    propper.set_enum_sockets_items()
     propper.safe_refresh()
     propper.guess_sockets()
     propper.wish = set_wish()
@@ -169,63 +156,36 @@ def include_ngroups_up(self, context):
 def enum_sockets_cb(self, context):
     inp_list = propper.get_sockets_enum_items()
     if not inp_list or len(inp_list) < 5:
-        print('reverting to default list')
         return [('no_socket', '-- Unmatched Socket --', ''), ('Base Color', 'Base Color', ''), ('Metallic', 'Metallic', ''), ('Roughness', 'Roughness', ''), ('IOR', 'IOR', ''), ('Alpha', 'Alpha', ''), ('Normal', 'Normal', ''), ('Diffuse Roughness', 'Diffuse Roughness', ''), ('Subsurface Weight', 'Subsurface Weight', ''), ('Subsurface Radius', 'Subsurface Radius', ''), ('Subsurface Scale', 'Subsurface Scale', ''), ('Subsurface IOR', 'Subsurface IOR', ''), ('Subsurface Anisotropy', 'Subsurface Anisotropy', ''), ('Specular IOR Level', 'Specular IOR Level', ''), ('Specular Tint', 'Specular Tint', ''), ('Anisotropic', 'Anisotropic', ''), ('Anisotropic Rotation', 'Anisotropic Rotation', ''), ('Tangent', 'Tangent', ''), ('Transmission Weight', 'Transmission Weight', ''), ('Coat Weight', 'Coat Weight', ''), ('Coat Roughness', 'Coat Roughness', ''), ('Coat IOR', 'Coat IOR', ''), ('Coat Tint', 'Coat Tint', ''), ('Coat Normal', 'Coat Normal', ''), ('Sheen Weight', 'Sheen Weight', ''), ('Sheen Roughness', 'Sheen Roughness', ''), ('Sheen Tint', 'Sheen Tint', ''), ('Emission Color', 'Emission Color', ''), ('Emission Strength', 'Emission Strength', ''), ('Thin Film Thickness', 'Thin Film Thickness', ''), ('Thin Film IOR', 'Thin Film IOR', ''), ('Disp Vector', 'Disp Vector', ''), ('Displacement', 'Displacement', ''),('Ambient Occlusion','Ambient Occlusion',''),]
     return inp_list
 
 def enum_sockets_up(self, context):
     if self.input_sockets not in [sock[0] for sock in propper.get_sockets_enum_items()]:
         self['input_sockets'] = 0
-        print("aborted enum")
         return
-    #can't refresh wish since there is no way of knowing who modified the socket enum selector
-    #propper.wish = set_wish()
-    print("refreshing line")
     for line in p_lines():
         if line.split_rgb:
             for sock in line.channels.socket:
                 if sock.input_sockets in self.input_sockets and not 'no_socket' in self.input_sockets:
-                    try:
-                        sock['input_sockets'] = 0
-                        line.auto_mode = False
-                    except:
-                        print(f'cannot assign {[sock[0].replace(" ", "").lower() for sock in propper.get_sockets_enum_items()][0]} to {sock.name}, keeping as {sock.input_sockets}')
-                else:
-                    print(f"line {line.name} socket {sock.name}: {sock.input_sockets} where OG ({self.name}) is {self.input_sockets}")
-        else:
-            if line.input_sockets in self.input_sockets and not 'no_socket' in self.input_sockets and not line == self:
-                try:
-                    line['input_sockets'] = 0
+                    sock['input_sockets'] = 0
                     line.auto_mode = False
-                except:
-                    print(f'cannot assign {[sock[0].replace(" ", "").lower() for sock in propper.get_sockets_enum_items()][0]} to {line.name}, keeping as {line.input_sockets}')
-    #context.view_layer.update()
+        elif line.input_sockets in self.input_sockets and not 'no_socket' in self.input_sockets and not line == self:
+            line['input_sockets'] = 0
+            line.auto_mode = False
 
 def ch_sockets_up(self, context):
     if not self.input_sockets in [sock[0] for sock in propper.get_sockets_enum_items()]:
-        self.input_sockets = 'no_socket'
-        print("aborted ch")
-        print(f"OG ({self.line_name} : {self.name}) is {self.input_sockets} not in {[sock[0] for sock in propper.get_sockets_enum_items()]}")
+        self['input_sockets'] = 0
         return
-    #can't refresh wish since there is no way of knowing who modified the socket enum selector -> maybe in line iterator below ?? not sure
-    #propper.wish = set_wish()
     for line in p_lines():
         if line.split_rgb:
             for sock in line.channels.socket:
                 if sock.input_sockets in self.input_sockets and not 'no_socket' in self.input_sockets and not self == sock:
-                    try:
-                        setattr(sock,'input_sockets', 'no_socket')
-                        line.auto_mode = False
-                    except:
-                        print(f'cannot assign {[sock[0].replace(" ", "").lower() for sock in propper.get_sockets_enum_items()][0]} to {sock.name}, keeping as {sock.input_sockets}')
-        else:
-            if line.input_sockets in self.input_sockets and not 'no_socket' in self.input_sockets:
-                try:
-                    setattr(line,'input_sockets', 'no_socket')
+                    sock['input_sockets'] = 0
                     line.auto_mode = False
-                except:
-                    print(f'cannot assign {[sock[0].replace(" ", "").lower() for sock in propper.get_sockets_enum_items()][0]} to {line.name}, keeping as {line.input_sockets}')
-    context.view_layer.update()
+        elif line.input_sockets in self.input_sockets and not 'no_socket' in self.input_sockets:
+            line['input_sockets'] = 0
+            line.auto_mode = False
 
 def shaders_list_cb(self, context):
     return propper.get_shaders_list()

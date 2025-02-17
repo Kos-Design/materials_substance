@@ -1,17 +1,10 @@
 import bpy
 
-from bpy.props import (
-    StringProperty, IntProperty, BoolProperty,
-    PointerProperty, CollectionProperty,
-    FloatProperty, FloatVectorProperty,
-    EnumProperty,
-)
+from bpy.props import (StringProperty, IntProperty, BoolProperty,PointerProperty, CollectionProperty,EnumProperty)
 
-from bpy.types import (PropertyGroup, UIList,AddonPreferences,
-                       WindowManager, Scene,
-                       )
+from bpy.types import (PropertyGroup, UIList,AddonPreferences)
 
-from . propertieshandler import PropertiesHandler, props,set_wish
+from . propertieshandler import PropertiesHandler, set_wish
 
 from . propertygroups import StmProps, enum_sockets_cb, auto_mode_up, ch_sockets_up, enum_sockets_up, manual_up, split_rgb_up, line_on_up, NodesLinks, ShaderLinks
 
@@ -23,17 +16,21 @@ def get_name_up(self):
 def set_name_up(self, value):
     self["name"] = value
     try:
-        if self.auto_mode and not self.manual :
+        if (self.auto_mode and not self.manual) or self.split_rgb:
             propper.default_sockets(self)
+            if self.split_rgb :
+                ch_sockets_up(self,bpy.context)
+            elif self.auto_mode:
+                enum_sockets_up(self,bpy.context)
         propper.wish = set_wish()
     except AttributeError:
-        print(f"error with default_sockets or {self.wish}" )
+        print(f"error during sockets update {self.wish}" )
 
 def init_prefs():
     prefs = bpy.context.preferences.addons[__package__].preferences
-    if not len(prefs.shader_links):
+    if len(prefs.shader_links) == 0:
         prefs.shader_links.add()
-    if not len(prefs.maps.textures):
+    if len(prefs.maps.textures) == 0:
         maps = ["Color","Roughness","Metallic","Normal"]
         for i in range(4):
             item = prefs.maps.textures.add()

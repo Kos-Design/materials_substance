@@ -27,11 +27,10 @@ def line_index(line):
     for i,liner in enumerate(lines()) :
         if liner == line:
             return i
-    return
+    return None
 
 def set_wish():
     wish = {line.name: (line['input_sockets'],[ch['input_sockets'] for ch in line.channels.socket]) for line in lines()}
-    #print(f"wish set : {wish.values()}")
     return wish
 
 def get_wish(wish):
@@ -49,7 +48,6 @@ def get_wish(wish):
 def sockets_holder(func):
     def wrapper(self, *args, **kwargs):  # Ensure `self` is passed
         wish = set_wish()
-        print('whisher')
         result = func(self,*args, **kwargs)  # Call the original method
         get_wish(wish)
         return result
@@ -149,6 +147,7 @@ class PropertiesHandler(MaterialHolder):
             return self.get_shaders_list_eve()
         if bpy.context.scene.render.engine == 'CYCLES' :
             return self.get_shaders_list_cycles()
+        return None
 
     def make_clean_channels(self,line):
         line.channels.line_name = line.name
@@ -218,7 +217,7 @@ class PropertiesHandler(MaterialHolder):
                         new_link.outputsockets = socket.name
                         break
                 socks = [str(socket.name) for socket in [n for n in noder.inputs if conectable] if socket.type != "SHADER"]
-                if not len(socks):
+                if len(socks) == 0:
                     new_link.input_sockets = "{'0':'0'}"
                 else:
                     new_link.input_sockets = json.dumps((dict(zip(range(len(socks)), socks))))
@@ -241,20 +240,24 @@ class PropertiesHandler(MaterialHolder):
         for i,line in enumerate(lines()):
             line.name = line_names[i]
             try :
-                line.input_sockets = args[line.name]['input_sockets']
+                line['input_sockets'] = args[line.name]['input_sockets']
             except (Exception,TypeError):
                 pass
             line['line_on'] = 'True' in args[line.name]['line_on']
             line['file_name'] = args[line.name]['file_name']
             line['manual'] = 'True' in args[line.name]['manual']
+            line['auto_mode'] = 'True' in args[line.name]['auto_mode']
             line['split_rgb'] = 'True' in args[line.name]['split_rgb']
             for i in range(3):
-                line['channels']["RGB"[i]].input_sockets = args[line.name]['channels']["RGB"[i]]['input_sockets']
+                try:
+                    line.channels.socket[i]['input_sockets'] = args[line.name]['channels']['socket']["RGB"[i]]['input_sockets']
+                except:
+                    continue
         bpy.context.view_layer.update()
 
     def adjust_lines_count(self,difference):
         method = self.del_panel_line if difference < 0 else self.add_panel_lines
-        for i in range(abs(difference)):
+        for _i in range(abs(difference)):
             method()
 
     def del_panel_line(self):
@@ -322,6 +325,7 @@ class PropertiesHandler(MaterialHolder):
                 self.mat = bpy.context.object.active_material
             except:
                 print("No material")
+                return
         rawdata = []
         if not props().replace_shader:
             rawdata = self.get_shader_inputs()
@@ -341,7 +345,7 @@ class PropertiesHandler(MaterialHolder):
         props().sockets = json.dumps((dict(zip(range(len(rawdata)), rawdata))))
 
     def get_sockets_enum_items(self):
-        if not len(json.loads(props().sockets)):
+        if len(json.loads(props().sockets)) == 0:
             self.set_enum_sockets_items()
         return self.format_enum([v for (k,v) in json.loads(props().sockets).items()])
 
@@ -356,7 +360,7 @@ class PropertiesHandler(MaterialHolder):
         if node.type in {"MIX_SHADER", "ADD_SHADER"}:
             return self.trace_shader_node(self.get_linked_node(node.inputs[1])) or \
                    self.trace_shader_node(self.get_linked_node(node.inputs[2]))
-        elif node.type == "SEPARATE_COLOR":
+        if node.type == "SEPARATE_COLOR":
             return None
         return node
 
@@ -380,7 +384,10 @@ class PropertiesHandler(MaterialHolder):
         if "," in term:
             return ""
         #no spaces
-        matcher = {"Ambient Occlusion":["ambientocclusion","ambientocclusion","ambient","occlusion","ao","ambocc","ambient_occlusion"],
+        matcher = {"Color":["color","col","colore","colour","couleur", "basecolor", "emit", "emission", "albedo"],
+                    #"Base Color":["color","col","colore","colour","couleur", "basecolor", "emit", "emission", "albedo"],
+                    #"Emission":["color","col","colore","colour","couleur", "basecolor", "emit", "emission", "albedo"],
+                    "Ambient Occlusion":["ambientocclusion","ambientocclusion","ambient","occlusion","ao","ambocc","ambient_occlusion"],
                     "Displacement":["relief","displacement","displace","displace_map"],
                     "Disp Vect":["dispvect","dispvector","disp_vector","vector_disp","vectordisplacement","displacementvector", "displacement_vector", "vector_displacement"],
                     "Normal":["normal","normalmap","normalmap", "norm", "tangent"],
@@ -406,9 +413,7 @@ class PropertiesHandler(MaterialHolder):
     def detect_multi_socket(self,line):
         splitted = line.name.split(',')
         if len(splitted) > 1 or line.split_rgb:
-            if not (props().advanced_mode and line.split_rgb):
-                props().advanced_mode = True
-                line.split_rgb = True
+            line['split_rgb'] = True
             if len(splitted) != 3 :
                 for i in range(3-len(splitted)):
                     splitted.append("no_socket")
@@ -422,13 +427,15 @@ class PropertiesHandler(MaterialHolder):
                         sock = [sock[0] for sock in self.get_sockets_enum_items()][0]
                     if sock in "bump" :
                         sock = 'Normal'
-                if sock in [sock[0] for sock in self.get_sockets_enum_items()]:
-                    line.channels.socket[i].input_sockets = sock
+                if (sock in [sock[0] for sock in self.get_sockets_enum_items()] and line.auto_mode) or (not line.auto_mode and sock in 'no_socket'):
+                    line.channels.socket[i]['input_sockets'] = [sock[0] for sock in self.get_sockets_enum_items()].index(sock)
             return True
         return False
 
     def default_sockets(self,line):
-        if not line.auto_mode or self.detect_multi_socket(line):
+        if self.detect_multi_socket(line):
+            return
+        if not line.auto_mode :
             return
         sock = self.find_in_sockets(line.name)
         if not sock:
@@ -438,7 +445,7 @@ class PropertiesHandler(MaterialHolder):
             if "bump" in sock:
                 sock = 'Normal'
         if sock in [sock[0] for sock in self.get_sockets_enum_items()]:
-            line.input_sockets = sock
+            line['input_sockets'] = [sock[0] for sock in self.get_sockets_enum_items()].index(sock)
 
     def guess_sockets(self):
         for line in p_lines():
@@ -457,24 +464,23 @@ class PropertiesHandler(MaterialHolder):
         for line in lines():
             args['line_names'].append(line.name)
             args[line.name] = {}
-            args[line.name]['input_sockets'] = line.input_sockets
+            args[line.name]['input_sockets'] = line['input_sockets']
             args[line.name]['line_on'] = f"{line.line_on}"
             args[line.name]['file_name'] = line.file_name
             args[line.name]['manual'] = f"{line.manual}"
             args[line.name]['split_rgb'] = f"{line.split_rgb}"
+            args[line.name]['auto_mode'] = f"{line.auto_mode}"
             args[line.name]['channels'] = {}
+            args[line.name]['channels']['socket'] = {}
             for i in range(3):
-                args[line.name]['channels']["RGB"[i]] = {}
-                try:
-                    args[line.name]['channels']['RGB'[i]]['input_sockets'] = line['channels']['RGB'[i]].input_sockets
-                except KeyError:
-                    # no ['RGB'[i]].name on 284???
-                    # no inputs sockets neither...
-                    print(f"Error during preset {args[line.name]}{args[line.name]['channels']['RGB'[i]]}{args[line.name]['channels']['RGB'[i]].items()}")
-        try:        #{line['channels']['RGB'[i]]}     {getattr(line['channels'],'RGB'[i])} {getattr(line['channels']['RGB'[i]],'input_sockets')}
-            return json.dumps(args)
+                sk = ["R","G","B"][i]
+                args[line.name]['channels']['socket'][sk] = {}
+                args[line.name]['channels']['socket'][sk]['input_sockets'] = line.channels.socket[sk]['input_sockets']
+                args[line.name]['channels']['socket'][sk]['line_name'] = line.channels.socket[sk].line_name
+        try:
+            return json.dumps(args,indent=4)
         except (TypeError, OverflowError) as e:
-            print("An error occurred, Preset File is empty",e)
+            print("An error occurred with the Preset File ",e)
         return json.dumps({'0':''})
 
     def clean_input_sockets(self):
@@ -491,10 +497,8 @@ class PropertiesHandler(MaterialHolder):
         return None
 
     def read_preset(self):
-        print(f'preset is {props().custom_preset_enum}')
         if not props().custom_preset_enum in '0':
             try:
-                print(f"attempting to open {props().custom_preset_enum}")
                 with open(f"{props().custom_preset_enum}", "r", encoding="utf-8") as w:
                     props().stm_all = w.read()
                     self.load_props()

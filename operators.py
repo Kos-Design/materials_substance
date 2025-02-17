@@ -1,22 +1,10 @@
-import bpy
-from bpy import context
 from pathlib import Path
-import json
-from . nodeshandler import NodeHandler
-from bpy.types import (
-    Operator, PropertyGroup, UIList, WindowManager,
-    Scene, Menu,
-)
-from bpy.props import (
-    StringProperty, IntProperty, BoolProperty,
-    PointerProperty, CollectionProperty,
-    FloatProperty, FloatVectorProperty,
-    EnumProperty,
-)
+import bpy
+from bpy.types import Operator
+from bpy.props import StringProperty,BoolProperty
 from . propertieshandler import PropertiesHandler,props,texture_importer,texture_index,lines
-from bpy.utils import (register_class, unregister_class)
-from . import __package__ as package
-import os
+from . nodeshandler import NodeHandler
+from . panels import draw_panel
 
 propper = PropertiesHandler()
 ndh = NodeHandler()
@@ -35,6 +23,7 @@ class SubOperatorPoll():
 
 
 class OperatorPoll():
+
     bl_options = {'REGISTER','UNDO'}
 
     @classmethod
@@ -109,6 +98,25 @@ class NODE_OT_stm_import_textures(OperatorPoll,Operator):
             self.report({'INFO'},("\n").join(ndh.report_content) )
         return {'FINISHED'}
 
+class NODE_OT_stm_move_line(Operator):
+    bl_idname = "node.stm_move_line"
+    bl_label = "Rearrange lines order"
+    bl_description = "Move lines up or down"
+    bl_options = {'INTERNAL', 'UNDO'}
+
+    down : BoolProperty(default=True)
+
+    @classmethod
+    def poll(cls, context):
+        return hasattr(texture_importer(), "textures") and len(lines())
+
+    def execute(self,context):
+        index = texture_index()
+        new_index = (index -1+2*int(self.down))%len(lines())
+        lines().move(index, new_index)
+        texture_importer().texture_index = new_index
+        return {'FINISHED'}
+
 
 class NODE_OT_stm_add_preset(SubOperatorPoll,Operator):
     bl_idname = 'node.stm_add_preset'
@@ -121,7 +129,7 @@ class NODE_OT_stm_add_preset(SubOperatorPoll,Operator):
             self.report({'ERROR'}, "Preset name cannot be empty")
             return {'CANCELLED'}
         p_file = Path(NODE_OT_stm_presets_dialog.preset_directory).joinpath(preset_name)
-        filer = f"{p_file}{'.py' if not 'py' in p_file.suffix else ''}"
+        filer = f"{p_file}{'.py' if 'py' not in p_file.suffix else ''}"
         with open(filer, "w", encoding="utf-8") as w:
             w.write(propper.fill_settings())
             self.report({'INFO'}, f"Added preset: {preset_name}")
@@ -134,7 +142,7 @@ class NODE_OT_stm_presets_dialog(SubOperatorPoll,Operator):
     bl_label = "STM Presets..."
     bl_description = 'Open preset panel'
 
-    preset_directory = Path(bpy.utils.extension_path_user(f'{package}',path="stm_presets", create=True))
+    preset_directory = Path(bpy.utils.extension_path_user(f'{__package__}',path="stm_presets", create=True))
 
     def execute(self, context):
         return {'FINISHED'}
@@ -170,7 +178,7 @@ class NODE_OT_stm_delete_preset(SubOperatorPoll,Operator):
     bl_label = "Delete Custom Preset"
     bl_description = 'Delete preset'
 
-    preset_file: bpy.props.StringProperty()
+    preset_file: StringProperty()
 
     def execute(self, context):
         preset_path = Path(self.preset_file)
@@ -187,7 +195,7 @@ class NODE_OT_stm_execute_preset(SubOperatorPoll,Operator):
     bl_label = "Execute a Python Preset"
     bl_description = 'Select preset'
 
-    preset_file: bpy.props.StringProperty()
+    preset_file: StringProperty()
 
     def execute(self, context):
         if not self.preset_file:
@@ -205,14 +213,14 @@ class NODE_OT_add_preset_popup(SubOperatorPoll,Operator):
     bl_label = "Add Preset..."
     bl_description = "Add a new preset"
 
-    preset_name: bpy.props.StringProperty(name="Preset Name")
+    preset_name: StringProperty(name="Preset Name")
 
     def execute(self, context):
         if not self.preset_name:
             self.report({'ERROR'}, "Preset name cannot be empty")
             return {'CANCELLED'}
         p_file = Path(NODE_OT_stm_presets_dialog.preset_directory).joinpath(self.preset_name)
-        filer = f"{p_file}{'.py' if not 'py' in p_file.suffix else ''}"
+        filer = f"{p_file}{'.py' if 'py' not in p_file.suffix else ''}"
         with open(filer, "w", encoding="utf-8") as w:
             w.write(propper.fill_settings())
         props().custom_preset_enum = filer
@@ -232,17 +240,18 @@ def get_directory(self,context):
     return self.directory
 
 def set_directory(self,value):
+    #only applied when using the import button :(
     self["directory"] = value
     props().usr_dir = self["directory"]
 
 class IMPORT_OT_stm_window(Operator):
     bl_idname = "import.stm_window"
-    bl_label = "Import Substance Textures..."
+    bl_label = "Import Textures"
     bl_description = "Open a substance textures importer panel"
     bl_options = {"REGISTER", "UNDO"}
 
-    directory: bpy.props.StringProperty(subtype="DIR_PATH",set=set_directory)
-    show_options: bpy.props.BoolProperty(name="Options", default=True)
+    directory: StringProperty(subtype="DIR_PATH",set=set_directory)
+    show_options: BoolProperty(name="Options", default=True)
     preset_directory = NODE_OT_stm_presets_dialog.preset_directory
 
     @classmethod
@@ -267,11 +276,9 @@ class IMPORT_OT_stm_window(Operator):
         space = context.space_data
         params = space.params
         current_directory = params.directory
-        #if props().usr_dir != self.directory:
-        #    props().usr_dir = self.directory
-
-        layout.label(text=f"Textures Directory: {Path(current_directory.decode('utf-8')).name}")
-
+        #tempted to do this since I didn't find how to get it from msgbus
+        #if props().usr_dir != current_directory.decode('utf-8'):
+        #    props()['usr_dir'] = current_directory.decode('utf-8')
         layout.label(text="<<--- Select a folder to import textures")
         if self.preset_directory.exists():
             row = layout.row(align=True)
@@ -285,51 +292,14 @@ class IMPORT_OT_stm_window(Operator):
 
         row = layout.row()
         row.prop(props(), "target")
-        row = layout.row()
-        row.template_list(
-            "NODE_UL_stm_list", "Textures",
-            texture_importer(), "textures",
-            texture_importer(), "texture_index",
-            type="GRID",
-            columns=1,
-        )
-        button_col = row.column(align=True)
-        button_col.operator("node.stm_add_item", icon="ADD", text="")
-        button_col.operator("node.stm_remove_item", icon="REMOVE", text="")
-        button_col.separator(factor=3)
-        button_col.separator(factor=3)
-        button_col.separator(factor=3)
-        button_col.operator("node.stm_reset_substance_textures", icon="FILE_REFRESH", text="")
-        if lines() and texture_index() < len(lines()):
-            item = lines()[texture_index()]
-            layout.prop(item, "line_on")
-            sub_layout = layout.column()
-            sub_layout.enabled = item.line_on
-            sub_layout.prop(item, "auto_mode")
-            sub_layout.prop(item, "split_rgb")
-            if item.split_rgb:
-                if item.channels.socket and item.channels.sockets_index < len(item.channels.socket):
-                    sub_layout_1 = sub_layout.column()
-                    sub_layout_1.enabled = not item.auto_mode and item.line_on
-                    for i,sock in enumerate(item.channels.socket):
-                        sub_layout_1.prop(sock, "input_sockets",text=sock.name,icon=f"SEQUENCE_COLOR_0{((i*3)%9+1)}")
-            if props().advanced_mode :
-                sub_sub_layout = sub_layout.column()
-                sub_sub_layout.prop(item, "manual")
-                if item.manual :
-                    sub_sub_sub_layout = sub_sub_layout.column()
-                    sub_sub_sub_layout.prop(item, "file_name")
-            if not item.split_rgb:
-                sub_layout_2 = layout.column()
-                sub_layout_2.enabled = not item.auto_mode and item.line_on
-                sub_layout_2.prop(item, "input_sockets")
+        draw_panel(self,context)
         row = layout.row()
         row.alignment = 'LEFT'
         row.prop(props(), "advanced_mode", text="Manual Mode ", )
         row = layout.row()
-        row.operator("node.stm_assign_nodes")
+        row.operator("node.stm_assign_nodes",text="Assign Images")
         row.separator()
-        row.operator("node.stm_make_nodes")
+        row.operator("node.stm_make_nodes",text="Setup Nodes")
         row = layout.row(align = True)
         row.alignment = 'LEFT'
         row.prop(self, "show_options", icon="TRIA_DOWN" if self.show_options else "TRIA_RIGHT", emboss=False)
@@ -360,4 +330,3 @@ class IMPORT_OT_stm_window(Operator):
 
 def menu_func(self, context):
     self.layout.operator(IMPORT_OT_stm_window.bl_idname, text="Substance Textures...")
-
